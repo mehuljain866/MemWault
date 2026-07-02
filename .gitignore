@@ -1,0 +1,37 @@
+# Python virtual environments
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Node dependencies
+node_modules/
+dist/
+
+# Environment files (contains credentials)
+.env
+.env.local
+.env.*.local
+
+# Databases & local state
+*.db
+*.db-journal
+*.sqlite3
+
+# Local storage & downloaded media files
+techstack/backend/data/
+downloads/
+
+# IDE configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db

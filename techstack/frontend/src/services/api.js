@@ -1,0 +1,182 @@
+/**
+ * MemWault API Service Layer
+ * Centralized fetch wrapper for all backend API calls.
+ */
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+/**
+ * Get the stored JWT token from localStorage.
+ */
+function getToken() {
+  return localStorage.getItem('sv_token');
+}
+
+/**
+ * Store the JWT token in localStorage.
+ */
+export function setToken(token) {
+  localStorage.setItem('sv_token', token);
+}
+
+/**
+ * Remove the stored token (logout).
+ */
+export function clearToken() {
+  localStorage.removeItem('sv_token');
+}
+
+/**
+ * Check if the user is currently authenticated.
+ */
+export function isAuthenticated() {
+  return !!getToken();
+}
+
+/**
+ * Core fetch wrapper with auth headers and error handling.
+ */
+async function apiFetch(endpoint, options = {}) {
+  const token = getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    clearToken();
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Network error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Auth API
+// ═══════════════════════════════════════════════════════════
+
+export async function register(username, password) {
+  return apiFetch('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function login(username, password) {
+  const data = await apiFetch('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  if (data.access_token) {
+    setToken(data.access_token);
+  }
+  return data;
+}
+
+export async function getMe() {
+  return apiFetch('/auth/me');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Instagram Session API
+// ═══════════════════════════════════════════════════════════
+
+export async function connectInstagram(igUsername, igPassword, sessionid = null) {
+  return apiFetch('/instagram/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      ig_username: igUsername,
+      ig_password: igPassword || null,
+      sessionid: sessionid || null,
+    }),
+  });
+}
+
+export async function getInstagramSession() {
+  return apiFetch('/instagram/session');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Stories API
+// ═══════════════════════════════════════════════════════════
+
+export async function getStories(params = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', params.page);
+  if (params.pageSize) searchParams.set('page_size', params.pageSize);
+  if (params.mediaType) searchParams.set('media_type', params.mediaType);
+  if (params.hasMusic !== undefined) searchParams.set('has_music', params.hasMusic);
+  if (params.hasLocation !== undefined) searchParams.set('has_location', params.hasLocation);
+  if (params.dateFrom) searchParams.set('date_from', params.dateFrom);
+  if (params.dateTo) searchParams.set('date_to', params.dateTo);
+
+  const query = searchParams.toString();
+  return apiFetch(`/stories${query ? `?${query}` : ''}`);
+}
+
+export async function getStory(storyId) {
+  return apiFetch(`/stories/${storyId}`);
+}
+
+export async function getStoryViewers(storyId) {
+  return apiFetch(`/stories/${storyId}/viewers`);
+}
+
+export async function getStoryManifest(storyId) {
+  return apiFetch(`/stories/${storyId}/manifest`);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Scraping API
+// ═══════════════════════════════════════════════════════════
+
+export async function triggerScrape(force = false) {
+  return apiFetch('/scrape/now', {
+    method: 'POST',
+    body: JSON.stringify({ force }),
+  });
+}
+
+export async function triggerArchiveImport(maxStories = null) {
+  return apiFetch('/scrape/archive', {
+    method: 'POST',
+    body: JSON.stringify({ max_stories: maxStories }),
+  });
+}
+
+export async function getScrapeLogs(limit = 10) {
+  return apiFetch(`/scrape/logs?limit=${limit}`);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Dashboard API
+// ═══════════════════════════════════════════════════════════
+
+export async function getDashboardStats() {
+  return apiFetch('/dashboard/stats');
+}

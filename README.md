@@ -139,30 +139,16 @@ Once your backend server is running (Step 3), FastAPI automatically generates in
 
 ---
 
-## 🚨 The Instagram Scraping Challenge (Call for Collaboration)
+## 🔐 Authentication Architecture (How it Works)
 
-Connecting an Instagram account to a self-hosted archiver is notoriously difficult due to Meta's aggressive anti-scraping and bot-detection systems. We are currently facing the following roadblocks and are **actively looking for help, advice, or collaboration** from the developer community:
+Connecting an Instagram account to a self-hosted archiver used to be notoriously difficult due to Meta's aggressive anti-scraping and bot-detection systems (blocking residential IP logins, breaking on Facebook-linked accounts, and flagging manual session cookies).
 
-### 1. Mobile API & IP Blacklisting
-When using private API emulation libraries (like `instagrapi`), logins to the mobile API endpoints (`i.instagram.com/api/v1/accounts/login/`) from residential IP addresses are heavily flagged. This triggers immediate blocks requesting the user to "change their IP address" or complete security verifications.
+To solve this, MemWault uses **Browser Automation via Playwright**.
 
-### 2. Facebook-Linked Accounts
-For Instagram accounts linked to Facebook Accounts Center, password login attempts via private APIs frequently fail with:
-> *Instagram login failed: You can log in with your linked Facebook account.*
+### The Flow:
+1. **Real Browser:** When you click "Connect with Instagram," the backend spins up a visible, interactive Chromium browser on your computer.
+2. **Direct Login:** The browser navigates to the official Instagram login page. You log in manually (handling 2FA, Facebook-linked accounts, etc., perfectly).
+3. **Cookie Extraction:** Once logged in, MemWault intercepts the browser session and extracts the complete cookie jar (including `sessionid`, `csrftoken`, `mid`, `ig_did`, and `ds_user_id`) along with the exact `User-Agent`.
+4. **Headless Scraping:** Future API calls to sync your stories use these exact cookies and headers. To Instagram, the scraping requests look 100% identical to the browser tab you just used to log in.
 
-Instagram forces these logins to go through Facebook's secure OAuth flow. Because private API libraries only submit standard password credentials, they cannot complete the OAuth handshake and get stuck.
-
-### 3. Session ID (Cookie) Authentication
-To bypass password login, we've implemented a **Session ID (browser cookie) bypass** that communicates directly with Instagram's Web API using browser headers. While this avoids standard mobile login checks, it is still vulnerable to:
-* Session cookies expiring unexpectedly.
-* Rate limits or security checkpoints triggered during periodic background story syncs.
-* Fingerprint/user-agent mismatch flags when the cookie is transferred from a browser to the server environment.
-
-### 💬 Do you know a better way?
-If you have experience with:
-* Bypassing or handling Instagram's login challenges programmatically.
-* Simulating stable browser environments or managing cookies/user-agents effectively.
-* Implementing official Graph API workarounds for personal archiving.
-* Building residential/mobile proxy rotation configurations for small-scale projects.
-
-Please open an issue, submit a PR, or reach out! We would love to collaborate on making personal memory preservation reliable.
+This provides the most secure, stable, and user-friendly authentication possible for self-hosted instances.

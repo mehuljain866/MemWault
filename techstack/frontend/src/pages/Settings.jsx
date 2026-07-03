@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   getInstagramSession,
-  connectInstagram,
+  browserLoginInstagram,
   getScrapeLogs,
   clearToken,
 } from '../services/api'
@@ -11,7 +11,6 @@ export default function Settings() {
   const navigate = useNavigate()
   const [igSession, setIgSession] = useState(null)
   const [scrapeLogs, setScrapeLogs] = useState([])
-  const [igForm, setIgForm] = useState({ username: '', password: '', sessionid: '' })
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
 
@@ -32,17 +31,24 @@ export default function Settings() {
     }
   }
 
-  async function handleConnectInstagram(e) {
-    e.preventDefault()
+  async function handleBrowserLogin() {
     setError('')
     setConnecting(true)
 
     try {
-      const session = await connectInstagram(igForm.username, igForm.password, igForm.sessionid)
-      setIgSession(session)
-      setIgForm({ username: '', password: '', sessionid: '' })
+      const result = await browserLoginInstagram()
+      if (result.status === 'login_success') {
+        // Reload session to get the full InstagramSessionRead
+        await loadData()
+      } else {
+        setError(result.message || 'Login failed. Please try again.')
+      }
     } catch (err) {
-      setError(err.message)
+      if (err.name === 'AbortError') {
+        setError('Login timed out. Please try again.')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setConnecting(false)
     }
@@ -101,57 +107,61 @@ export default function Settings() {
             </div>
           </div>
         ) : (
-          <form
-            onSubmit={handleConnectInstagram}
-            style={{ marginTop: 'var(--sv-space-5)', maxWidth: 400 }}
-          >
+          <div style={{ marginTop: 'var(--sv-space-5)', maxWidth: 500 }}>
             {error && <div className="sv-login__error">{error}</div>}
 
-            <div className="sv-login__field">
-              <label className="sv-label">Instagram Username</label>
-              <input
-                className="sv-input"
-                type="text"
-                value={igForm.username}
-                onChange={(e) => setIgForm(f => ({ ...f, username: e.target.value }))}
-                placeholder="your_username"
-                required
-              />
-            </div>
-
-            <div className="sv-login__field" style={{ marginTop: 'var(--sv-space-3)' }}>
-              <label className="sv-label">Instagram Password</label>
-              <input
-                className="sv-input"
-                type="password"
-                value={igForm.password}
-                onChange={(e) => setIgForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                required={!igForm.sessionid}
-              />
-            </div>
-
-            <div className="sv-login__field" style={{ marginTop: 'var(--sv-space-3)' }}>
-              <label className="sv-label">OR: Session ID (Cookie)</label>
-              <input
-                className="sv-input"
-                type="text"
-                value={igForm.sessionid}
-                onChange={(e) => setIgForm(f => ({ ...f, sessionid: e.target.value }))}
-                placeholder="sessionid cookie value"
-                title="Bypasses login completely if you are blocked. Find this in your browser cookies for instagram.com"
-              />
-            </div>
-
-            <button
-              className="sv-btn sv-btn--primary"
-              type="submit"
-              disabled={connecting}
-              style={{ marginTop: 'var(--sv-space-4)' }}
-            >
-              {connecting ? '⏳ Connecting...' : '🔗 Connect Account'}
-            </button>
-          </form>
+            {connecting ? (
+              <div style={{ textAlign: 'center', padding: 'var(--sv-space-6) 0' }}>
+                <div style={{
+                  fontSize: 'var(--sv-text-3xl)',
+                  marginBottom: 'var(--sv-space-3)',
+                  animation: 'pulse 2s ease-in-out infinite',
+                }}>
+                  🌐
+                </div>
+                <p style={{
+                  color: 'var(--sv-text-secondary)',
+                  fontSize: 'var(--sv-text-sm)',
+                  marginBottom: 'var(--sv-space-2)',
+                }}>
+                  A browser window has opened on your computer.
+                </p>
+                <p style={{
+                  color: 'var(--sv-text-primary)',
+                  fontWeight: 600,
+                  fontSize: 'var(--sv-text-base)',
+                }}>
+                  Log into your Instagram account in that window.
+                </p>
+                <p style={{
+                  color: 'var(--sv-text-muted)',
+                  fontSize: 'var(--sv-text-xs)',
+                  marginTop: 'var(--sv-space-3)',
+                }}>
+                  Once you're logged in, the window will close automatically and your account will be linked.
+                </p>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 'var(--sv-space-4) 0' }}>
+                <p style={{
+                  color: 'var(--sv-text-secondary)',
+                  fontSize: 'var(--sv-text-sm)',
+                  marginBottom: 'var(--sv-space-4)',
+                  lineHeight: 1.6,
+                }}>
+                  Click below to open a secure browser window where you can log into Instagram directly.
+                  Your credentials are never stored — only session cookies are saved locally.
+                </p>
+                <button
+                  className="sv-btn sv-btn--primary"
+                  onClick={handleBrowserLogin}
+                  style={{ padding: '12px 32px', fontSize: 'var(--sv-text-base)' }}
+                >
+                  🔗 Connect with Instagram
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

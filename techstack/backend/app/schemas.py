@@ -43,6 +43,12 @@ class InstagramLoginRequest(BaseModel):
     sessionid: Optional[str] = None
 
 
+class BrowserLoginResponse(BaseModel):
+    status: str  # "browser_opened", "login_success", "login_failed"
+    ig_username: Optional[str] = None
+    message: Optional[str] = None
+
+
 class InstagramSessionRead(BaseModel):
     id: uuid.UUID
     ig_username: str

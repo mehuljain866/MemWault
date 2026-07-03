@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.schemas import (
     ArchiveImportRequest,
+    BrowserLoginResponse,
     DashboardStats,
     InstagramLoginRequest,
     InstagramSessionRead,
@@ -170,6 +171,88 @@ async def instagram_login(
     await db.flush()
     await db.refresh(ig_session)
     return ig_session
+
+
+@router.post("/instagram/browser-login", response_model=BrowserLoginResponse)
+async def instagram_browser_login(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Launch a real browser window for the user to log into Instagram.
+    Captures all session cookies after successful login.
+    This is the safest method — Instagram cannot distinguish it from a normal login.
+    """
+    import asyncio
+    from app.scraper.browser_login import browser_login
+    from app.scraper.instagram import InstagramScraper
+
+    try:
+        from starlette.concurrency import run_in_threadpool
+        
+        def run_browser_sync():
+            import asyncio
+            import sys
+            
+            # For Windows, we must use the ProactorEventLoop for Playwright subprocesses
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                
+            return asyncio.run(browser_login(timeout_ms=300_000))
+
+        # Run the browser login in a separate thread (blocks until the user logs in or timeout)
+        login_result = await run_in_threadpool(run_browser_sync)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Browser login failed: {e}")
+
+    cookies = login_result["cookies"]
+    ig_username = login_result.get("ig_username", "unknown")
+    user_agent = login_result.get("user_agent", "")
+
+    # Create a scraper instance with the full cookie set
+    scraper = InstagramScraper(
+        username=ig_username,
+        web_cookies=cookies,
+        web_user_agent=user_agent,
+    )
+    session_data = scraper.login()
+
+    # Upsert the session
+    result = await db.execute(
+        select(InstagramSession).where(
+            InstagramSession.user_id == user.id,
+            InstagramSession.ig_username == ig_username,
+        )
+    )
+    ig_session = result.scalar_one_or_none()
+
+    if ig_session:
+        ig_session.session_data = session_data
+        ig_session.ig_user_id = scraper.user_id
+        ig_session.device_settings = scraper.get_device_settings()
+        ig_session.is_valid = True
+        ig_session.last_login = datetime.now(timezone.utc)
+    else:
+        ig_session = InstagramSession(
+            user_id=user.id,
+            ig_username=ig_username,
+            ig_user_id=scraper.user_id,
+            session_data=session_data,
+            device_settings=scraper.get_device_settings(),
+            is_valid=True,
+        )
+        db.add(ig_session)
+
+    await db.flush()
+    await db.refresh(ig_session)
+
+    return BrowserLoginResponse(
+        status="login_success",
+        ig_username=ig_username,
+        message=f"Successfully connected @{ig_username} with full browser cookies",
+    )
 
 
 @router.get("/instagram/session", response_model=InstagramSessionRead | None)

@@ -114,6 +114,22 @@ export async function connectInstagram(igUsername, igPassword, sessionid = null)
   });
 }
 
+export async function browserLoginInstagram() {
+  // This endpoint opens a real browser window on the server.
+  // It takes a while (user needs to log in), so we use a long timeout.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 330000); // 5.5 min timeout
+
+  try {
+    return await apiFetch('/instagram/browser-login', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function getInstagramSession() {
   return apiFetch('/instagram/session');
 }

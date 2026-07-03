@@ -27,22 +27,35 @@ class InstagramScraper:
         username: str = "",
         password: Optional[str] = None,
         sessionid: Optional[str] = None,
+        web_cookies: Optional[dict] = None,
+        web_user_agent: Optional[str] = None,
         session_data: Optional[dict] = None,
         device_settings: Optional[dict] = None,
     ):
-        self._client = None  # Lazy — never created for sessionid path
+        self._client = None  # Lazy — never created for web cookie path
         self.username = username
         self.password = password
         self.sessionid = sessionid
+        self.web_cookies = web_cookies  # Full cookie dict from browser login
+        self.web_user_agent = web_user_agent or (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        )
         self._is_logged_in = False
         self._device_settings = device_settings
 
         # Restore session from saved cookies if available
         if session_data:
-            if "web_sessionid" in session_data:
+            if "web_cookies" in session_data:
+                self.web_cookies = session_data["web_cookies"]
+                self.web_user_agent = session_data.get("web_user_agent", self.web_user_agent)
+                self.sessionid = self.web_cookies.get("sessionid")
+                self._is_logged_in = True
+                logger.info("Restored full web session for %s", username)
+            elif "web_sessionid" in session_data:
                 self.sessionid = session_data["web_sessionid"]
                 self._is_logged_in = True
-                logger.info("Restored web session for %s", username)
+                logger.info("Restored legacy web session for %s", username)
             else:
                 try:
                     self.client.set_settings(session_data)
@@ -73,8 +86,17 @@ class InstagramScraper:
         Log in to Instagram and return session data for caching.
         Returns the full session dict to store in the database.
         """
+        if self.web_cookies:
+            # Full browser cookie login — best method
+            self._is_logged_in = True
+            logger.info("Logged in as %s via full browser cookies", self.username)
+            return {
+                "web_cookies": self.web_cookies,
+                "web_user_agent": self.web_user_agent,
+            }
+
         if self.sessionid:
-            # Bypass instagrapi completely to avoid IP bans and JSONDecodeErrors.
+            # Legacy single-cookie bypass
             self._is_logged_in = True
             logger.info("Logged in as %s via web sessionid", self.username)
             return {"web_sessionid": self.sessionid}
@@ -89,14 +111,16 @@ class InstagramScraper:
 
     def get_session_data(self) -> dict:
         """Export current session cookies and settings for database storage."""
+        if self.web_cookies:
+            return {"web_cookies": self.web_cookies, "web_user_agent": self.web_user_agent}
         if self.sessionid:
             return {"web_sessionid": self.sessionid}
         return self.client.get_settings()
 
     def get_device_settings(self) -> dict:
         """Export device fingerprint settings."""
-        if self.sessionid:
-            return {"user_agent": "web_session", "device_settings": {}}
+        if self.web_cookies or self.sessionid:
+            return {"user_agent": self.web_user_agent, "device_settings": {}}
         settings = self.client.get_settings()
         return {
             "user_agent": settings.get("user_agent", ""),
@@ -105,6 +129,8 @@ class InstagramScraper:
 
     @property
     def user_id(self) -> str:
+        if self.web_cookies:
+            return self.web_cookies.get("ds_user_id", "").split("%3A")[0].split(":")[0]
         if self.sessionid:
             return self.sessionid.split("%3A")[0].split(":")[0]
         return str(self.client.user_id)
@@ -115,14 +141,35 @@ class InstagramScraper:
 
     # ── Story Fetching ───────────────────────────────────
 
+    def _build_web_headers(self) -> dict:
+        """Build request headers that mirror a real browser session."""
+        headers = {
+            "User-Agent": self.web_user_agent,
+            "X-IG-App-ID": "936619743392459",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "https://www.instagram.com/",
+            "Origin": "https://www.instagram.com",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+        # Build cookie string from full cookie dict or fallback to sessionid
+        if self.web_cookies:
+            cookie_str = "; ".join(f"{k}={v}" for k, v in self.web_cookies.items())
+            headers["Cookie"] = cookie_str
+            # Add CSRF token as header (Instagram validates this)
+            if "csrftoken" in self.web_cookies:
+                headers["X-CSRFToken"] = self.web_cookies["csrftoken"]
+        elif self.sessionid:
+            headers["Cookie"] = f"sessionid={self.sessionid}"
+
+        return headers
+
     def _web_fetch_stories(self, user_id: str) -> list[dict]:
         import requests
         url = f"https://www.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-            "X-IG-App-ID": "936619743392459",
-            "Cookie": f"sessionid={self.sessionid}"
-        }
+        headers = self._build_web_headers()
+
         resp = requests.get(url, headers=headers)
         if resp.status_code != 200:
             raise Exception(f"Web API returned {resp.status_code}: {resp.text[:100]}")
@@ -147,7 +194,7 @@ class InstagramScraper:
         Fetch the authenticated user's currently active stories.
         Returns a list of parsed story dicts ready for database insertion.
         """
-        if self.sessionid:
+        if self.web_cookies or self.sessionid:
             return self._web_fetch_stories(self.user_id)
 
         self._ensure_logged_in()

@@ -41,3 +41,6 @@ orjson==3.10.18
 
 # Spotify metadata enrichment
 spotipy==2.25.0
+
+# Browser login (Beeper-style Instagram authentication)
+playwright>=1.40.0

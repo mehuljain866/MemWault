@@ -76,6 +76,9 @@ source venv/bin/activate
 # Install requirements
 pip install -r requirements.txt
 
+# Install browser engine for Instagram login
+playwright install chromium
+
 # Create your environment configuration file
 cp .env.example .env
 ```

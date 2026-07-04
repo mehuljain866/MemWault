@@ -52,7 +52,15 @@ MemWault/
 
 ## 🚀 Quick Start Guide
 
-Follow these steps to set up the local FastAPI server and React frontend on your computer.
+### ⚡ Windows 1-Click Starter (Easiest)
+If you are on Windows, simply double-click the **`start.bat`** file in the root folder! 
+It will automatically setup your Python environment, install all dependencies, download the Playwright browser, and launch both the Backend API and Frontend UI simultaneously in new terminal windows.
+
+---
+
+### 🛠️ Manual Setup
+
+Follow these steps to set up the local FastAPI server and React frontend manually.
 
 ### Prerequisites
 * Python 3.10+

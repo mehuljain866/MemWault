@@ -184,7 +184,9 @@ class InstagramScraper:
             try:
                 stories.append(self._parse_raw_story_dict(item))
             except Exception as e:
-                logger.warning("Failed to parse web story: %s", e)
+                import traceback
+                logger.warning("Failed to parse web story: %s\n%s", e, traceback.format_exc())
+                print("RAW ITEM:", item)
         
         logger.info("Fetched %d active stories for user %s via Web API", len(stories), user_id)
         return stories
@@ -484,7 +486,7 @@ class InstagramScraper:
         parsed = {
             "ig_media_id": item.get("id", ""),
             "ig_media_pk": str(item.get("pk", "")),
-            "ig_user_id": str(item.get("user", {}).get("pk", "")),
+            "ig_user_id": str((item.get("user") or {}).get("pk", "")),
             "taken_at": taken_at,
             "expires_at": None,
             "media_type": media_type,
@@ -516,7 +518,7 @@ class InstagramScraper:
         # ── Reel Mentions ───────────────────────────────
         reel_mentions = item.get("reel_mentions", [])
         for mention in reel_mentions:
-            user = mention.get("user", {})
+            user = mention.get("user") or {}
             parsed["mentions"].append({
                 "username": user.get("username", ""),
                 "ig_user_id": str(user.get("pk", "")),
@@ -528,7 +530,7 @@ class InstagramScraper:
             })
 
         # ── Story Sticker Items ─────────────────────────
-        sticker_items = item.get("story_sticker_items", []) or item.get("creative_config", {}).get("sticker_items", [])
+        sticker_items = (item.get("story_sticker_items") or []) or ((item.get("creative_config") or {}).get("sticker_items") or [])
         for sticker in sticker_items:
             parsed["stickers"].append({
                 "sticker_type": sticker.get("type", "unknown"),
@@ -547,9 +549,9 @@ class InstagramScraper:
             parsed["music"] = music_info
 
         # ── Links ───────────────────────────────────────
-        story_cta = item.get("story_cta", [])
+        story_cta = item.get("story_cta") or []
         for cta in story_cta:
-            links = cta.get("links", [])
+            links = cta.get("links") or []
             for link in links:
                 parsed["links"].append({
                     "url": link.get("webUri", ""),
@@ -559,10 +561,10 @@ class InstagramScraper:
 
         # ── Polls / Quizzes ─────────────────────────────
         # Story polls
-        poll_sticker = item.get("story_polls", [])
+        poll_sticker = item.get("story_polls") or []
         for poll in poll_sticker:
-            poll_data = poll.get("poll_sticker", {})
-            tallies = poll_data.get("tallies", [])
+            poll_data = poll.get("poll_sticker") or {}
+            tallies = poll_data.get("tallies") or []
             parsed["polls"].append({
                 "poll_type": "poll",
                 "question_text": poll_data.get("question", ""),
@@ -578,9 +580,9 @@ class InstagramScraper:
             })
 
         # Story quizzes
-        quiz_sticker = item.get("story_quizs", [])
+        quiz_sticker = item.get("story_quizs") or []
         for quiz in quiz_sticker:
-            quiz_data = quiz.get("quiz_sticker", {})
+            quiz_data = quiz.get("quiz_sticker") or {}
             parsed["polls"].append({
                 "poll_type": "quiz",
                 "question_text": quiz_data.get("question", ""),

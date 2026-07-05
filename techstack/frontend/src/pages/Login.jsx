@@ -6,12 +6,20 @@ export default function Login() {
   const navigate = useNavigate()
   const [isRegister, setIsRegister] = useState(false)
   const [form, setForm] = useState({ username: '', password: '' })
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+
+    if (isRegister && form.password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -59,17 +67,60 @@ export default function Login() {
 
           <div className="sv-login__field">
             <label className="sv-label" htmlFor="password">Password</label>
-            <input
-              id="password"
-              className="sv-input"
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="password"
+                className="sv-input"
+                type={showPassword ? "text" : "password"}
+                value={form.password}
+                onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--sv-text-muted)',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? '👁️‍🗨️' : '👁️'}
+              </button>
+            </div>
           </div>
+
+          {isRegister && (
+            <div className="sv-login__field" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+              <label className="sv-label" htmlFor="confirmPassword">Confirm Password</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="confirmPassword"
+                  className="sv-input"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  style={{ paddingRight: '40px' }}
+                />
+              </div>
+            </div>
+          )}
 
           <button
             className="sv-btn sv-btn--primary sv-btn--lg"

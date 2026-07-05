@@ -5,6 +5,12 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   useEffect(() => {
     loadStats()
@@ -26,9 +32,9 @@ export default function Dashboard() {
     setImporting(true)
     try {
       await triggerArchiveImport()
-      alert('Archive import started! Stories will appear in your timeline as they are processed.')
+      showToast('✨ Archive import started! Stories will appear in your timeline as they are processed.')
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      showToast(`Error: ${err.message}`)
     } finally {
       setImporting(false)
     }
@@ -179,6 +185,26 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          background: 'var(--sv-surface-raised)',
+          border: '1px solid var(--sv-border-light)',
+          padding: 'var(--sv-space-3) var(--sv-space-4)',
+          borderRadius: 'var(--sv-radius-md)',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          color: 'var(--sv-text-primary)',
+          animation: 'fadeIn 0.3s ease-out',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--sv-space-2)'
+        }}>
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

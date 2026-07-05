@@ -566,6 +566,7 @@ from pathlib import Path
 @router.get("/media/{rest_of_path:path}")
 async def serve_local_media(rest_of_path: str):
     """Serve media files locally if storage_type is set to 'local'."""
+    from app.config import get_settings
     settings = get_settings()
     if settings.storage_type != "local":
         raise HTTPException(status_code=403, detail="Local storage is not enabled")

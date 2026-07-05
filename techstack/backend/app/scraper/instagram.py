@@ -184,9 +184,7 @@ class InstagramScraper:
             try:
                 stories.append(self._parse_raw_story_dict(item))
             except Exception as e:
-                import traceback
-                logger.warning("Failed to parse web story: %s\n%s", e, traceback.format_exc())
-                print("RAW ITEM:", item)
+                logger.warning("Failed to parse web story: %s", e)
         
         logger.info("Fetched %d active stories for user %s via Web API", len(stories), user_id)
         return stories
@@ -471,12 +469,12 @@ class InstagramScraper:
         media_type = item.get("media_type", 1)
 
         if media_type == 2:  # Video
-            video_versions = item.get("video_versions", [])
+            video_versions = item.get("video_versions") or []
             if video_versions:
                 cdn_url = video_versions[0].get("url")
         else:  # Photo
-            image_versions = item.get("image_versions2", {})
-            candidates = image_versions.get("candidates", [])
+            image_versions = item.get("image_versions2") or {}
+            candidates = image_versions.get("candidates") or []
             if candidates:
                 cdn_url = candidates[0].get("url")
 
@@ -516,7 +514,7 @@ class InstagramScraper:
             parsed["location_id"] = str(location.get("pk", ""))
 
         # ── Reel Mentions ───────────────────────────────
-        reel_mentions = item.get("reel_mentions", [])
+        reel_mentions = item.get("reel_mentions") or []
         for mention in reel_mentions:
             user = mention.get("user") or {}
             parsed["mentions"].append({
@@ -530,7 +528,8 @@ class InstagramScraper:
             })
 
         # ── Story Sticker Items ─────────────────────────
-        sticker_items = (item.get("story_sticker_items") or []) or ((item.get("creative_config") or {}).get("sticker_items") or [])
+        creative_config = item.get("creative_config") or {}
+        sticker_items = (item.get("story_sticker_items") or []) or (creative_config.get("sticker_items") or [])
         for sticker in sticker_items:
             parsed["stickers"].append({
                 "sticker_type": sticker.get("type", "unknown"),

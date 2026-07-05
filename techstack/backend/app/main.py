@@ -70,6 +70,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
 # ── Routes ───────────────────────────────────────────────
 app.include_router(router, prefix="/api/v1")
 

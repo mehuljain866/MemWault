@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getStory, getStoryViewers } from '../services/api'
+import StoryPlayer from '../components/StoryPlayer'
 
 export default function StoryDetail() {
   const { id } = useParams()
@@ -70,39 +71,9 @@ export default function StoryDetail() {
       </button>
 
       <div className="sv-story-detail">
-        {/* ── Media Preview ─────────────────── */}
-        <div className="sv-story-detail__media-container">
-          {story.media_url ? (
-            isVideo ? (
-              <video
-                className="sv-story-detail__media"
-                src={story.media_url}
-                controls
-                loop
-                autoPlay
-                muted
-              />
-            ) : (
-              <img
-                className="sv-story-detail__media"
-                src={story.media_url}
-                alt={`Story from ${date.toLocaleDateString()}`}
-              />
-            )
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                fontSize: '5rem',
-                opacity: 0.15,
-              }}
-            >
-              {isVideo ? '🎬' : '📷'}
-            </div>
-          )}
+        {/* ── Media Player ──────────────────── */}
+        <div className="sv-story-detail__media-container" style={{ background: 'transparent' }}>
+          <StoryPlayer story={story} />
         </div>
 
         {/* ── Metadata Panel ────────────────── */}

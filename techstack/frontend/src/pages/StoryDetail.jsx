@@ -1,19 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getStory, getStoryViewers, locateStoryMedia } from '../services/api'
+import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, toggleStoryReel, getAdjacentStories } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
+import LocationModal from '../components/LocationModal'
+import MusicPlayer from '../components/MusicPlayer'
 
 export default function StoryDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [story, setStory] = useState(null)
   const [viewers, setViewers] = useState([])
+  const [adjacent, setAdjacent] = useState({ prev_id: null, next_id: null })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('metadata')
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
 
   useEffect(() => {
     loadStory()
   }, [id])
+
+  // Keydown listener for arrow navigation
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'ArrowLeft' && adjacent.prev_id) {
+        navigate(`/story/${adjacent.prev_id}`)
+      } else if (e.key === 'ArrowRight' && adjacent.next_id) {
+        navigate(`/story/${adjacent.next_id}`)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [adjacent, navigate])
 
   async function handleLocate() {
     try {
@@ -29,17 +46,44 @@ export default function StoryDetail() {
       const data = await getStory(id)
       setStory(data)
 
-      // Load viewers in background
-      try {
-        const v = await getStoryViewers(id)
+      // Load viewers and adjacent stories in background
+      Promise.all([
+        getStoryViewers(id).catch(() => []),
+        getAdjacentStories(id).catch(() => ({ prev_id: null, next_id: null }))
+      ]).then(([v, adj]) => {
         setViewers(v)
-      } catch {
-        // Viewers might not be available
-      }
+        setAdjacent(adj)
+      })
+
     } catch (err) {
       console.error('Failed to load story:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSaveLocation(locData) {
+    try {
+      const res = await updateStoryLocation(id, locData);
+      // Update local story state
+      setStory(prev => ({
+        ...prev,
+        location_name: locData.location_name,
+        location_lat: locData.location_lat,
+        location_lng: locData.location_lng,
+      }));
+      setIsLocationModalOpen(false);
+    } catch (err) {
+      alert('Failed to update location: ' + err.message);
+    }
+  }
+
+  async function handleToggleReel() {
+    try {
+      const data = await toggleStoryReel(id);
+      setStory(prev => ({ ...prev, is_reel: data.is_reel }));
+    } catch (err) {
+      alert('Failed to toggle reel status: ' + err.message);
     }
   }
 
@@ -82,8 +126,36 @@ export default function StoryDetail() {
 
       <div className="sv-story-detail">
         {/* ── Media Player ──────────────────── */}
-        <div className="sv-story-detail__media-container" style={{ background: 'transparent' }}>
+        <div 
+          className="sv-story-detail__media-container sv-story-nav-container" 
+          style={{ background: 'transparent' }}
+        >
           <StoryPlayer story={story} />
+          
+          {/* Navigation Arrows */}
+          {adjacent.prev_id && (
+            <button
+              className="sv-story-nav-btn sv-story-nav-btn--prev"
+              onClick={() => navigate(`/story/${adjacent.prev_id}`)}
+              title="Previous Story (Left Arrow)"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
+          
+          {adjacent.next_id && (
+            <button
+              className="sv-story-nav-btn sv-story-nav-btn--next"
+              onClick={() => navigate(`/story/${adjacent.next_id}`)}
+              title="Next Story (Right Arrow)"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* ── Metadata Panel ────────────────── */}
@@ -132,22 +204,52 @@ export default function StoryDetail() {
                 </div>
               </div>
 
-              {story.location_name && (
-                <div className="sv-story-detail__metadata-row">
-                  <span className="sv-story-detail__metadata-icon">📍</span>
-                  <div>
-                    <div className="sv-story-detail__metadata-label">Location</div>
-                    <div className="sv-story-detail__metadata-value">
-                      {story.location_name}
-                      {story.location_lat && story.location_lng && (
-                        <span style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)', marginLeft: 'var(--sv-space-2)' }}>
-                          ({story.location_lat.toFixed(4)}, {story.location_lng.toFixed(4)})
-                        </span>
-                      )}
-                    </div>
+              <div className="sv-story-detail__metadata-row" style={{ alignItems: 'flex-start' }}>
+                <span className="sv-story-detail__metadata-icon">📍</span>
+                <div style={{ flex: 1 }}>
+                  <div className="sv-story-detail__metadata-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    Location
+                    <button 
+                      className="sv-btn sv-btn--ghost" 
+                      style={{ padding: 0, height: 'auto', color: 'var(--sv-primary)' }}
+                      onClick={() => setIsLocationModalOpen(true)}
+                    >
+                      ✎ Edit
+                    </button>
+                  </div>
+                  <div className="sv-story-detail__metadata-value">
+                    {story.location_name ? (
+                      <>
+                        {story.location_name}
+                        {story.location_lat && story.location_lng && (
+                          <div style={{ marginTop: 'var(--sv-space-2)', display: 'flex', gap: 'var(--sv-space-2)' }}>
+                            <a 
+                              href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${story.location_lat},${story.location_lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="sv-btn sv-btn--secondary sv-btn--sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                            >
+                              🚶‍♂️ View Street View
+                            </a>
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(story.location_name)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="sv-btn sv-btn--ghost sv-btn--sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                            >
+                              🗺️ Open in Maps
+                            </a>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ color: 'var(--sv-text-muted)' }}>No location added. <a href="#" onClick={(e) => { e.preventDefault(); setIsLocationModalOpen(true); }}>Add one?</a></span>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
               {story.caption_text && (
                 <div className="sv-story-detail__metadata-row">
@@ -169,7 +271,28 @@ export default function StoryDetail() {
                 </div>
               )}
 
-              {/* Mentions */}
+              {/* Music Quick Link */}
+              {story.music && (
+                <>
+                  <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
+                    Music
+                  </div>
+                  <div 
+                    className="sv-card" 
+                    style={{ padding: 'var(--sv-space-3)', display: 'flex', alignItems: 'center', gap: 'var(--sv-space-3)', cursor: 'pointer' }}
+                    onClick={() => setActiveTab('music')}
+                  >
+                    <div style={{ fontSize: '1.5rem' }}>🎵</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{story.music.track_title}</div>
+                      <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)' }}>{story.music.artist_name}</div>
+                    </div>
+                    <div style={{ color: 'var(--sv-primary)' }}>Play →</div>
+                  </div>
+                </>
+              )}
+
+              {/* Management Info */}
               {story.mentions?.length > 0 && (
                 <>
                   <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
@@ -225,14 +348,18 @@ export default function StoryDetail() {
                 </>
               )}
 
-              {/* File Info */}
               <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>File</span>
-                {story.is_downloaded && (
-                  <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleLocate}>
-                    Show in Explorer
+                <span>Management</span>
+                <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
+                  <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleToggleReel}>
+                    {story.is_reel ? "Move to Memories" : "Move to Reels"}
                   </button>
-                )}
+                  {story.is_downloaded && (
+                    <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleLocate}>
+                      Show in Explorer
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
                 <span className={`sv-badge ${story.is_downloaded ? 'sv-badge--success' : 'sv-badge--warning'}`}>
@@ -332,18 +459,8 @@ export default function StoryDetail() {
                       )}
                     </div>
 
-                    {/* Spotify Link */}
-                    {story.music.spotify_url && (
-                      <a
-                        href={story.music.spotify_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="sv-btn sv-btn--secondary"
-                        style={{ marginTop: 'var(--sv-space-4)' }}
-                      >
-                        🎧 Open in Spotify
-                      </a>
-                    )}
+                    {/* Interactive Music Player */}
+                    <MusicPlayer music={story.music} />
                   </div>
                 </>
               ) : (
@@ -399,9 +516,18 @@ export default function StoryDetail() {
                           👤
                         </div>
                       )}
-                      <div>
-                        <div style={{ fontSize: 'var(--sv-text-sm)', fontWeight: 600 }}>
-                          @{v.username}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 'var(--sv-text-sm)' }}>
+                          <a 
+                            href={`https://instagram.com/${v.username}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                            onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                            onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                          >
+                            {v.username}
+                          </a>
                         </div>
                         {v.full_name && (
                           <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)' }}>
@@ -450,6 +576,17 @@ export default function StoryDetail() {
           )}
         </div>
       </div>
+      
+      <LocationModal 
+        isOpen={isLocationModalOpen} 
+        onClose={() => setIsLocationModalOpen(false)} 
+        onSave={handleSaveLocation}
+        initialLocation={story.location_name ? {
+          name: story.location_name,
+          lat: story.location_lat,
+          lng: story.location_lng
+        } : null}
+      />
     </div>
   )
 }

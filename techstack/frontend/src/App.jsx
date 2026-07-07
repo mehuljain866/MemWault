@@ -8,6 +8,7 @@ import Timeline from './pages/Timeline'
 import StoryDetail from './pages/StoryDetail'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import MapView from './pages/MapView'
 
 /**
  * Protected route wrapper — redirects to /login if not authenticated.
@@ -54,7 +55,15 @@ export default function App() {
         path="/timeline"
         element={
           <ProtectedRoute>
-            <AppShell><Timeline /></AppShell>
+            <AppShell><Timeline key="timeline" isReelView={false} /></AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reels"
+        element={
+          <ProtectedRoute>
+            <AppShell><Timeline key="reels" isReelView={true} /></AppShell>
           </ProtectedRoute>
         }
       />
@@ -63,6 +72,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AppShell><StoryDetail /></AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/map"
+        element={
+          <ProtectedRoute>
+            <AppShell><MapView /></AppShell>
           </ProtectedRoute>
         }
       />

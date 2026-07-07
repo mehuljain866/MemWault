@@ -148,6 +148,7 @@ export async function getStories(params = {}) {
   if (params.hasLocation !== undefined) searchParams.set('has_location', params.hasLocation);
   if (params.dateFrom) searchParams.set('date_from', params.dateFrom);
   if (params.dateTo) searchParams.set('date_to', params.dateTo);
+  if (params.isReel !== undefined) searchParams.set('is_reel', params.isReel);
 
   const query = searchParams.toString();
   return apiFetch(`/stories${query ? `?${query}` : ''}`);
@@ -161,8 +162,28 @@ export async function getStoryViewers(storyId) {
   return apiFetch(`/stories/${storyId}/viewers`);
 }
 
+export async function getAdjacentStories(storyId) {
+  return apiFetch(`/stories/${storyId}/adjacent`);
+}
+
 export async function getStoryManifest(storyId) {
   return apiFetch(`/stories/${storyId}/manifest`);
+}
+
+export async function getAllStoryLocations() {
+  return apiFetch(`/stories/locations/all`);
+}
+
+export async function toggleStoryReel(storyId) {
+  return apiFetch(`/stories/${storyId}/toggle-reel`, {
+    method: 'PUT'
+  });
+}
+
+export async function rescanMetadata() {
+  return apiFetch(`/stories/rescan-metadata`, {
+    method: 'POST'
+  });
 }
 
 
@@ -198,8 +219,17 @@ export async function getDashboardStats() {
 }
 
 export async function locateStoryMedia(storyId) {
-  return apiFetch('/media/locate', {
+  const res = await apiFetch(`/media/locate`, {
     method: 'POST',
-    body: JSON.stringify({ story_id: storyId }),
-  });
+    body: JSON.stringify({ story_id: storyId })
+  })
+  return res
+}
+
+export async function updateStoryLocation(storyId, locationData) {
+  const res = await apiFetch(`/media/${storyId}/location`, {
+    method: 'PUT',
+    body: JSON.stringify(locationData)
+  })
+  return res
 }

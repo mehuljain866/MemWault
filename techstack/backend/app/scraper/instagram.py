@@ -390,6 +390,7 @@ class InstagramScraper:
             "location_lng": None,
             "location_id": None,
             "manifest": {},  # Will be populated from sticker coordinates
+            "is_reel": False,
         }
 
         # ── Location ────────────────────────────────────
@@ -435,6 +436,19 @@ class InstagramScraper:
                 if hasattr(sticker, "location") and sticker.location:
                     sticker_data["sticker_type"] = "location"
                     sticker_data["sticker_data"]["location_name"] = sticker.location.name
+                    
+                # Detect Reshared Reels
+                raw_type = getattr(sticker, "type", "")
+                if raw_type == "story_reels_media" or raw_type == "reels_media":
+                    parsed["is_reel"] = True
+                elif raw_type == "feed_media":
+                    # Check if the feed media is a video (Reel)
+                    if hasattr(sticker, "media"):
+                        media = sticker.media
+                        if isinstance(media, dict) and media.get("media_type") == 2:
+                            parsed["is_reel"] = True
+                        elif hasattr(media, "media_type") and media.media_type == 2:
+                            parsed["is_reel"] = True
 
                 parsed["stickers"].append(sticker_data)
 
@@ -511,6 +525,7 @@ class InstagramScraper:
             "location_lng": None,
             "location_id": None,
             "manifest": {},
+            "is_reel": False,
         }
 
         # ── Location ────────────────────────────────────
@@ -539,8 +554,18 @@ class InstagramScraper:
         creative_config = item.get("creative_config") or {}
         sticker_items = (item.get("story_sticker_items") or []) or (creative_config.get("sticker_items") or [])
         for sticker in sticker_items:
+            sticker_type = sticker.get("type", "unknown")
+            
+            # Detect Reshared Reels
+            if sticker_type in ("story_reels_media", "reels_media"):
+                parsed["is_reel"] = True
+            elif sticker_type == "feed_media":
+                media_info = sticker.get("media", {})
+                if media_info.get("media_type") == 2:
+                    parsed["is_reel"] = True
+                    
             parsed["stickers"].append({
-                "sticker_type": sticker.get("type", "unknown"),
+                "sticker_type": sticker_type,
                 "sticker_data": sticker,
                 "x": sticker.get("x"),
                 "y": sticker.get("y"),

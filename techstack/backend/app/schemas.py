@@ -214,6 +214,19 @@ class StoryListRead(BaseModel):
     page_size: int
     has_next: bool
 
+class StoryLocationRead(BaseModel):
+    """Lightweight story model for map plotting."""
+    id: uuid.UUID
+    ig_media_id: str
+    taken_at: datetime
+    media_type: int
+    location_name: Optional[str] = None
+    location_lat: float
+    location_lng: float
+    media_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
 
 # ═══════════════════════════════════════════════════════════
 # Scrape Operations
@@ -255,3 +268,13 @@ class DashboardStats(BaseModel):
     storage_used_mb: float
     last_scrape: Optional[ScrapeLogRead] = None
     ig_session_valid: bool
+
+
+# ═══════════════════════════════════════════════════════════
+# Adjacent Stories
+# ═══════════════════════════════════════════════════════════
+
+class AdjacentStoriesRead(BaseModel):
+    """Adjacent story IDs for chronological navigation."""
+    prev_id: Optional[uuid.UUID] = None
+    next_id: Optional[uuid.UUID] = None

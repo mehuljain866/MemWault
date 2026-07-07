@@ -2,7 +2,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
-  { path: '/timeline', label: 'Timeline', icon: '🎞️' },
+  { path: '/timeline', label: 'Memories', icon: '🎞️' },
+  { path: '/reels', label: 'Reels', icon: '📱' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 
@@ -61,16 +62,16 @@ export default function Sidebar({ isOpen, onClose }) {
               Soon
             </span>
           </div>
-          <div
-            className="sv-sidebar__link"
-            style={{ cursor: 'default', opacity: 0.5 }}
+          <NavLink
+            to="/map"
+            className={({ isActive }) =>
+              `sv-sidebar__link ${isActive ? 'sv-sidebar__link--active' : ''}`
+            }
+            onClick={onClose}
           >
             <span className="sv-sidebar__link-icon">🗺️</span>
             Map View
-            <span className="sv-badge sv-badge--accent" style={{ marginLeft: 'auto' }}>
-              Soon
-            </span>
-          </div>
+          </NavLink>
         </nav>
 
         {/* ── Footer Status ─────────────────── */}

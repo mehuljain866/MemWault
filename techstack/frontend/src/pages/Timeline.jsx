@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 
-export default function Timeline() {
+export default function Timeline({ isReelView = false }) {
   const [stories, setStories] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -69,6 +69,7 @@ export default function Timeline() {
         mediaType: filters.mediaType,
         dateFrom: filters.dateFrom || undefined,
         dateTo: filters.dateTo || undefined,
+        isReel: isReelView,
       })
       if (pageNum === 1) {
         setStories(data.stories)
@@ -83,11 +84,11 @@ export default function Timeline() {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters, isReelView])
 
   useEffect(() => {
     loadStories(1)
-  }, [loadStories])
+  }, [loadStories, isReelView])
 
   function handleFilterChange(key, value) {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -164,9 +165,11 @@ export default function Timeline() {
       {stories.length === 0 ? (
         <div className="sv-empty">
           <div className="sv-empty__icon">🏛️</div>
-          <div className="sv-empty__title">No Stories Yet</div>
+          <div className="sv-empty__title">{isReelView ? "No Reels Yet" : "No Stories Yet"}</div>
           <div className="sv-empty__description">
-            Connect your Instagram account in Settings and trigger your first sync to start preserving memories.
+            {isReelView 
+              ? "Reels you share to your story will appear here automatically." 
+              : "Connect your Instagram account in Settings and trigger your first sync to start preserving memories."}
           </div>
         </div>
       ) : (

@@ -4,7 +4,9 @@ import {
   browserLoginInstagram,
   getScrapeLogs,
   clearToken,
+  rescanMetadata,
 } from '../services/api'
+import { getSettings, saveSettings } from '../services/settings'
 import { useNavigate } from 'react-router-dom'
 
 export default function Settings() {
@@ -12,7 +14,9 @@ export default function Settings() {
   const [igSession, setIgSession] = useState(null)
   const [scrapeLogs, setScrapeLogs] = useState([])
   const [connecting, setConnecting] = useState(false)
+  const [rescanning, setRescanning] = useState(false)
   const [error, setError] = useState('')
+  const [playbackSettings, setPlaybackSettings] = useState(getSettings())
 
   useEffect(() => {
     loadData()
@@ -59,6 +63,27 @@ export default function Settings() {
       clearToken()
       navigate('/login')
     }
+  }
+
+  async function handleRescan() {
+    if (!confirm('This will rescan all local story metadata to update tags, locations, and reels logic. Continue?')) {
+      return
+    }
+    setRescanning(true)
+    try {
+      const res = await rescanMetadata()
+      alert(`Successfully rescanned! Updated ${res.updated_count} stories.`)
+    } catch (err) {
+      alert('Rescan failed: ' + err.message)
+    } finally {
+      setRescanning(false)
+    }
+  }
+
+  function handleSettingChange(key, value) {
+    const newSettings = { ...playbackSettings, [key]: value };
+    setPlaybackSettings(newSettings);
+    saveSettings(newSettings);
   }
 
   return (
@@ -165,6 +190,64 @@ export default function Settings() {
         )}
       </div>
 
+      {/* ── Playback & Media ────────────────── */}
+      <div className="sv-card">
+        <h2 className="sv-settings__section-title">▶️ Playback & Media</h2>
+        <div style={{ marginTop: 'var(--sv-space-4)', display: 'grid', gap: 'var(--sv-space-5)' }}>
+          
+          {/* Autoplay Delay */}
+          <div>
+            <div className="sv-story-detail__metadata-label">Auto-Play Delay (Video Stories)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-4)', marginTop: 'var(--sv-space-2)' }}>
+              <input 
+                type="range" 
+                min="-1" 
+                max="5" 
+                step="1"
+                value={playbackSettings.autoplayDelay}
+                onChange={(e) => handleSettingChange('autoplayDelay', parseInt(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--sv-primary)' }}
+              />
+              <div style={{ width: '80px', fontWeight: 600 }}>
+                {playbackSettings.autoplayDelay === -1 
+                  ? 'Disabled' 
+                  : playbackSettings.autoplayDelay === 0 
+                    ? 'Instant' 
+                    : `${playbackSettings.autoplayDelay}s`}
+              </div>
+            </div>
+            <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)', marginTop: 'var(--sv-space-1)' }}>
+              Controls how many seconds a video waits before playing when you open a story.
+            </div>
+          </div>
+
+          {/* Preferred Music App */}
+          <div>
+            <div className="sv-story-detail__metadata-label">Preferred Music App</div>
+            <div style={{ display: 'flex', gap: 'var(--sv-space-2)', flexWrap: 'wrap', marginTop: 'var(--sv-space-2)' }}>
+              {[
+                { id: 'spotify', label: 'Spotify', icon: '🟢' },
+                { id: 'apple', label: 'Apple Music', icon: '🍎' },
+                { id: 'youtube', label: 'YouTube Music', icon: '▶️' },
+                { id: 'amazon', label: 'Amazon Music', icon: '📦' }
+              ].map(app => (
+                <button
+                  key={app.id}
+                  className={`sv-btn sv-btn--sm ${playbackSettings.preferredMusicApp === app.id ? 'sv-btn--primary' : 'sv-btn--ghost'}`}
+                  onClick={() => handleSettingChange('preferredMusicApp', app.id)}
+                >
+                  {app.icon} {app.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)', marginTop: 'var(--sv-space-2)' }}>
+              Used to generate "Open in App" links for stories with music.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       {/* ── Scrape History ──────────────────── */}
       <div className="sv-card">
         <h2 className="sv-settings__section-title">📋 Scrape History</h2>
@@ -230,13 +313,21 @@ export default function Settings() {
 
       {/* ── Account ─────────────────────────── */}
       <div className="sv-card">
-        <h2 className="sv-settings__section-title">👤 Account</h2>
-        <div style={{ marginTop: 'var(--sv-space-4)' }}>
+        <h2 className="sv-settings__section-title">👤 Account & Maintenance</h2>
+        <div style={{ marginTop: 'var(--sv-space-4)', display: 'flex', gap: 'var(--sv-space-3)' }}>
           <button
             className="sv-btn sv-btn--secondary"
             onClick={handleLogout}
           >
             🚪 Sign Out
+          </button>
+          
+          <button
+            className="sv-btn sv-btn--ghost"
+            onClick={handleRescan}
+            disabled={rescanning}
+          >
+            {rescanning ? '⏳ Scanning...' : '🔄 Rescan Local Metadata'}
           </button>
         </div>
       </div>

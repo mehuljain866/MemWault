@@ -611,6 +611,21 @@ def update_story_final_stats(self, story_id: int):
             
             # Update DB
             story.viewer_count = final_viewer_count
+            
+            # Delete old viewers and insert new
+            from app.models import StoryViewer
+            db.query(StoryViewer).filter(StoryViewer.story_id == story.id).delete()
+            
+            for v_data in viewers_list:
+                sv = StoryViewer(
+                    story_id=story.id,
+                    ig_user_id=v_data["ig_user_id"],
+                    username=v_data["username"],
+                    full_name=v_data.get("full_name"),
+                    profile_pic_url=v_data.get("profile_pic_url"),
+                )
+                db.add(sv)
+
             db.commit()
         except Exception as e:
             logger.error("Failed to fetch viewers for %s: %s", story.ig_media_id, e)

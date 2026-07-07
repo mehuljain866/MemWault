@@ -36,6 +36,7 @@ from app.schemas import (
     ScrapeLogRead,
     ScrapeRequest,
     StoryListRead,
+    StoryLocationRead,
     StoryRead,
     TokenResponse,
     UserCreate,
@@ -283,6 +284,7 @@ async def list_stories(
     has_location: Optional[bool] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    is_reel: Optional[bool] = False,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -312,6 +314,8 @@ async def list_stories(
         query = query.where(Story.taken_at >= datetime.fromisoformat(date_from))
     if date_to:
         query = query.where(Story.taken_at <= datetime.fromisoformat(date_to))
+    if is_reel is not None:
+        query = query.where(Story.is_reel == is_reel)
 
     # Count total
     count_query = select(func.count()).select_from(
@@ -374,6 +378,38 @@ async def get_story(
     return sr
 
 
+@router.get("/stories/locations/all", response_model=list[StoryLocationRead])
+async def get_all_story_locations(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get all stories with valid GPS coordinates for map plotting.
+    Highly optimized endpoint without heavy relations.
+    """
+    query = (
+        select(Story)
+        .where(
+            Story.user_id == user.id,
+            Story.location_lat.isnot(None),
+            Story.location_lng.isnot(None)
+        )
+        .order_by(Story.taken_at.desc())
+    )
+    result = await db.execute(query)
+    stories = result.scalars().all()
+
+    storage = get_storage()
+    locations = []
+    for story in stories:
+        sr = StoryLocationRead.model_validate(story)
+        if story.s3_key_compressed:
+            sr.media_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
+        locations.append(sr)
+
+    return locations
+
+
 @router.get("/stories/{story_id}/viewers")
 async def get_story_viewers(
     story_id: uuid.UUID,
@@ -411,6 +447,101 @@ async def get_story_manifest(
         raise HTTPException(status_code=404, detail="Story not found")
 
     return story.manifest or {}
+
+
+@router.get("/stories/{story_id}/adjacent", response_model=AdjacentStoriesRead)
+async def get_adjacent_stories(
+    story_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the chronologically previous (older) and next (newer) story IDs."""
+    # First get the current story's taken_at
+    result = await db.execute(
+        select(Story.taken_at).where(Story.id == story_id, Story.user_id == user.id)
+    )
+    taken_at = result.scalar_one_or_none()
+    if not taken_at:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    # Prev story (older) -> max taken_at that is < current taken_at
+    prev_result = await db.execute(
+        select(Story.id)
+        .where(Story.user_id == user.id, Story.taken_at < taken_at)
+        .order_by(Story.taken_at.desc())
+        .limit(1)
+    )
+    prev_id = prev_result.scalar_one_or_none()
+
+    # Next story (newer) -> min taken_at that is > current taken_at
+    next_result = await db.execute(
+        select(Story.id)
+        .where(Story.user_id == user.id, Story.taken_at > taken_at)
+        .order_by(Story.taken_at.asc())
+        .limit(1)
+    )
+    next_id = next_result.scalar_one_or_none()
+
+    return AdjacentStoriesRead(prev_id=prev_id, next_id=next_id)
+
+
+
+@router.put("/stories/{story_id}/toggle-reel")
+async def toggle_story_reel(
+    story_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually toggle a story between Timeline and Reels tab."""
+    result = await db.execute(
+        select(Story).where(Story.id == story_id, Story.user_id == user.id)
+    )
+    story = result.scalar_one_or_none()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    story.is_reel = not story.is_reel
+    await db.commit()
+    return {"status": "success", "is_reel": story.is_reel}
+
+
+@router.post("/stories/rescan-metadata")
+async def rescan_story_metadata(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Rescan all raw_api_response JSON in the DB and update is_reel and stickers.
+    This avoids re-scraping from Instagram.
+    """
+    from app.scraper.instagram import InstagramScraper
+    scraper = InstagramScraper()
+
+    result = await db.execute(select(Story).where(Story.user_id == user.id))
+    stories = result.scalars().all()
+
+    updated_count = 0
+    for story in stories:
+        if story.raw_api_response:
+            try:
+                # Re-parse the raw JSON using our updated scraper logic
+                parsed = scraper._parse_raw_story_dict(story.raw_api_response)
+                
+                # Update specific fields
+                story.is_reel = parsed.get("is_reel", False)
+                story.manifest = parsed.get("manifest", {})
+                
+                # We could theoretically update stickers/mentions here too, 
+                # but they are relationships so it requires deleting and recreating them.
+                # For this feature, just updating `is_reel` and `manifest` is sufficient.
+                
+                updated_count += 1
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to rescan story {story.id}: {e}")
+
+    await db.commit()
+    return {"status": "success", "updated_count": updated_count}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -621,3 +752,57 @@ async def locate_local_media(
         return {"status": "success", "message": "File opened in Finder"}
     else:
         raise HTTPException(status_code=400, detail="Locate feature not supported on this OS")
+
+
+class LocationUpdateRequest(BaseModel):
+    location_name: str
+    location_lat: float
+    location_lng: float
+
+@router.put("/media/{story_id}/location")
+async def update_story_location(
+    story_id: uuid.UUID,
+    body: LocationUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually update the location of a story and sync to EXIF."""
+    from app.config import get_settings
+    from app.scraper.metadata import MetadataWriter
+    
+    result = await db.execute(
+        select(Story).where(Story.id == story_id, Story.user_id == user.id)
+    )
+    story = result.scalar_one_or_none()
+    
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+        
+    # Update DB
+    story.location_name = body.location_name
+    story.location_lat = body.location_lat
+    story.location_lng = body.location_lng
+    
+    await db.commit()
+    await db.refresh(story)
+    
+    # Sync EXIF if file is local
+    settings = get_settings()
+    if settings.storage_type == "local" and story.s3_key_compressed:
+        file_path = Path(settings.storage_local_dir).resolve() / story.s3_key_compressed
+        if file_path.exists():
+            # Create a mock dict resembling what MetadataWriter expects
+            story_data = {
+                "ig_media_id": story.ig_media_id,
+                "media_type": story.media_type,
+                "taken_at": story.taken_at,
+                "caption_text": story.caption_text,
+                "location_name": story.location_name,
+                "location_lat": story.location_lat,
+                "location_lng": story.location_lng,
+                "viewer_count": story.viewer_count,
+            }
+            # Try to run exiftool
+            MetadataWriter.write_metadata(file_path, story_data)
+
+    return {"status": "success", "location_name": story.location_name}

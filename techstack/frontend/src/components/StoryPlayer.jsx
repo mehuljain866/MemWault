@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { getSettings } from '../services/settings'
 import {
   MentionSticker,
   LocationSticker,
@@ -16,11 +17,62 @@ import {
 export default function StoryPlayer({ story }) {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
-  const [isPlaying, setIsPlaying] = useState(true)
+  const timerRef = useRef(null)
+  
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    if (!videoRef.current || !story) return;
+    const settings = getSettings();
+    const delay = settings.autoplayDelay;
+    
+    if (delay === -1) {
+      // Disabled
+      setIsPlaying(false);
+    } else if (delay === 0) {
+      // Instant
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    } else {
+      // Delay
+      timerRef.current = setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        }
+      }, delay * 1000);
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    }
+  }, [story]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setProgress(videoRef.current.currentTime)
+    }
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleScrub = (e) => {
+    const newTime = parseFloat(e.target.value)
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime
+      setProgress(newTime)
+    }
+  }
 
   // Toggle video play/pause on click
   const togglePlay = () => {
     if (!videoRef.current) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+
     if (isPlaying) {
       videoRef.current.pause()
     } else {
@@ -77,10 +129,11 @@ export default function StoryPlayer({ story }) {
             ref={videoRef}
             src={story.media_url}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            autoPlay
             loop
             playsInline
             controls={false}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
           />
         ) : (
           <img
@@ -143,6 +196,42 @@ export default function StoryPlayer({ story }) {
           pointerEvents: 'none',
         }}>
           ▶
+        </div>
+      )}
+
+      {/* ── Scrub Timeline (Video Only) ─────────── */}
+      {isVideo && duration > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: '16px',
+          right: '16px',
+          zIndex: 30,
+        }}>
+          <input 
+            type="range"
+            min="0"
+            max={duration}
+            step="0.01"
+            value={progress}
+            onChange={handleScrub}
+            onPointerDown={() => {
+              if (videoRef.current && isPlaying) videoRef.current.pause();
+            }}
+            onPointerUp={() => {
+              if (videoRef.current && isPlaying) videoRef.current.play();
+            }}
+            style={{ 
+              width: '100%',
+              cursor: 'pointer',
+              accentColor: 'white',
+              height: '4px',
+              outline: 'none',
+              WebkitAppearance: 'none',
+              background: 'rgba(255, 255, 255, 0.3)',
+              borderRadius: '2px',
+            }}
+          />
         </div>
       )}
     </div>

@@ -143,6 +143,7 @@ class Story(Base):
     is_downloaded: Mapped[bool] = mapped_column(Boolean, default=False)
     is_metadata_written: Mapped[bool] = mapped_column(Boolean, default=False)
     is_uploaded_to_s3: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_reel: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="stories")

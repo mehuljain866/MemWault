@@ -831,6 +831,44 @@ ul, ol {
   position: relative;
 }
 
+.sv-story-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  color: #000;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sv-story-nav-btn:hover {
+  background: #fff;
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.sv-story-nav-container:hover .sv-story-nav-btn {
+  opacity: 0.5;
+}
+
+.sv-story-nav-btn--prev {
+  left: 16px;
+}
+
+.sv-story-nav-btn--next {
+  right: 16px;
+}
+
 .sv-story-detail__media {
   width: 100%;
   height: 100%;

@@ -4,7 +4,7 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
-## Day 1: Ideation & Foundation
+## July 2, 2026: Ideation & Foundation
 **Goal:** Break free from Meta's walled garden and build a permanent, local-first archive for Instagram stories.
 * **Concept Finalized:** Decided to build a self-hosted platform (MemWault) that automatically polls, downloads, and archives Instagram stories along with their rich metadata (music, tagged friends, locations).
 * **Tech Stack Selected:** 
@@ -17,7 +17,7 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
-## Day 2: The Core Engine & The Roadblock
+## July 3, 2026: The Core Engine & The Roadblock
 **Goal:** Build out the scraping logic and the frontend user interfaces.
 * **Frontend UI:** Built the Dashboard layout, the Timeline for viewing stories chronologically, and the initial Settings page with a 3-field login form (username/password/session ID).
 * **Scraping Engine:** Wrote the initial `InstagramScraper` module intended to use private API emulation and manual cookie entry.
@@ -29,7 +29,7 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
-## Day 3: The Playwright Revolution (The Breakthrough)
+## July 4, 2026: The Playwright Revolution (The Breakthrough)
 **Goal:** Build a bulletproof, "Beeper-style" authentication flow that just works.
 * **Browser Automation:** completely rewrote the login flow to use **Microsoft Playwright**. Instead of relying on APIs, clicking "Connect" now spins up a real, visible Chromium browser window on the user's local machine.
 * **Direct Login & Extraction:** Users now log in exactly as they would on the official Instagram website (easily bypassing 2FA and Facebook-linked blocks). Once logged in, the backend instantly intercepts the session and extracts the complete "cookie jar" (including `sessionid`, `csrftoken`, `mid`, `ig_did`, and `ds_user_id`) along with the exact browser `User-Agent`.
@@ -41,7 +41,7 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
-## Day 4: Architecture Scaling & Metadata Mastery
+## July 5, 2026: Architecture Scaling & Metadata Mastery
 **Goal:** Expand the data models to support rich media, locations, and permanent metadata preservation.
 * **Database Evolution:** Migrated the SQLite database schema to support crucial new fields: `location_lat`, `location_lng`, `location_name`, `duration_ms`, `has_audio`, and a strict boolean `is_reel` flag.
 * **XMP Injection (The Permanent Backup):** Implemented an aggressive ExifTool backend pipeline. Every downloaded story now has its Instagram metadata (location, timestamp, duration) permanently burned directly into the `.mp4` or `.jpg` file using XMP namespaces. Even if the MemWault database is deleted, the file itself retains all its historical context.
@@ -50,7 +50,7 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
-## Day 5: The Interactive Archive (v1.0 Milestone)
+## July 7, 2026: The Interactive Archive (v1.0 Milestone)
 **Goal:** Transform the raw archive into an interactive, premium media experience and hit the v1.0 milestone.
 * **Interactive Map View:** Integrated `react-leaflet` to build a fullscreen Map View. Built dynamic clustering to handle hundreds of location-tagged stories without lagging the browser. Added bounding-box logic so the chronological timeline strictly filters itself based on where you are zoomed in on the map.
 * **Music Integrations & iTunes API:** Created a custom inline `<audio>` Music Player inside the Story Detail view. Integrated the iTunes Search API to dynamically stream 30-second high-quality previews of the song playing in the background of a story. Built dynamic "Open in App" deep links supporting Spotify, Apple Music, YouTube Music, and Amazon Music.

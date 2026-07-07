@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** Pre-v1.0 (Active Development). We are working towards our first functional build.
+> **Project Status:** v1.0 (Functional Build) 🚀
 
 MemWault is a digital memory preservation platform designed to help you permanently own, archive, and replay your Instagram Stories independently of Instagram.
 
@@ -13,6 +13,17 @@ Over the last decade, Instagram Stories have become the default medium for docum
 2. **Walled Garden Archive:** While Instagram archives your stories internally, your memories are locked inside Meta's ecosystem. If your account is restricted, hacked, or banned, decades of personal history—along with tagged friends, locations, music, and social context—are lost forever.
 
 MemWault was created to solve this. It provides a personal, local-first archiving engine that downloads your stories, parses their rich metadata, and presents them in a beautiful, chronological timeline, combined with a private journaling layer that never alters the original metadata.
+
+---
+
+## ✨ Features
+
+* **Chronological Timeline & Filters:** Browse your stories by date, or filter them by Photos, Videos, or Reels.
+* **Interactive Map View:** See your memories geographically plotted. Features automatic clustering, bounding-box timeline filtering, and a "Top Cities" quick-filter.
+* **Music Integrations:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API. It also dynamically generates "Open in App" links for Spotify, Apple Music, YouTube Music, or Amazon Music.
+* **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys (just like Instagram Web).
+* **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
+* **Customizable Playback:** Fine-tune your experience with adjustable auto-play delays for video stories.
 
 ---
 

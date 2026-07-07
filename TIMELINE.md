@@ -39,4 +39,25 @@ This document tracks the day-by-day evolution of MemWault—from the initial ide
 
 ---
 
+---
+
+## Day 4: Architecture Scaling & Metadata Mastery
+**Goal:** Expand the data models to support rich media, locations, and permanent metadata preservation.
+* **Database Evolution:** Migrated the SQLite database schema to support crucial new fields: `location_lat`, `location_lng`, `location_name`, `duration_ms`, `has_audio`, and a strict boolean `is_reel` flag.
+* **XMP Injection (The Permanent Backup):** Implemented an aggressive ExifTool backend pipeline. Every downloaded story now has its Instagram metadata (location, timestamp, duration) permanently burned directly into the `.mp4` or `.jpg` file using XMP namespaces. Even if the MemWault database is deleted, the file itself retains all its historical context.
+* **Reels Segregation:** Upgraded the scraper logic to successfully identify and isolate "Reels reposted to Stories", segregating them into a dedicated Reels tab on the frontend timeline so they don't clutter the organic memories.
+* **Timeline Overhaul:** Grouped stories visually by Date on the frontend Timeline to make scrolling through hundreds of stories intuitive and nostalgic.
+
+---
+
+## Day 5: The Interactive Archive (v1.0 Milestone)
+**Goal:** Transform the raw archive into an interactive, premium media experience and hit the v1.0 milestone.
+* **Interactive Map View:** Integrated `react-leaflet` to build a fullscreen Map View. Built dynamic clustering to handle hundreds of location-tagged stories without lagging the browser. Added bounding-box logic so the chronological timeline strictly filters itself based on where you are zoomed in on the map.
+* **Music Integrations & iTunes API:** Created a custom inline `<audio>` Music Player inside the Story Detail view. Integrated the iTunes Search API to dynamically stream 30-second high-quality previews of the song playing in the background of a story. Built dynamic "Open in App" deep links supporting Spotify, Apple Music, YouTube Music, and Amazon Music.
+* **Perpetual Viewer Tracking:** Patched the Celery background worker to query Instagram for the story's Viewer List exactly 5 minutes before the story natively expires on Instagram's servers. The viewer list is saved perpetually in the local DB. Upgraded the Viewers UI to directly hotlink Instagram CDN profile pictures and usernames.
+* **Keyboard Navigation:** Implemented Instagram Web-style left/right chronological arrow navigation (both via on-screen SVG chevrons and physical keyboard arrow keys) for seamless rapid-fire viewing.
+* **Launch:** Officially marked the project as a v1.0 Functional Build! 🚀
+
+---
+
 *(This timeline will be continuously updated as new features, bug fixes, and milestones are achieved!)*

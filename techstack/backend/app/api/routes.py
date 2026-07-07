@@ -417,8 +417,11 @@ async def get_story_manifest(
 # Scraping Endpoints
 # ═══════════════════════════════════════════════════════════
 
+from fastapi import BackgroundTasks
+
 @router.post("/scrape/now", response_model=ScrapeLogRead)
 async def trigger_scrape(
+    background_tasks: BackgroundTasks,
     body: ScrapeRequest = ScrapeRequest(),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -430,8 +433,8 @@ async def trigger_scrape(
     db.add(log)
     await db.flush()
 
-    # Dispatch Celery task
-    poll_stories.delay(str(user.id))
+    # Dispatch Celery task in background to avoid blocking the HTTP response
+    background_tasks.add_task(poll_stories.delay, str(user.id))
 
     await db.refresh(log)
     return log
@@ -439,6 +442,7 @@ async def trigger_scrape(
 
 @router.post("/scrape/archive")
 async def trigger_archive_import(
+    background_tasks: BackgroundTasks,
     body: ArchiveImportRequest = ArchiveImportRequest(),
     user: User = Depends(get_current_user),
 ):
@@ -448,8 +452,8 @@ async def trigger_archive_import(
     """
     from app.scraper.tasks import import_archive
 
-    task = import_archive.delay(str(user.id), body.max_stories)
-    return {"task_id": task.id, "status": "started", "max_stories": body.max_stories}
+    background_tasks.add_task(import_archive.delay, str(user.id), body.max_stories)
+    return {"status": "started", "max_stories": body.max_stories}
 
 
 @router.get("/scrape/logs", response_model=list[ScrapeLogRead])
@@ -576,3 +580,44 @@ async def serve_local_media(rest_of_path: str):
         raise HTTPException(status_code=404, detail="File not found")
         
     return FileResponse(file_path)
+
+from pydantic import BaseModel
+class LocateRequest(BaseModel):
+    story_id: uuid.UUID
+
+@router.post("/media/locate")
+async def locate_local_media(
+    body: LocateRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Locate the media file in the native OS File Explorer."""
+    import subprocess
+    import sys
+    from app.config import get_settings
+    
+    result = await db.execute(
+        select(Story).where(Story.id == body.story_id, Story.user_id == user.id)
+    )
+    story = result.scalar_one_or_none()
+    
+    if not story or not story.s3_key_compressed:
+        raise HTTPException(status_code=404, detail="Story media not found")
+        
+    settings = get_settings()
+    if settings.storage_type != "local":
+        raise HTTPException(status_code=400, detail="Locate only works with local storage")
+        
+    file_path = Path(settings.storage_local_dir).resolve() / story.s3_key_compressed
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found on disk: {file_path}")
+        
+    if sys.platform == "win32":
+        subprocess.Popen(f'explorer /select,"{file_path}"')
+        return {"status": "success", "message": "File opened in Windows Explorer"}
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", str(file_path)])
+        return {"status": "success", "message": "File opened in Finder"}
+    else:
+        raise HTTPException(status_code=400, detail="Locate feature not supported on this OS")

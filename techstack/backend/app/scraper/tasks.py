@@ -210,7 +210,7 @@ def poll_stories(self, user_id: Optional[str] = None):
 
                     # Step 4: Save story record to the database
                     new_story = Story(
-                        user_id=user_id or ig_session.user_id,
+                        user_id=(user_uuid if user_id else ig_session.user_id),
                         ig_media_id=str(media_id),
                         ig_media_pk=story_data.get("ig_media_pk", ""),
                         ig_user_id=story_data.get("ig_user_id", ""),
@@ -290,6 +290,21 @@ def poll_stories(self, user_id: Optional[str] = None):
                     new_count += 1
                     logger.info("Processed story: %s -> %s", media_id, s3_key)
 
+                    # Schedule final stats update ~5 minutes before expiration
+                    if new_story.expires_at:
+                        from datetime import timedelta
+                        expires_at_dt = new_story.expires_at
+                        # Handle if expires_at is returned as int timestamp vs datetime
+                        if isinstance(expires_at_dt, (int, float)):
+                            expires_at_dt = datetime.fromtimestamp(expires_at_dt, tz=timezone.utc)
+                            
+                        eta = expires_at_dt - timedelta(minutes=5)
+                        if eta < datetime.now(timezone.utc):
+                            eta = datetime.now(timezone.utc) + timedelta(minutes=1)
+                        
+                        logger.info("Scheduling final stats update for %s at %s", media_id, eta)
+                        update_story_final_stats.apply_async(args=[new_story.id], eta=eta)
+
                 except Exception as e:
                     logger.error("Error processing story %s: %s", media_id, e)
                     db.rollback()
@@ -297,8 +312,9 @@ def poll_stories(self, user_id: Optional[str] = None):
 
         # Update scrape log with results
         if user_id:
+            user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
             scrape_log = db.query(ScrapeLog).filter(
-                ScrapeLog.user_id == user_id,
+                ScrapeLog.user_id == user_uuid,
                 ScrapeLog.status == "running",
             ).order_by(ScrapeLog.started_at.desc()).first()
             if scrape_log:
@@ -329,13 +345,14 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
     from app.scraper.instagram import InstagramScraper
     from app.scraper.metadata import MetadataWriter
     from app.storage.s3 import get_storage
-    from app.database import sync_engine
+    from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
     from app.models import InstagramSession
     import uuid
 
     logger.info("=== Archive Import Started (max: %s) ===", max_stories)
 
+    sync_engine = create_engine(settings.database_url_sync)
     db = Session(sync_engine)
     try:
         user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
@@ -389,6 +406,94 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                     s3_key = f"stories/{date_prefix}/{file_path.name}"
 
                     storage.upload_file(file_path, s3_key)
+                    
+                    # Save story record to the database
+                    existing = db.query(Story).filter(
+                        Story.ig_media_id == str(media_id),
+                    ).first()
+                    
+                    if not existing:
+                        new_story = Story(
+                            user_id=ig_session.user_id,
+                            ig_media_id=str(media_id),
+                            ig_media_pk=story_data.get("ig_media_pk", ""),
+                            ig_user_id=story_data.get("ig_user_id", ""),
+                            taken_at=taken_at,
+                            expires_at=story_data.get("expires_at"),
+                            media_type=story_data.get("media_type", 1),
+                            cdn_url=story_data.get("cdn_url", ""),
+                            s3_key_compressed=s3_key,
+                            file_name=file_path.name,
+                            width=story_data.get("width", 1080),
+                            height=story_data.get("height", 1920),
+                            duration_ms=story_data.get("duration_ms"),
+                            caption_text=story_data.get("caption_text"),
+                            location_name=story_data.get("location_name"),
+                            location_lat=story_data.get("location_lat"),
+                            location_lng=story_data.get("location_lng"),
+                            location_id=story_data.get("location_id"),
+                            is_downloaded=True,
+                            is_metadata_written=True,
+                            is_uploaded_to_s3=True,
+                            viewer_count=story_data.get("viewer_count", 0),
+                        )
+                        db.add(new_story)
+                        db.flush()
+
+                        # Save music metadata if present
+                        if story_data.get("music"):
+                            from app.models import StoryMusic
+                            music = story_data["music"]
+                            story_music = StoryMusic(
+                                story_id=new_story.id,
+                                track_title=music.get("track_title", "Unknown"),
+                                artist_name=music.get("artist_name", "Unknown"),
+                                ig_audio_id=music.get("ig_audio_id"),
+                                ig_audio_asset_id=music.get("ig_audio_asset_id"),
+                                start_time_ms=music.get("start_time_ms"),
+                                play_duration_ms=music.get("play_duration_ms"),
+                                cover_art_url=music.get("cover_art_url"),
+                                x=music.get("x"),
+                                y=music.get("y"),
+                                width=music.get("width"),
+                                height=music.get("height"),
+                                rotation=music.get("rotation"),
+                            )
+                            db.add(story_music)
+
+                        # Save mentions
+                        for mention in story_data.get("mentions", []):
+                            from app.models import StoryMention
+                            story_mention = StoryMention(
+                                story_id=new_story.id,
+                                username=mention.get("username", ""),
+                                ig_user_id=mention.get("ig_user_id"),
+                                x=mention.get("x"),
+                                y=mention.get("y"),
+                                width=mention.get("width"),
+                                height=mention.get("height"),
+                                rotation=mention.get("rotation"),
+                            )
+                            db.add(story_mention)
+
+                        # Save stickers
+                        from app.models import StorySticker
+                        for sticker in story_data.get("stickers", []):
+                            story_sticker = StorySticker(
+                                story_id=new_story.id,
+                                sticker_type=sticker.get("sticker_type", "unknown"),
+                                sticker_data=sticker.get("sticker_data", {}),
+                                x=sticker.get("x"),
+                                y=sticker.get("y"),
+                                width=sticker.get("width"),
+                                height=sticker.get("height"),
+                                rotation=sticker.get("rotation"),
+                                z_index=sticker.get("z_index"),
+                            )
+                            db.add(story_sticker)
+
+                        db.commit()
+
                     processed += 1
 
                     # Update progress
@@ -455,3 +560,105 @@ def enrich_spotify(story_id: str, track_title: str, artist_name: str):
     except Exception as e:
         logger.error("Spotify enrichment failed: %s", e)
         return None
+
+@celery_app.task(bind=True, name="app.scraper.tasks.update_story_final_stats")
+def update_story_final_stats(self, story_id: int):
+    """
+    Called ~5 minutes before a story expires (at the 23h55m mark).
+    Fetches the final viewer count and viewer list, updates the DB, 
+    and rewrites the universal XMP metadata into the media file, 
+    and re-uploads to S3.
+    """
+    from app.scraper.instagram import InstagramScraper
+    from app.scraper.metadata import MetadataWriter
+    from app.storage.s3 import get_storage
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from app.models import InstagramSession, Story
+    import json
+    import os
+
+    logger.info("=== Final Stats Update Started for Story %s ===", story_id)
+    sync_engine = create_engine(settings.database_url_sync)
+    db = Session(sync_engine)
+
+    try:
+        story = db.query(Story).filter(Story.id == story_id).first()
+        if not story:
+            logger.error("Story %s not found in DB", story_id)
+            return
+
+        ig_session = db.query(InstagramSession).filter(
+            InstagramSession.user_id == story.user_id,
+            InstagramSession.is_valid == True,
+        ).first()
+
+        if not ig_session or not ig_session.session_data:
+            logger.error("No valid session for user %s", story.user_id)
+            return
+
+        scraper = InstagramScraper(
+            username=ig_session.ig_username,
+            session_data=ig_session.session_data,
+        )
+        scraper.login()
+
+        # 1. Fetch the exact viewers list directly from the API
+        try:
+            viewers_list = scraper.fetch_story_viewers(story.ig_media_id)
+            final_viewer_count = len(viewers_list)
+            logger.info("Final viewers for %s: %d", story.ig_media_id, final_viewer_count)
+            
+            # Update DB
+            story.viewer_count = final_viewer_count
+            db.commit()
+        except Exception as e:
+            logger.error("Failed to fetch viewers for %s: %s", story.ig_media_id, e)
+            return
+
+        # 2. Update the physical file with new metadata
+        storage = get_storage()
+        s3_key = story.s3_key_compressed
+        if not s3_key:
+            return
+
+        # Reconstruct story_data for metadata writer
+        story_data = {
+            "ig_media_id": story.ig_media_id,
+            "media_type": story.media_type,
+            "taken_at": story.taken_at,
+            "viewer_count": final_viewer_count,
+            "viewers_list": viewers_list,  # Add the viewers list here so it gets embedded!
+            "caption_text": story.caption_text,
+            "location_name": story.location_name,
+            "location_lat": story.location_lat,
+            "location_lng": story.location_lng,
+        }
+
+        # Download from S3 to temp file, update metadata, upload back
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_path = Path(tmp_dir) / (story.file_name or "story.mp4")
+            
+            # Actually downloading from S3 using presigned URL or direct download
+            # For local backend (FastAPI), we use local filesystem storage anyway if s3 is mocked
+            local_storage_path = Path("storage") / s3_key
+            
+            if local_storage_path.exists():
+                # We have the file locally (in local dev mode)
+                import shutil
+                shutil.copy2(local_storage_path, local_path)
+            else:
+                logger.error("File not found at %s", local_storage_path)
+                return
+
+            if MetadataWriter.write_metadata(local_path, story_data):
+                # Replace the original with the updated metadata file
+                shutil.copy2(local_path, local_storage_path)
+                logger.info("Successfully updated final metadata for %s", story.ig_media_id)
+
+    except Exception as e:
+        logger.error("Final stats update failed for %s: %s", story_id, e)
+    finally:
+        db.close()
+        sync_engine.dispose()

@@ -72,6 +72,15 @@ class InstagramScraper:
             self._client = InstaClient()
             if self._device_settings:
                 self._client.set_device(self._device_settings)
+            
+            # If we have a web sessionid, try injecting it so private API calls might work
+            if self.sessionid:
+                try:
+                    self._client.login_by_sessionid(self.sessionid)
+                    logger.info("Injected web sessionid into mobile client")
+                except Exception as e:
+                    logger.warning("Could not inject sessionid into mobile client: %s", e)
+
         return self._client
 
     @property
@@ -238,10 +247,9 @@ class InstagramScraper:
         """
         self._ensure_logged_in()
 
-        # instagrapi doesn't have a direct archive method, but we can use
-        # the private API endpoint directly
         try:
             stories = []
+            
             result = self.client.private_request(
                 "archive/reel/day_shells/",
                 params={"include_cover": "0"},
@@ -540,6 +548,43 @@ class InstagramScraper:
                 "height": sticker.get("height"),
                 "rotation": sticker.get("rotation"),
                 "z_index": sticker.get("z"),
+            })
+
+        # ── Text Stickers (Newer IG Bloks format) ───────
+        story_bloks_stickers = item.get("story_bloks_stickers") or []
+        for blok in story_bloks_stickers:
+            bloks_data = blok.get("bloks_sticker", {}).get("sticker_data", {})
+            
+            # Instagram often embeds the actual string under various keys or json strings
+            # We'll just dump the whole dict if we can't find a direct text field, 
+            # but usually it's under 'ig_story_text_sticker_text' or similar.
+            import json
+            bloks_str = json.dumps(bloks_data)
+            # Find the longest text string heuristic or just save the dict
+            
+            parsed["stickers"].append({
+                "sticker_type": "text",
+                "sticker_data": bloks_data,
+                "x": blok.get("x"),
+                "y": blok.get("y"),
+                "width": blok.get("width"),
+                "height": blok.get("height"),
+                "rotation": blok.get("rotation"),
+                "z_index": blok.get("z"),
+            })
+
+        # ── Legacy Captions (Older IG text format) ──────
+        story_captions = item.get("story_captions") or []
+        for cap in story_captions:
+            parsed["stickers"].append({
+                "sticker_type": "text",
+                "sticker_data": {"text": cap.get("text", "")},
+                "x": cap.get("x"),
+                "y": cap.get("y"),
+                "width": cap.get("width"),
+                "height": cap.get("height"),
+                "rotation": cap.get("rotation"),
+                "z_index": cap.get("z"),
             })
 
         # ── Music ───────────────────────────────────────

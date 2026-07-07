@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 
@@ -13,6 +13,50 @@ export default function Timeline() {
     dateFrom: '',
     dateTo: '',
   })
+
+  const observerRef = useRef(null)
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const header = entry.target.nextElementSibling
+          if (!header || !header.classList.contains('sv-timeline__header')) return
+
+          if (!entry.isIntersecting && entry.boundingClientRect.y <= 64) {
+            header.classList.add('is-stuck')
+          } else {
+            header.classList.remove('is-stuck')
+          }
+        })
+      },
+      { threshold: 1, rootMargin: '-64px 0px 0px 0px' }
+    )
+    
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  const observeSentinel = useCallback((node) => {
+    if (node && observerRef.current) {
+      observerRef.current.observe(node)
+    }
+  }, [])
+
+  const groupedStories = useMemo(() => {
+    return stories.reduce((acc, story) => {
+      // Ensure the datetime string is treated as UTC by appending 'Z' if missing
+      const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
+      const d = new Date(dateStrUtc)
+      const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      if (!acc[dateStr]) acc[dateStr] = []
+      acc[dateStr].push(story)
+      return acc
+    }, {})
+  }, [stories])
 
   const PAGE_SIZE = 24
 
@@ -102,25 +146,8 @@ export default function Timeline() {
             </button>
           </div>
 
-          {/* Date Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', marginLeft: 'auto' }}>
-            <input
-              type="date"
-              className="sv-input"
-              style={{ width: 160 }}
-              value={filters.dateFrom}
-              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-              placeholder="From"
-            />
-            <span style={{ color: 'var(--sv-text-muted)' }}>→</span>
-            <input
-              type="date"
-              className="sv-input"
-              style={{ width: 160 }}
-              value={filters.dateTo}
-              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-              placeholder="To"
-            />
+          <div style={{ marginLeft: 'auto' }}>
+            {/* Date filters removed as per user request */}
           </div>
 
           {/* Total count */}
@@ -144,9 +171,19 @@ export default function Timeline() {
         </div>
       ) : (
         <>
-          <div className="sv-story-grid">
-            {stories.map((story) => (
-              <StoryCard key={story.id} story={story} />
+          <div className="sv-timeline">
+            {Object.entries(groupedStories).map(([dateStr, dateStories]) => (
+              <div key={dateStr} className="sv-timeline__group">
+                <div className="sv-timeline__sentinel" ref={observeSentinel}></div>
+                <div className="sv-timeline__header">
+                  {dateStr}
+                </div>
+                <div className="sv-story-grid">
+                  {dateStories.map((story) => (
+                    <StoryCard key={story.id} story={story} />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
 

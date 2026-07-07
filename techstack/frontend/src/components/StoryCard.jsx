@@ -7,7 +7,10 @@ import { useNavigate } from 'react-router-dom'
 export default function StoryCard({ story }) {
   const navigate = useNavigate()
 
-  const date = new Date(story.taken_at)
+  // Ensure the datetime string is treated as UTC by appending 'Z' if missing
+  const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
+  const date = new Date(dateStrUtc)
+  
   const dateStr = date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

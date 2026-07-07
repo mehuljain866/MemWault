@@ -196,3 +196,10 @@ export async function getScrapeLogs(limit = 10) {
 export async function getDashboardStats() {
   return apiFetch('/dashboard/stats');
 }
+
+export async function locateStoryMedia(storyId) {
+  return apiFetch('/media/locate', {
+    method: 'POST',
+    body: JSON.stringify({ story_id: storyId }),
+  });
+}

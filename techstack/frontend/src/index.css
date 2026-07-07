@@ -1070,3 +1070,42 @@ ul, ol {
     gap: var(--sv-space-2);
   }
 }
+
+/* ── Timeline Group (Sticky Headers) ───────────────────── */
+.sv-timeline__group {
+  margin-bottom: var(--sv-space-8);
+  position: relative;
+}
+
+.sv-timeline__header {
+  position: sticky;
+  top: var(--sv-header-height);
+  z-index: 10;
+  padding: var(--sv-space-3) var(--sv-space-4);
+  font-weight: 700;
+  font-size: var(--sv-text-lg);
+  color: var(--sv-text-primary);
+  background: hsla(240, 20%, 4%, 0.65); /* sv-bg-primary with opacity */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  border-radius: var(--sv-radius-md);
+  transition: all var(--sv-transition-fast);
+  margin-bottom: var(--sv-space-4);
+}
+
+.sv-timeline__header.is-stuck {
+  border-bottom-color: var(--sv-border);
+  background: hsla(240, 20%, 4%, 0.85);
+  box-shadow: var(--sv-shadow-md);
+  border-radius: 0;
+}
+
+.sv-timeline__sentinel {
+  position: absolute;
+  top: calc(var(--sv-header-height) * -1);
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+  visibility: hidden;
+}

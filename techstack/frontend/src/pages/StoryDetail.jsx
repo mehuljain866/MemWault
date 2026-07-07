@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getStory, getStoryViewers } from '../services/api'
+import { getStory, getStoryViewers, locateStoryMedia } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
 
 export default function StoryDetail() {
@@ -14,6 +14,14 @@ export default function StoryDetail() {
   useEffect(() => {
     loadStory()
   }, [id])
+
+  async function handleLocate() {
+    try {
+      await locateStoryMedia(id)
+    } catch (err) {
+      alert('Failed to locate file: ' + err.message)
+    }
+  }
 
   async function loadStory() {
     setLoading(true)
@@ -56,7 +64,9 @@ export default function StoryDetail() {
     )
   }
 
-  const date = new Date(story.taken_at)
+  // Ensure the datetime string is treated as UTC by appending 'Z' if missing
+  const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
+  const date = new Date(dateStrUtc)
   const isVideo = story.media_type === 2
 
   return (
@@ -216,8 +226,13 @@ export default function StoryDetail() {
               )}
 
               {/* File Info */}
-              <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
-                File
+              <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>File</span>
+                {story.is_downloaded && (
+                  <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleLocate}>
+                    Show in Explorer
+                  </button>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
                 <span className={`sv-badge ${story.is_downloaded ? 'sv-badge--success' : 'sv-badge--warning'}`}>

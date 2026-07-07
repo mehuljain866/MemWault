@@ -120,8 +120,7 @@ export default function StoryPlayer({ story }) {
           return null
         })}
 
-        {/* Render music separately if available, since sometimes it lacks coordinate data */}
-        <MusicSticker story={story} />
+        {/* Render music separately if available, since sometimes it lacks coordinate data - REMOVED per user request */}
       </div>
 
       {/* ── UI Controls Overlay (Play/Pause Indicator) ──────────── */}

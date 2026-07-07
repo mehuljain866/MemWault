@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ark-ui/react": "^5.37.2",
     "date-fns": "^4.4.0",
+    "framer-motion": "^12.42.2",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
+    "liquidify-react": "^0.6.25",
+    "lucide-react": "^0.552.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",

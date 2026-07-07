@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration } from 'react-router-dom'
 import { isAuthenticated } from './services/api'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -23,75 +23,54 @@ function ProtectedRoute({ children }) {
 /**
  * App Shell — sidebar + header + routed content area.
  */
-function AppShell({ children }) {
+function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Apply theme class to body/html
+  useEffect(() => {
+    const settings = JSON.parse(localStorage.getItem('memwault_settings') || '{}')
+    document.documentElement.setAttribute('data-theme', settings.theme || 'dark')
+  }, [])
+
   return (
-    <div className="sv-app">
+    <div className="app-container">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="sv-main">
+      <div className="ios-main-content">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <div className="sv-content sv-fade-in">
-          {children}
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <Outlet />
         </div>
       </div>
+      <ScrollRestoration />
     </div>
   )
 }
 
+const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/",
+    element: (
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: "/", element: <Dashboard /> },
+      { path: "/timeline", element: <Timeline key="timeline" isReelView={false} /> },
+      { path: "/reels", element: <Timeline key="reels" isReelView={true} /> },
+      { path: "/highlights", element: <Timeline key="highlights" isReelView={false} /> },
+      { path: "/story/:id", element: <StoryDetail /> },
+      { path: "/map", element: <MapView /> },
+      { path: "/settings", element: <Settings /> },
+      { path: "*", element: <Navigate to="/" replace /> },
+    ]
+  }
+])
+
 export default function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AppShell><Dashboard /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/timeline"
-        element={
-          <ProtectedRoute>
-            <AppShell><Timeline key="timeline" isReelView={false} /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/reels"
-        element={
-          <ProtectedRoute>
-            <AppShell><Timeline key="reels" isReelView={true} /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/story/:id"
-        element={
-          <ProtectedRoute>
-            <AppShell><StoryDetail /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/map"
-        element={
-          <ProtectedRoute>
-            <AppShell><MapView /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <AppShell><Settings /></AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
+  return <RouterProvider router={router} />
 }

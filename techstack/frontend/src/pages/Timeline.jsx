@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
+import FastScrollbar from '../components/FastScrollbar'
+import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut } from 'lucide-react'
 
 export default function Timeline({ isReelView = false }) {
   const [stories, setStories] = useState([])
@@ -8,67 +10,20 @@ export default function Timeline({ isReelView = false }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [hasNext, setHasNext] = useState(false)
-  const [filters, setFilters] = useState({
-    mediaType: null,
-    dateFrom: '',
-    dateTo: '',
-  })
+  const [filters, setFilters] = useState({ mediaType: null })
+  
+  // zoomLevel: 'day' | 'month' | 'year'
+  const [zoomLevel, setZoomLevel] = useState('day')
 
-  const observerRef = useRef(null)
-
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          const header = entry.target.nextElementSibling
-          if (!header || !header.classList.contains('sv-timeline__header')) return
-
-          if (!entry.isIntersecting && entry.boundingClientRect.y <= 64) {
-            header.classList.add('is-stuck')
-          } else {
-            header.classList.remove('is-stuck')
-          }
-        })
-      },
-      { threshold: 1, rootMargin: '-64px 0px 0px 0px' }
-    )
-    
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-      }
-    }
-  }, [])
-
-  const observeSentinel = useCallback((node) => {
-    if (node && observerRef.current) {
-      observerRef.current.observe(node)
-    }
-  }, [])
-
-  const groupedStories = useMemo(() => {
-    return stories.reduce((acc, story) => {
-      // Ensure the datetime string is treated as UTC by appending 'Z' if missing
-      const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
-      const d = new Date(dateStrUtc)
-      const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      if (!acc[dateStr]) acc[dateStr] = []
-      acc[dateStr].push(story)
-      return acc
-    }, {})
-  }, [stories])
-
-  const PAGE_SIZE = 24
+  const PAGE_SIZE = zoomLevel === 'year' ? 100 : zoomLevel === 'month' ? 48 : 24
 
   const loadStories = useCallback(async (pageNum = 1) => {
-    setLoading(true)
+    if (pageNum === 1) setLoading(true)
     try {
       const data = await getStories({
         page: pageNum,
         pageSize: PAGE_SIZE,
         mediaType: filters.mediaType,
-        dateFrom: filters.dateFrom || undefined,
-        dateTo: filters.dateTo || undefined,
         isReel: isReelView,
       })
       if (pageNum === 1) {
@@ -84,125 +39,165 @@ export default function Timeline({ isReelView = false }) {
     } finally {
       setLoading(false)
     }
-  }, [filters, isReelView])
+  }, [filters, isReelView, PAGE_SIZE])
 
   useEffect(() => {
     loadStories(1)
   }, [loadStories, isReelView])
 
-  function handleFilterChange(key, value) {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
+  const groupedStories = useMemo(() => {
+    return stories.reduce((acc, story) => {
+      const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
+      const d = new Date(dateStrUtc)
+      let groupKey = ''
+      
+      if (zoomLevel === 'year') {
+        groupKey = d.getFullYear().toString()
+      } else if (zoomLevel === 'month') {
+        groupKey = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      } else {
+        groupKey = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      }
+      
+      if (!acc[groupKey]) acc[groupKey] = []
+      acc[groupKey].push(story)
+      return acc
+    }, {})
+  }, [stories, zoomLevel])
 
   if (loading && stories.length === 0) {
     return (
-      <div className="sv-empty">
-        <div className="sv-empty__icon">⏳</div>
-        <div className="sv-empty__title">Loading Stories...</div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
+        <RefreshCcw size={32} className="spin-anim" />
+        <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading Memories...</div>
       </div>
     )
   }
 
+  // iOS Segmented Control
+  const SegmentButton = ({ active, onClick, icon: Icon, label }) => (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, padding: '8px', border: 'none', background: active ? 'var(--ios-bg-card)' : 'transparent',
+        borderRadius: '7px', color: active ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+        fontWeight: active ? 600 : 500, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '6px', cursor: 'pointer', transition: 'all var(--ios-spring-fast)',
+        boxShadow: active ? '0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04)' : 'none'
+      }}
+    >
+      <Icon size={16} /> {label}
+    </button>
+  )
+
+  const getGridColumns = () => {
+    if (zoomLevel === 'year') return 'repeat(auto-fill, minmax(60px, 1fr))'
+    if (zoomLevel === 'month') return 'repeat(auto-fill, minmax(120px, 1fr))'
+    return 'repeat(auto-fill, minmax(200px, 1fr))' // day
+  }
+  
+  const getGridGap = () => {
+    if (zoomLevel === 'year') return '2px'
+    if (zoomLevel === 'month') return '4px'
+    return '12px' // day
+  }
+
+  const zoomOut = () => {
+    if (zoomLevel === 'day') setZoomLevel('month')
+    else if (zoomLevel === 'month') setZoomLevel('year')
+  }
+
+  const zoomIn = () => {
+    if (zoomLevel === 'year') setZoomLevel('month')
+    else if (zoomLevel === 'month') setZoomLevel('day')
+  }
+
   return (
-    <div className="sv-fade-in">
-      {/* ── Filters ─────────────────────────── */}
-      <div
-        className="sv-card"
-        style={{
-          marginBottom: 'var(--sv-space-6)',
-          padding: 'var(--sv-space-4) var(--sv-space-5)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--sv-space-4)',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 'var(--sv-text-sm)', fontWeight: 600, color: 'var(--sv-text-secondary)' }}>
-            Filter:
-          </span>
-
-          {/* Media Type Filter */}
-          <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
-            <button
-              className={`sv-btn sv-btn--sm ${!filters.mediaType ? 'sv-btn--primary' : 'sv-btn--ghost'}`}
-              onClick={() => handleFilterChange('mediaType', null)}
-            >
-              All
-            </button>
-            <button
-              className={`sv-btn sv-btn--sm ${filters.mediaType === 1 ? 'sv-btn--primary' : 'sv-btn--ghost'}`}
-              onClick={() => handleFilterChange('mediaType', 1)}
-            >
-              📷 Photos
-            </button>
-            <button
-              className={`sv-btn sv-btn--sm ${filters.mediaType === 2 ? 'sv-btn--primary' : 'sv-btn--ghost'}`}
-              onClick={() => handleFilterChange('mediaType', 2)}
-            >
-              🎬 Videos
-            </button>
+    <div style={{ position: 'relative', height: '100%', paddingBottom: '40px' }}>
+      <FastScrollbar items={stories} getDate={(s) => new Date(s.taken_at)} scrollContainerSelector=".ios-main-content" />
+      {/* ── Header & Filters ─────────────────────────── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '16px', position: 'sticky', top: 0, zIndex: 50, background: 'var(--ios-bg-app)', paddingTop: '16px', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Timeline"}</h2>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', overflow: 'hidden', padding: '2px' }}>
+            <button onClick={zoomOut} disabled={zoomLevel === 'year'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'year' ? 'default' : 'pointer', opacity: zoomLevel === 'year' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomOut size={16}/></button>
+            <div style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--ios-text-primary)', borderLeft: '1px solid var(--ios-border)', borderRight: '1px solid var(--ios-border)' }}>
+              {zoomLevel.charAt(0).toUpperCase() + zoomLevel.slice(1)}s
+            </div>
+            <button onClick={zoomIn} disabled={zoomLevel === 'day'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'day' ? 'default' : 'pointer', opacity: zoomLevel === 'day' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomIn size={16}/></button>
           </div>
-
-          <div style={{ marginLeft: 'auto' }}>
-            {/* Date filters removed as per user request */}
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px' }}>
+            {total} items
           </div>
-
-          {/* Total count */}
-          <span
-            className="sv-badge sv-badge--accent"
-            style={{ marginLeft: 'var(--sv-space-2)' }}
-          >
-            {total} stories
-          </span>
+          <div style={{
+            display: 'flex', background: 'var(--ios-border)', padding: '2px',
+            borderRadius: '9px', width: '280px'
+          }}>
+            <SegmentButton active={!filters.mediaType} onClick={() => setFilters({ mediaType: null })} icon={BoxSelect} label="All" />
+            <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
+            <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters({ mediaType: 2 })} icon={Video} label="Videos" />
+          </div>
         </div>
       </div>
 
       {/* ── Story Grid ──────────────────────── */}
       {stories.length === 0 ? (
-        <div className="sv-empty">
-          <div className="sv-empty__icon">🏛️</div>
-          <div className="sv-empty__title">{isReelView ? "No Reels Yet" : "No Stories Yet"}</div>
-          <div className="sv-empty__description">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px', gap: '16px', color: 'var(--ios-text-secondary)', textAlign: 'center' }}>
+          <ImageIcon size={48} strokeWidth={1} color="var(--ios-border)" />
+          <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>{isReelView ? "No Reels Yet" : "No Stories Yet"}</div>
+          <div style={{ fontSize: '16px', maxWidth: '400px' }}>
             {isReelView 
               ? "Reels you share to your story will appear here automatically." 
-              : "Connect your Instagram account in Settings and trigger your first sync to start preserving memories."}
+              : "Your archive is currently empty. Sync your account to start preserving memories."}
           </div>
         </div>
       ) : (
-        <>
-          <div className="sv-timeline">
-            {Object.entries(groupedStories).map(([dateStr, dateStories]) => (
-              <div key={dateStr} className="sv-timeline__group">
-                <div className="sv-timeline__sentinel" ref={observeSentinel}></div>
-                <div className="sv-timeline__header">
+        <div>
+          {Object.entries(groupedStories).map(([dateStr, dateStories]) => (
+            <div key={dateStr} style={{ position: 'relative', marginBottom: zoomLevel === 'day' ? '40px' : '20px' }}>
+              
+              {/* Apple Photos floating bubble date */}
+              <div style={{ position: 'sticky', top: '70px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '8px 0' }}>
+                <div style={{
+                  background: 'var(--ios-glass)',
+                  backdropFilter: 'blur(25px) saturate(180%)',
+                  border: '1px solid var(--ios-border)',
+                  color: 'var(--ios-text-primary)',
+                  padding: '6px 16px',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
                   {dateStr}
                 </div>
-                <div className="sv-story-grid">
-                  {dateStories.map((story) => (
-                    <StoryCard key={story.id} story={story} />
-                  ))}
-                </div>
               </div>
-            ))}
-          </div>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: getGridColumns(),
+                gap: getGridGap(),
+                marginTop: '8px'
+              }}>
+                {dateStories.map((story) => (
+                  <StoryCard key={story.id} story={story} hideTitle={zoomLevel !== 'day'} zoomLevel={zoomLevel} />
+                ))}
+              </div>
+            </div>
+          ))}
 
           {/* Load More */}
           {hasNext && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--sv-space-8)' }}>
-              <button
-                className="sv-btn sv-btn--secondary sv-btn--lg"
-                onClick={() => loadStories(page + 1)}
-                disabled={loading}
-              >
-                {loading ? '⏳ Loading...' : 'Load More Stories'}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+              <button className="ios-btn ios-btn-secondary" onClick={() => loadStories(page + 1)} disabled={loading}>
+                {loading ? <><RefreshCcw size={16} className="spin-anim" /> Loading...</> : 'Load More Memories'}
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

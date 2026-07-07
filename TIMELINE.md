@@ -1,63 +1,74 @@
-# 📅 MemWault Project Timeline
+# 📅 MemWault Project Timeline (Detailed Historical Archive)
 
-This document tracks the day-by-day evolution of MemWault—from the initial ideation phase to our current architecture. It serves as a historical record of our progress, the challenges we faced, and the technical pivots we made.
-
----
-
-## July 2, 2026: Ideation & Foundation
-**Goal:** Break free from Meta's walled garden and build a permanent, local-first archive for Instagram stories.
-* **Concept Finalized:** Decided to build a self-hosted platform (MemWault) that automatically polls, downloads, and archives Instagram stories along with their rich metadata (music, tagged friends, locations).
-* **Tech Stack Selected:** 
-  * Frontend: React + Vite PWA for a fast, app-like experience.
-  * Styling: Premium glassmorphic dark mode with Vanilla CSS.
-  * Backend: FastAPI (Python) for a highly concurrent REST API.
-  * Database: SQLite for local dev, built on SQLAlchemy ORM.
-  * Infrastructure: Dockerized PostgreSQL, Redis, and MinIO for production.
-* **Initial Setup:** Scaffolded the initial directory structure, basic API routes, database models, and the Vite frontend.
+This document tracks the exhaustive, day-by-day, minute-by-minute evolution of MemWault from its inception, preserving all historical context, feature specs, and architectural decisions.
 
 ---
 
-## July 3, 2026: The Core Engine & The Roadblock
-**Goal:** Build out the scraping logic and the frontend user interfaces.
-* **Frontend UI:** Built the Dashboard layout, the Timeline for viewing stories chronologically, and the initial Settings page with a 3-field login form (username/password/session ID).
-* **Scraping Engine:** Wrote the initial `InstagramScraper` module intended to use private API emulation and manual cookie entry.
-* **The Roadblock (The Scraping Challenge):** We hit a massive wall with Meta's bot detection. 
-  * Simple API logins were instantly blocked or required constant IP/device verifications.
-  * Accounts linked to Facebook could not log in via standard password APIs.
-  * Manual session cookies transferred from the browser to the backend were frequently flagged due to fingerprint and User-Agent mismatches.
-* **Pivot Decision:** Realized that relying on private APIs or manual cookie entry was not scalable or user-friendly for a mass-market audience.
+## 💡 Project Inception & Lost Context (July 2, 2026)
+**Background & Ideation:**
+The project started with a massive ideation phase documented in the `ideas/` folder (later removed to clean the repo). The core concept was to break free from Meta's walled garden and build a permanent, local-first archive for Instagram stories. The original specifications included a comprehensive Whitepaper (`whitepaper_verdict.md`), a feature spec (`V1_FEATURE_SPEC.md`), and Notebook LM feature lists.
+The decision was made to build a self-hosted platform called **MemWault** using a highly concurrent FastAPI backend, a React+Vite PWA frontend, and an aggressive metadata pipeline that burns context (locations, music, tags) directly into files via XMP metadata.
 
 ---
 
-## July 4, 2026: The Playwright Revolution (The Breakthrough)
-**Goal:** Build a bulletproof, "Beeper-style" authentication flow that just works.
-* **Browser Automation:** completely rewrote the login flow to use **Microsoft Playwright**. Instead of relying on APIs, clicking "Connect" now spins up a real, visible Chromium browser window on the user's local machine.
-* **Direct Login & Extraction:** Users now log in exactly as they would on the official Instagram website (easily bypassing 2FA and Facebook-linked blocks). Once logged in, the backend instantly intercepts the session and extracts the complete "cookie jar" (including `sessionid`, `csrftoken`, `mid`, `ig_did`, and `ds_user_id`) along with the exact browser `User-Agent`.
-* **Bulletproof Requests:** Updated the scraper engine to use these exact browser fingerprints for all future background scraping, completely bypassing Instagram's bot detection.
-* **Frontend Overhaul:** Removed the confusing 3-field form in the Settings page and replaced it with a single, elegant "Connect with Instagram" button featuring a pulse loading animation.
-* **Bug Squashing:** Diagnosed and fixed a deep Python `asyncio` conflict (`NotImplementedError`) on Windows by spinning Playwright off into a separate thread pool with a dedicated `ProactorEventLoop`, allowing it to run flawlessly alongside the FastAPI server.
+## July 02, 2026
+* **11:19 PM - System Action / Commit:** Initial commit: MemWault memory preservation engine
+  * *Modified components:* `.gitignore, LICENSE, README.md, ...Branch-\302\267-Digital-Memory-Preservation.md", ideas/V1_FEATURE_SPEC.md, and 41 more files...`
+* **11:22 PM - System Action / Commit:** Remove ideas folder and development timeline
+  * *Modified components:* `...Branch-\302\267-Digital-Memory-Preservation.md", ideas/V1_FEATURE_SPEC.md, ideas/notebook lm featurlist.txt, ideas/whitepaper_verdict.md, timeline.md`
 
 ---
 
----
-
-## July 5, 2026: Architecture Scaling & Metadata Mastery
-**Goal:** Expand the data models to support rich media, locations, and permanent metadata preservation.
-* **Database Evolution:** Migrated the SQLite database schema to support crucial new fields: `location_lat`, `location_lng`, `location_name`, `duration_ms`, `has_audio`, and a strict boolean `is_reel` flag.
-* **XMP Injection (The Permanent Backup):** Implemented an aggressive ExifTool backend pipeline. Every downloaded story now has its Instagram metadata (location, timestamp, duration) permanently burned directly into the `.mp4` or `.jpg` file using XMP namespaces. Even if the MemWault database is deleted, the file itself retains all its historical context.
-* **Reels Segregation:** Upgraded the scraper logic to successfully identify and isolate "Reels reposted to Stories", segregating them into a dedicated Reels tab on the frontend timeline so they don't clutter the organic memories.
-* **Timeline Overhaul:** Grouped stories visually by Date on the frontend Timeline to make scrolling through hundreds of stories intuitive and nostalgic.
-
----
-
-## July 7, 2026: The Interactive Archive (v1.0 Milestone)
-**Goal:** Transform the raw archive into an interactive, premium media experience and hit the v1.0 milestone.
-* **Interactive Map View:** Integrated `react-leaflet` to build a fullscreen Map View. Built dynamic clustering to handle hundreds of location-tagged stories without lagging the browser. Added bounding-box logic so the chronological timeline strictly filters itself based on where you are zoomed in on the map.
-* **Music Integrations & iTunes API:** Created a custom inline `<audio>` Music Player inside the Story Detail view. Integrated the iTunes Search API to dynamically stream 30-second high-quality previews of the song playing in the background of a story. Built dynamic "Open in App" deep links supporting Spotify, Apple Music, YouTube Music, and Amazon Music.
-* **Perpetual Viewer Tracking:** Patched the Celery background worker to query Instagram for the story's Viewer List exactly 5 minutes before the story natively expires on Instagram's servers. The viewer list is saved perpetually in the local DB. Upgraded the Viewers UI to directly hotlink Instagram CDN profile pictures and usernames.
-* **Keyboard Navigation:** Implemented Instagram Web-style left/right chronological arrow navigation (both via on-screen SVG chevrons and physical keyboard arrow keys) for seamless rapid-fire viewing.
-* **Launch:** Officially marked the project as a v1.0 Functional Build! 🚀
+## July 03, 2026
+* **07:22 PM - System Action / Commit:** feat: implement Playwright-based browser login for Instagram
+  * *Modified components:* `README.md, techstack/backend/app/api/routes.py, techstack/backend/app/main.py, techstack/backend/app/schemas.py, techstack/backend/app/scraper/browser_login.py, and 4 more files...`
+* **07:29 PM - System Action / Commit:** docs: update authentication architecture section
+  * *Modified components:* `README.md`
+* **07:32 PM - System Action / Commit:** docs: create project timeline document
+  * *Modified components:* `TIMELINE.md`
 
 ---
 
-*(This timeline will be continuously updated as new features, bug fixes, and milestones are achieved!)*
+## July 04, 2026
+* **11:00 AM - System Action / Commit:** feat: add start.bat for one-click windows setup and launch
+  * *Modified components:* `start.bat`
+* **11:02 AM - System Action / Commit:** docs: add 1-click start.bat instructions to README
+  * *Modified components:* `README.md`
+* **11:09 AM - System Action / Commit:** fix: make instagram web api story parsing null-safe
+  * *Modified components:* `techstack/backend/app/scraper/instagram.py`
+
+---
+
+## July 05, 2026
+* **07:59 PM - System Action / Commit:** Fix scrape bugs, reconstruct IG layout engine, add TextStickers, fix archive auth and video playback
+  * *Modified components:* `techstack/backend/app/api/routes.py, techstack/backend/app/main.py, techstack/backend/app/scraper/instagram.py, techstack/backend/app/scraper/tasks.py, techstack/frontend/src/components/Header.jsx, and 5 more files...`
+
+---
+
+## July 07, 2026
+* **05:52 PM - System Action / Commit:** UI tweaks and improved text sticker detection
+  * *Modified components:* `.gitignore, removed_features.md, techstack/backend/app/api/routes.py, techstack/backend/app/scraper/instagram.py, techstack/backend/app/scraper/metadata.py, and 7 more files...`
+* **10:54 PM - System Action / Commit:** feat: Maps, Music Integrations, Viewers Fix, and Arrow Navigation  - Add Interactive Map View (clusters, geolocation overlay) - Add Music Player preview and external App launching - Add Playback settings (delay and app preference) - Fix Viewers scraping syncing to database correctly - Add chronological left/right arrow navigation to Story Detail - Update UI for Viewers (clickable Instagram profile links)
+  * *Modified components:* `ideas.md, techstack/backend/app/api/routes.py, techstack/backend/app/models.py, techstack/backend/app/schemas.py, techstack/backend/app/scraper/instagram.py, and 530 more files...`
+* **10:59 PM - System Action / Commit:** chore: Update README to v1.0 and document new features
+  * *Modified components:* `README.md`
+* **11:00 PM - System Action / Commit:** docs: update TIMELINE.md for v1.0 milestone
+  * *Modified components:* `TIMELINE.md`
+* **11:03 PM - System Action / Commit:** docs: update TIMELINE.md with actual calendar dates
+  * *Modified components:* `TIMELINE.md`
+
+---
+
+## July 08, 2026
+* Goal:** Address edge cases in UI rendering, fix visual consistency across tabs, and squash media syncing bugs.
+* 01:00 AM - Data Tab Overflow Fix:** Fixed a massive layout bug in the `StoryDetail` Data tab where large JSON payloads caused infinite width scrolling. Applied `minWidth: 0` flex constraints and `pre-wrap` styling to correctly contain the raw manifest data.
+* 01:15 AM - MapView Header Polish:** Redesigned the date headers in the Map Split-Screen view. Replaced the generic headers with floating Apple-style glassmorphic date bubbles to match the aesthetics of the Memories page.
+* 01:30 AM - Fast Scroll Navigation:** Built and integrated a new `FastScrollbar.jsx` component into both the Timeline and Map views, allowing users to rapidly drag through chronological history rather than scrolling manually.
+* 01:45 AM - Media Sync Diagnosis (467 Client Error):** Investigated why the newest uploaded stories were appearing as "Image Error" placeholders. Discovered that the backend Instagram session (cookies) had expired, preventing media downloads. Wrote repair scripts and built a flow to prompt users to reconnect their session when downloads fail.
+* 02:00 AM - Location Modal Fullscreen Fix:** Repaired the "Edit Location" map UI which was failing to maximize properly. Upgraded CSS from static viewport units (`100vh`) to dynamic viewport heights (`100dvh`) and removed `maxWidth` constraints to perfectly emulate the Apple Photos bottom-sheet map experience.
+* 02:15 AM - Manual Reel Toggling:** Encountered edge cases where Instagram's API obfuscates reshared reels in new sticker formats, bypassing the auto-detection. Added a manual "Mark as Reel / Unmark as Reel" toggle directly into the `StoryDetail` Info tab so users can easily filter out accidental reels from their organic memories.
+* 02:30 AM - Environment Restoration:** Automatically re-initialized the Uvicorn backend and Vite frontend environments following a server restart to bring the app back online.
+
+---
+
+*(This timeline is continuously updated with exact, timestamped precision as the project evolves.)*

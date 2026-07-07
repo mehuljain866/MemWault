@@ -1,10 +1,7 @@
 import { useNavigate } from 'react-router-dom'
+import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play } from 'lucide-react'
 
-/**
- * Story card component for the timeline grid.
- * Displays a story thumbnail with overlay metadata on hover.
- */
-export default function StoryCard({ story }) {
+export default function StoryCard({ story, hideTitle, zoomLevel }) {
   const navigate = useNavigate()
 
   // Ensure the datetime string is treated as UTC by appending 'Z' if missing
@@ -25,17 +22,20 @@ export default function StoryCard({ story }) {
 
   return (
     <div
-      className="sv-story-card sv-slide-up"
+      className="ios-story-card"
       onClick={() => navigate(`/story/${story.id}`)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/story/${story.id}`)}
+      style={{
+        borderRadius: zoomLevel === 'year' ? '2px' : zoomLevel === 'month' ? '6px' : 'var(--ios-radius-lg)'
+      }}
     >
       {/* Media Thumbnail */}
       {story.media_url ? (
         isVideo ? (
           <video
-            className="sv-story-card__media"
+            className="ios-story-card__media"
             src={story.media_url}
             muted
             loop
@@ -48,7 +48,7 @@ export default function StoryCard({ story }) {
           />
         ) : (
           <img
-            className="sv-story-card__media"
+            className="ios-story-card__media"
             src={story.media_url}
             alt={`Story from ${dateStr}`}
             loading="lazy"
@@ -56,53 +56,61 @@ export default function StoryCard({ story }) {
         )
       ) : (
         <div
-          className="sv-story-card__media"
+          className="ios-story-card__media"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '3rem',
             opacity: 0.2,
           }}
         >
-          {isVideo ? '🎬' : '📷'}
+          {isVideo ? <Video size={48} /> : <ImageIcon size={48} />}
         </div>
       )}
 
-      {/* Type Badge */}
-      <div className="sv-story-card__type-badge">
-        {isVideo ? '▶ Video' : '📷 Photo'}
-      </div>
+      {/* Type Badge (Top Right) */}
+      {zoomLevel === 'day' && (
+        <div className="ios-glass" style={{
+          position: 'absolute', top: '12px', right: '12px',
+          padding: '6px 8px', borderRadius: '8px',
+          display: 'flex', alignItems: 'center', gap: '4px',
+          fontSize: '11px', fontWeight: 700, color: '#fff',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          {isVideo ? <><Play size={12} fill="currentColor" /> Video</> : <><ImageIcon size={12} /> Photo</>}
+        </div>
+      )}
 
       {/* Hover Overlay */}
-      <div className="sv-story-card__overlay">
-        <div className="sv-story-card__date">
-          {dateStr} · {timeStr}
+      {zoomLevel === 'day' && (
+        <div className="ios-story-card__overlay">
+          <div style={{ color: 'white', fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
+            {timeStr}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', color: 'rgba(255,255,255,0.9)' }}>
+            {story.music && (
+              <div title={`${story.music.track_title} — ${story.music.artist_name}`}>
+                <Music size={16} />
+              </div>
+            )}
+            {story.location_name && (
+              <div title={story.location_name}>
+                <MapPin size={16} />
+              </div>
+            )}
+            {story.mentions?.length > 0 && (
+              <div title={story.mentions.map(m => `@${m.username}`).join(', ')}>
+                <Users size={16} />
+              </div>
+            )}
+            {story.links?.length > 0 && (
+              <div title={story.links.map(l => l.url).join(', ')}>
+                <LinkIcon size={16} />
+              </div>
+            )}
+          </div>
         </div>
-        <div className="sv-story-card__meta">
-          {story.music && (
-            <span className="sv-story-card__meta-icon" title={`${story.music.track_title} — ${story.music.artist_name}`}>
-              🎵
-            </span>
-          )}
-          {story.location_name && (
-            <span className="sv-story-card__meta-icon" title={story.location_name}>
-              📍
-            </span>
-          )}
-          {story.mentions?.length > 0 && (
-            <span className="sv-story-card__meta-icon" title={story.mentions.map(m => `@${m.username}`).join(', ')}>
-              👥
-            </span>
-          )}
-          {story.links?.length > 0 && (
-            <span className="sv-story-card__meta-icon">🔗</span>
-          )}
-          {story.polls?.length > 0 && (
-            <span className="sv-story-card__meta-icon">📊</span>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

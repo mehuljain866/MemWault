@@ -4,43 +4,82 @@ import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getAllStoryLocations } from '../services/api'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
+import { getStories } from '../services/api'
+import { getSettings } from '../services/settings'
+import FastScrollbar from '../components/FastScrollbar'
+import { ChevronUp, ChevronDown, RotateCw, Map as MapIcon } from 'lucide-react'
 
 // Fix default leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
-// A component to extract map bounds and update parent state
+// iOS Style Pin Icon
+const createIosPin = (mediaUrl) => {
+  const html = mediaUrl 
+    ? `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden; background: #333; position: relative;">
+         <img src="${mediaUrl}" style="width: 100%; height: 100%; object-fit: cover;" />
+         <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid white;"></div>
+       </div>`
+    : `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: #333; display: flex; align-items: center; justify-content: center; position: relative;">
+         <span style="font-size: 20px;">📍</span>
+         <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid white;"></div>
+       </div>`
+
+  return L.divIcon({
+    html,
+    className: 'ios-map-pin',
+    iconSize: [40, 46],
+    iconAnchor: [20, 46],
+    popupAnchor: [0, -46]
+  })
+}
+
+// iOS Style Cluster Icon
+const createClusterCustomIcon = function (cluster) {
+  const count = cluster.getChildCount();
+  // Get a representative thumbnail if possible
+  const markers = cluster.getAllChildMarkers();
+  let bgHtml = '';
+  if (markers.length > 0) {
+    // Try to dig out the image URL from our custom popup or data. 
+    // It's a bit hacky to extract it, but let's just make a clean Apple-style bubble.
+  }
+  
+  return L.divIcon({
+    html: `<div style="
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: #000;
+      border: 1px solid rgba(0,0,0,0.1);
+    ">${count}</div>`,
+    className: 'ios-cluster-icon',
+    iconSize: L.point(44, 44, true),
+  });
+}
+
 function MapEvents({ onBoundsChange }) {
   const map = useMapEvents({
-    moveend: () => {
-      onBoundsChange(map.getBounds())
-    },
-    zoomend: () => {
-      onBoundsChange(map.getBounds())
-    }
+    moveend: () => onBoundsChange(map.getBounds()),
+    zoomend: () => onBoundsChange(map.getBounds())
   })
-  
-  // Trigger initial bounds
-  useEffect(() => {
-    onBoundsChange(map.getBounds())
-  }, [map, onBoundsChange])
-
+  useEffect(() => { onBoundsChange(map.getBounds()) }, [map, onBoundsChange])
   return null
 }
 
-// Fixes Leaflet rendering issues when container is resized
 function MapResizer() {
   const map = useMap()
   useEffect(() => {
-    const observer = new ResizeObserver(() => {
-      map.invalidateSize()
-    })
+    const observer = new ResizeObserver(() => map.invalidateSize())
     observer.observe(map.getContainer())
     return () => observer.disconnect()
   }, [map])
@@ -48,24 +87,24 @@ function MapResizer() {
 }
 
 export default function MapView() {
+  const navigate = useNavigate()
   const [locations, setLocations] = useState([])
   const [visibleLocations, setVisibleLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
-  // Layout States
-  const [isVerticalSplit, setIsVerticalSplit] = useState(() => {
-    return localStorage.getItem('sv_map_orientation') === 'vertical'
-  })
-  
-  const [splitRatio, setSplitRatio] = useState(() => {
-    return parseFloat(localStorage.getItem('sv_map_split')) || 50
-  })
+  const settings = getSettings()
+  const isImmersive = settings.mapMode === 'immersive'
 
+  // Split states
+  const [isVerticalSplit, setIsVerticalSplit] = useState(() => localStorage.getItem('sv_map_orientation') === 'vertical')
+  const [splitRatio, setSplitRatio] = useState(() => parseFloat(localStorage.getItem('sv_map_split')) || 50)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef(null)
 
-  // Fetch data
+  // Immersive state
+  const [sheetState, setSheetState] = useState('half') // 'collapsed', 'half', 'full'
+
   useEffect(() => {
     async function fetchLocations() {
       try {
@@ -80,7 +119,6 @@ export default function MapView() {
     fetchLocations()
   }, [])
 
-  // Drag logic
   const handleDragStart = (e) => {
     e.preventDefault()
     setIsDragging(true)
@@ -88,21 +126,15 @@ export default function MapView() {
 
   const handleDrag = useCallback((e) => {
     if (!isDragging || !containerRef.current) return
-
     const containerRect = containerRef.current.getBoundingClientRect()
     let newRatio;
-    
     if (isVerticalSplit) {
-      // Top/Bottom split
       const deltaY = e.clientY - containerRect.top
       newRatio = (deltaY / containerRect.height) * 100
     } else {
-      // Left/Right split
       const deltaX = e.clientX - containerRect.left
       newRatio = (deltaX / containerRect.width) * 100
     }
-    
-    // Clamp between 20% and 80%
     newRatio = Math.max(20, Math.min(80, newRatio))
     setSplitRatio(newRatio)
   }, [isDragging, isVerticalSplit])
@@ -116,9 +148,6 @@ export default function MapView() {
     if (isDragging) {
       window.addEventListener('mousemove', handleDrag)
       window.addEventListener('mouseup', handleDragEnd)
-    } else {
-      window.removeEventListener('mousemove', handleDrag)
-      window.removeEventListener('mouseup', handleDragEnd)
     }
     return () => {
       window.removeEventListener('mousemove', handleDrag)
@@ -126,327 +155,206 @@ export default function MapView() {
     }
   }, [isDragging, handleDrag, handleDragEnd])
 
-  // Toggle orientation
   const toggleOrientation = () => {
     const newOrientation = !isVerticalSplit
     setIsVerticalSplit(newOrientation)
     localStorage.setItem('sv_map_orientation', newOrientation ? 'vertical' : 'horizontal')
   }
 
-  // Handle map bounds change
   const handleBoundsChange = useCallback((bounds) => {
     if (!bounds) return
-    const visible = locations.filter(loc => {
-      return bounds.contains([loc.location_lat, loc.location_lng])
-    })
-    
-    // Sort chronological (descending)
+    const visible = locations.filter(loc => bounds.contains([loc.location_lat, loc.location_lng]))
     visible.sort((a, b) => new Date(b.taken_at) - new Date(a.taken_at))
     setVisibleLocations(visible)
   }, [locations])
 
-  // Compute Top Cities for quick navigation
-  const topCities = useMemo(() => {
-    const counts = {}
-    locations.forEach(loc => {
-      if (loc.location_name) {
-        counts[loc.location_name] = (counts[loc.location_name] || 0) + 1
-      }
-    })
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5) // Top 5
-  }, [locations])
+  // Split Screen Render
+  if (!isImmersive) {
+    return (
+      <div className="sv-card" style={{ padding: 0, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', background: 'var(--sv-bg)' }}>
+        <div ref={containerRef} style={{ 
+            display: 'flex', flexDirection: isVerticalSplit ? 'column' : 'row', flex: 1, overflow: 'hidden', position: 'relative', padding: 'var(--sv-space-3)', gap: '4px'
+        }}>
+          {/* MAP */}
+          <div style={{ flexBasis: `${splitRatio}%`, flexGrow: 0, flexShrink: 0, position: 'relative', zIndex: 1, borderRadius: 'var(--ios-radius-lg)', border: '1px solid var(--ios-border)', overflow: 'hidden', background: 'var(--ios-bg-card)' }}>
+            {loading ? <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div> : (
+              <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%', background: '#1a1a1a' }} worldCopyJump={true}>
+                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles-dark" />
+                <MapEvents onBoundsChange={handleBoundsChange} />
+                <MapResizer />
+                <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
+                  {locations.map(loc => (
+                    <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url)}>
+                      <Popup className="sv-map-popup">
+                        <div style={{ textAlign: 'center' }}>
+                          <strong>{loc.location_name}</strong><br/>
+                          <Link to={`/story/${loc.id}`} style={{ display: 'inline-block', marginTop: '4px' }}>View Story</Link>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MarkerClusterGroup>
+              </MapContainer>
+            )}
+          </div>
+
+          {/* DIVIDER */}
+          <div onMouseDown={handleDragStart} style={{
+            [isVerticalSplit ? 'height' : 'width']: '24px', [isVerticalSplit ? 'width' : 'height']: '100%',
+            cursor: isVerticalSplit ? 'row-resize' : 'col-resize', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 10, flexShrink: 0, margin: isVerticalSplit ? '-10px 0' : '0 -10px', gap: '8px', flexDirection: isVerticalSplit ? 'row' : 'column'
+          }}>
+            <div style={{ width: isVerticalSplit ? '36px' : '5px', height: isVerticalSplit ? '5px' : '36px', background: 'rgba(150,150,150,0.5)', borderRadius: '3px' }} />
+            <button onClick={(e) => { e.stopPropagation(); toggleOrientation(); }} style={{ background: 'var(--ios-glass)', backdropFilter: 'blur(10px)', border: '1px solid var(--ios-border)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--ios-text-primary)' }}>
+              <RotateCw size={16} />
+            </button>
+          </div>
+
+          {/* LIST */}
+          <div id="map-split-scroll" className="ios-glass" style={{ 
+            flex: 1, overflowY: 'auto', background: 'var(--ios-glass)', backdropFilter: 'blur(30px) saturate(200%)', 
+            borderRadius: 'var(--ios-radius-lg)', border: '1px solid rgba(255,255,255,0.1)', padding: '0',
+            display: 'flex', flexDirection: 'column', position: 'relative'
+          }}>
+            <FastScrollbar items={visibleLocations} getDate={(loc) => new Date(loc.taken_at)} scrollContainerSelector="#map-split-scroll" />
+            <div style={{ padding: '20px 20px 12px 20px' }}>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>Places</h3>
+              <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+            </div>
+            
+            <div style={{ flex: 1, padding: '0 20px 20px 20px' }}>
+              {Object.entries(
+                visibleLocations.reduce((acc, loc) => {
+                  const d = format(new Date(loc.taken_at), 'MMMM d, yyyy');
+                  if (!acc[d]) acc[d] = [];
+                  acc[d].push(loc);
+                  return acc;
+                }, {})
+              ).map(([dateStr, locs]) => (
+                <div key={dateStr} style={{ position: 'relative', marginBottom: '24px' }}>
+                  {/* Floating Date Bubble */}
+                  <div style={{ position: 'sticky', top: '10px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '8px 0', marginBottom: '8px' }}>
+                    <div style={{
+                      background: 'var(--ios-glass)', backdropFilter: 'blur(25px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.1)', color: 'var(--ios-text-primary)',
+                      padding: '6px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}>
+                      {dateStr}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
+                    {locs.map(loc => (
+                      <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
+                        <img 
+                          src={loc.media_url} 
+                          onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Immersive Render (Apple Photos Style)
+  const getSheetHeight = () => {
+    switch (sheetState) {
+      case 'full': return 'calc(100vh - 40px)';
+      case 'half': return '40vh';
+      case 'collapsed': return '120px';
+      default: return '40vh';
+    }
+  }
 
   return (
-    <div className="sv-card" style={{ padding: 0, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', background: 'var(--sv-bg)' }}>
-      
-      {/* Header overlay or simple row for Top Locations */}
-      {topCities.length > 0 && (
-        <div style={{ padding: 'var(--sv-space-3) var(--sv-space-4)', display: 'flex', gap: 'var(--sv-space-2)', overflowX: 'auto', background: 'var(--sv-surface)', zIndex: 10 }}>
-          <span style={{ color: 'var(--sv-text-muted)', fontSize: 'var(--sv-text-sm)', alignSelf: 'center', marginRight: 'var(--sv-space-2)' }}>
-            Top Locations:
-          </span>
-          {topCities.map(([city, count]) => (
-            <div key={city} className="sv-badge" style={{ cursor: 'default' }}>
-              📍 {city} ({count})
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 1000, background: '#000' }}>
+      {/* Back Button */}
+      <div style={{ position: 'absolute', top: '40px', left: '20px', zIndex: 1010 }}>
+        <button className="ios-glass" onClick={() => navigate('/timeline')} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <ChevronDown size={24} color="#000" style={{ transform: 'rotate(90deg)' }} />
+        </button>
+      </div>
+
+      <MapContainer center={[20, 0]} zoom={3} style={{ height: '100%', width: '100%' }} worldCopyJump={true} zoomControl={false}>
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles-dark" />
+        <MapEvents onBoundsChange={handleBoundsChange} />
+        <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
+          {locations.map(loc => (
+            <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url)}>
+              <Popup><strong>{loc.location_name}</strong><br/><Link to={`/story/${loc.id}`}>View</Link></Popup>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
+      </MapContainer>
+
+      {/* Floating Bottom Sheet */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, width: '100%', height: getSheetHeight(),
+        background: 'var(--ios-glass)', backdropFilter: 'blur(30px) saturate(200%)',
+        borderTopLeftRadius: '24px', borderTopRightRadius: '24px', borderTop: '1px solid rgba(255,255,255,0.1)',
+        boxShadow: '0 -10px 40px rgba(0,0,0,0.2)', transition: 'height 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
+        display: 'flex', flexDirection: 'column', zIndex: 1020
+      }}>
+        {/* Drag Handle Area */}
+        <div 
+          onClick={() => {
+            if (sheetState === 'collapsed') setSheetState('half')
+            else if (sheetState === 'half') setSheetState('full')
+            else setSheetState('half')
+          }}
+          style={{ width: '100%', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <div style={{ width: '36px', height: '5px', background: 'rgba(150,150,150,0.5)', borderRadius: '3px' }} />
+        </div>
+        
+        <div style={{ padding: '0 20px 12px 20px' }}>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Places</h2>
+          <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+        </div>
+
+        <div id="map-sheet-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 20px 40px 20px', position: 'relative' }}>
+          <FastScrollbar items={visibleLocations} getDate={(loc) => new Date(loc.taken_at)} scrollContainerSelector="#map-sheet-scroll" />
+          {Object.entries(
+            visibleLocations.reduce((acc, loc) => {
+              const d = format(new Date(loc.taken_at), 'MMMM d, yyyy');
+              if (!acc[d]) acc[d] = [];
+              acc[d].push(loc);
+              return acc;
+            }, {})
+          ).map(([dateStr, locs]) => (
+            <div key={dateStr} style={{ position: 'relative', marginBottom: '24px' }}>
+              {/* Floating Date Bubble */}
+              <div style={{ position: 'sticky', top: '10px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '8px 0', marginBottom: '8px' }}>
+                <div style={{
+                  background: 'var(--ios-glass)', backdropFilter: 'blur(25px) saturate(180%)',
+                  border: '1px solid rgba(255,255,255,0.1)', color: 'var(--ios-text-primary)',
+                  padding: '6px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}>
+                  {dateStr}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
+                {locs.map(loc => (
+                  <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
+                    <img 
+                      src={loc.media_url} 
+                      onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
-      )}
-
-      {/* Split Container */}
-      <div 
-        ref={containerRef}
-        style={{ 
-          display: 'flex', 
-          flexDirection: isVerticalSplit ? 'column' : 'row',
-          flex: 1,
-          overflow: 'hidden',
-          position: 'relative',
-          padding: 'var(--sv-space-3)',
-          gap: '4px'
-        }}
-      >
-        {/* MAP SECTION */}
-        <div style={{ 
-          flexBasis: `${splitRatio}%`, 
-          flexGrow: 0,
-          flexShrink: 0,
-          position: 'relative',
-          zIndex: 1,
-          borderRadius: 'var(--sv-radius-lg)',
-          border: '1px solid var(--sv-border-light)',
-          overflow: 'hidden',
-          background: 'var(--sv-surface)'
-        }}>
-          {loading ? (
-            <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-              <div className="sv-loading-spinner" />
-            </div>
-          ) : error ? (
-            <div style={{ padding: 'var(--sv-space-4)', color: 'var(--sv-danger)' }}>{error}</div>
-          ) : (
-            <MapContainer 
-              center={[20, 0]} 
-              zoom={2} 
-              style={{ height: '100%', width: '100%', background: '#1a1a1a' }}
-              worldCopyJump={true}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                className="map-tiles-dark"
-              />
-              <MapEvents onBoundsChange={handleBoundsChange} />
-              <MapResizer />
-              
-              <MarkerClusterGroup
-                chunkedLoading
-                maxClusterRadius={50}
-                showCoverageOnHover={false}
-              >
-                {locations.map(loc => (
-                  <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]}>
-                    <Popup className="sv-map-popup">
-                      <div style={{ textAlign: 'center' }}>
-                        {loc.media_url ? (
-                          <img 
-                            src={loc.media_url} 
-                            alt={loc.location_name} 
-                            style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px', marginBottom: '8px' }} 
-                          />
-                        ) : (
-                          <div style={{ width: '100px', height: '100px', background: '#333', borderRadius: '4px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: '24px' }}>🎥</span>
-                          </div>
-                        )}
-                        <br/>
-                        <strong>{loc.location_name}</strong><br/>
-                        <span style={{ fontSize: '11px', color: '#666' }}>
-                          {format(new Date(loc.taken_at), 'MMM d, yyyy')}
-                        </span><br/>
-                        <Link to={`/story/${loc.id}`} style={{ display: 'inline-block', marginTop: '4px' }}>View Story</Link>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MarkerClusterGroup>
-            </MapContainer>
-          )}
-        </div>
-
-        {/* DRAGGABLE DIVIDER */}
-        <div 
-          className="map-divider-container"
-          onMouseDown={handleDragStart}
-          style={{
-            [isVerticalSplit ? 'height' : 'width']: '24px',
-            [isVerticalSplit ? 'width' : 'height']: '100%',
-            cursor: isVerticalSplit ? 'row-resize' : 'col-resize',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            zIndex: 10,
-            flexShrink: 0,
-            margin: isVerticalSplit ? '-10px 0' : '0 -10px'
-          }}
-        >
-          {/* Visual Handle */}
-          <div className={`map-divider-handle ${isVerticalSplit ? 'vertical' : 'horizontal'}`}>
-            <button 
-              onClick={(e) => { e.stopPropagation(); toggleOrientation(); }}
-              className="rotate-btn"
-              title="Rotate Split"
-            >
-              <svg 
-                width="16" height="16" viewBox="0 0 24 24" 
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: isVerticalSplit ? 'rotate(90deg)' : 'none', transition: 'transform 0.3s' }}
-              >
-                <path d="M21 2v6h-6"></path>
-                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                <path d="M3 22v-6h6"></path>
-                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* FEED SECTION */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          background: 'var(--sv-surface)',
-          padding: 'var(--sv-space-4)',
-          borderRadius: 'var(--sv-radius-lg)',
-          border: '1px solid var(--sv-border-light)',
-          position: 'relative'
-        }}>
-          <h2 style={{ marginBottom: 'var(--sv-space-4)' }}>
-            Stories in View ({visibleLocations.length})
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
-            gap: 'var(--sv-space-3)' 
-          }}>
-            {visibleLocations.map(loc => (
-              <Link to={`/story/${loc.id}`} key={loc.id} style={{ textDecoration: 'none' }}>
-                <div style={{
-                  position: 'relative',
-                  aspectRatio: '9/16',
-                  borderRadius: 'var(--sv-radius-md)',
-                  overflow: 'hidden',
-                  background: 'var(--sv-bg)',
-                  border: '1px solid var(--sv-border-light)'
-                }}>
-                  {loc.media_url ? (
-                    <img 
-                      src={loc.media_url} 
-                      alt={loc.location_name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: '24px' }}>🎥</span>
-                    </div>
-                  )}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    padding: '4px 8px',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: 'white',
-                    fontSize: '10px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {format(new Date(loc.taken_at), 'MMM d, yyyy')}
-                  </div>
-                </div>
-              </Link>
-            ))}
-            
-            {visibleLocations.length === 0 && !loading && (
-              <div style={{ gridColumn: '1 / -1', color: 'var(--sv-text-muted)', textAlign: 'center', padding: 'var(--sv-space-8) 0' }}>
-                No stories found in this area. Try panning or zooming the map!
-              </div>
-            )}
-          </div>
-        </div>
-        
       </div>
-      
-      {/* CSS for Divider Hover & Map Dark Mode */}
-      <style>{`
-        .map-divider-container {
-          /* transparent hit area is handled by inline styles */
-        }
-        
-        .map-divider-handle {
-          background: var(--sv-border-light);
-          border-radius: 999px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          overflow: hidden;
-        }
-        
-        .map-divider-handle.horizontal {
-          width: 4px;
-          height: 48px;
-        }
-        
-        .map-divider-handle.vertical {
-          height: 4px;
-          width: 48px;
-        }
-
-        .map-divider-container:hover .map-divider-handle {
-          background: var(--sv-surface-raised);
-          border: 1px solid var(--sv-border-light);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        
-        .map-divider-container:hover .map-divider-handle.horizontal {
-          width: 36px;
-          height: 64px;
-        }
-        
-        .map-divider-container:hover .map-divider-handle.vertical {
-          height: 36px;
-          width: 64px;
-        }
-
-        .rotate-btn {
-          background: transparent;
-          border: none;
-          color: var(--sv-text-primary);
-          cursor: pointer;
-          opacity: 0;
-          transition: opacity 0.2s, color 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-        }
-        
-        .map-divider-container:hover .rotate-btn {
-          opacity: 1;
-        }
-        
-        .rotate-btn:hover {
-          color: var(--sv-accent);
-        }
-
-        .map-tiles-dark {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-        .sv-map-popup .leaflet-popup-content-wrapper {
-          background: var(--sv-surface);
-          color: var(--sv-text-primary);
-          border: 1px solid var(--sv-border-light);
-        }
-        .sv-map-popup .leaflet-popup-tip {
-          background: var(--sv-surface);
-        }
-        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
-          background-color: rgba(234, 60, 115, 0.6);
-        }
-        .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
-          background-color: rgba(234, 60, 115, 0.9);
-          color: white;
-          font-weight: bold;
-        }
-      `}</style>
     </div>
   )
 }

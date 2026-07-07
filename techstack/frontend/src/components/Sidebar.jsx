@@ -1,10 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon } from 'lucide-react'
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: '📊' },
-  { path: '/timeline', label: 'Memories', icon: '🎞️' },
-  { path: '/reels', label: 'Reels', icon: '📱' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/timeline', label: 'Memories', icon: ImageIcon },
+  { path: '/reels', label: 'Reels', icon: PlaySquare },
+  { path: '/map', label: 'Map View', icon: MapIcon },
+  { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -12,75 +14,43 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* Mobile overlay backdrop */}
+      {/* Mobile overlay backdrop if needed */}
       {isOpen && (
         <div
-          className="sv-modal-backdrop"
-          style={{ zIndex: 99 }}
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 99
+          }}
           onClick={onClose}
         />
       )}
 
-      <aside className={`sv-sidebar ${isOpen ? 'sv-sidebar--open' : ''}`}>
+      <aside className="ios-sidebar" style={{ display: isOpen || window.innerWidth > 768 ? 'flex' : 'none' }}>
         {/* ── Brand ──────────────────────────── */}
-        <div className="sv-sidebar__brand">
-          <div className="sv-sidebar__logo">🏛️</div>
-          <div>
-            <div className="sv-sidebar__title">MemWault</div>
-            <div className="sv-sidebar__version">v0.1.0 — MVP</div>
-          </div>
+        <div className="ios-sidebar-logo">
+          <Film size={28} color="var(--ios-accent)" />
+          <span>MemWault</span>
         </div>
 
         {/* ── Navigation ────────────────────── */}
-        <nav className="sv-sidebar__nav">
-          <div className="sv-sidebar__section-title">Navigation</div>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              className={({ isActive }) =>
-                `sv-sidebar__link ${isActive ? 'sv-sidebar__link--active' : ''}`
-              }
-              onClick={onClose}
-            >
-              <span className="sv-sidebar__link-icon">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
-
-          <div className="sv-sidebar__section-title" style={{ marginTop: 'auto' }}>
-            Archive
-          </div>
-          <div
-            className="sv-sidebar__link"
-            style={{ cursor: 'default', opacity: 0.5 }}
-          >
-            <span className="sv-sidebar__link-icon">📁</span>
-            Highlights
-            <span className="sv-badge sv-badge--accent" style={{ marginLeft: 'auto' }}>
-              Soon
-            </span>
-          </div>
-          <NavLink
-            to="/map"
-            className={({ isActive }) =>
-              `sv-sidebar__link ${isActive ? 'sv-sidebar__link--active' : ''}`
-            }
-            onClick={onClose}
-          >
-            <span className="sv-sidebar__link-icon">🗺️</span>
-            Map View
-          </NavLink>
+        <nav className="ios-nav-list">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/'}
+                className={({ isActive }) =>
+                  `ios-nav-item ${isActive ? 'active' : ''}`
+                }
+                onClick={onClose}
+              >
+                <Icon size={20} strokeWidth={2.5} />
+                {item.label}
+              </NavLink>
+            )
+          })}
         </nav>
-
-        {/* ── Footer Status ─────────────────── */}
-        <div className="sv-sidebar__footer">
-          <div className="sv-sidebar__status">
-            <span className="sv-sidebar__status-dot" />
-            Cloud Worker Active
-          </div>
-        </div>
       </aside>
     </>
   )

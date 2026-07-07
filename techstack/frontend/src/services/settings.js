@@ -3,6 +3,9 @@ const SETTINGS_KEY = 'memwault_settings';
 const DEFAULT_SETTINGS = {
   autoplayDelay: 0, // 0 = instant, -1 = disabled, >0 = seconds delay
   preferredMusicApp: 'spotify', // 'spotify', 'apple', 'youtube', 'amazon'
+  skipDuration: 5, // 3, 4, 5
+  mapMode: 'immersive', // 'immersive' or 'split'
+  theme: 'dark', // 'dark' or 'light'
 };
 
 export function getSettings() {

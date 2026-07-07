@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v1.0 (Functional Build) 🚀
+> **Project Status:** v2.0 (Massive UI & UX Overhaul) 🚀
 
 MemWault is a digital memory preservation platform designed to help you permanently own, archive, and replay your Instagram Stories independently of Instagram.
 
@@ -16,14 +16,17 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 
 ---
 
-## ✨ Features
+## ✨ Features (Version 2.0 Updates)
 
-* **Chronological Timeline & Filters:** Browse your stories by date, or filter them by Photos, Videos, or Reels.
-* **Interactive Map View:** See your memories geographically plotted. Features automatic clustering, bounding-box timeline filtering, and a "Top Cities" quick-filter.
-* **Music Integrations:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API. It also dynamically generates "Open in App" links for Spotify, Apple Music, YouTube Music, or Amazon Music.
+* **Premium Apple-Style UI Overhaul:** Massive interface improvements across the board, featuring floating glassmorphic date bubbles, dynamic `100dvh` Apple Maps-style location modals, and fully responsive Split-Screen layouts.
+* **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
+* **Interactive Map View & Clustering:** See your memories geographically plotted. Features automatic clustering, bounding-box timeline filtering, and immersive/split-screen toggle modes.
+* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API. It also dynamically generates "Open in App" links for Spotify, Apple Music, YouTube Music, or Amazon Music.
+* **Advanced Story Segregation & Management:** Automatically segregates "Reels reposted to Stories" so they don't clutter your organic memories. Includes a manual "Mark as Reel / Unmark as Reel" toggle for edge-case sticker formats.
 * **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys (just like Instagram Web).
 * **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
-* **Customizable Playback:** Fine-tune your experience with adjustable auto-play delays for video stories.
+* **Robust Media Sync:** Improved resilience for handling Instagram session (`467 Client Error`) expirations to prevent missing thumbnails.
+* **Customizable Playback:** Fine-tune your experience with adjustable auto-play delays for video stories and configurable global themes.
 
 ---
 
@@ -32,7 +35,7 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 MemWault is designed as a self-hosted or cloud-deployable full-stack application.
 
 * **Frontend:** React + Vite PWA (Progressive Web App) styled with premium glassmorphic dark-mode CSS.
-* **Backend:** FastAPI (Python) web server providing a REST API.
+* **Backend:** FastAPI (Python) web server providing a highly concurrent REST API.
 * **Database:** SQLite (local development) / PostgreSQL (production) running SQLAlchemy ORM.
 * **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks.
 * **Storage:** Local directory structure / S3-compatible object storage (MinIO) for storing downloaded media.
@@ -50,12 +53,11 @@ MemWault/
 │   │   └── requirements.txt
 │   ├── frontend/          # React + Vite frontend
 │   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── pages/     # Dashboard, Timeline, Settings
+│   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
+│   │   │   ├── pages/     # Dashboard, Timeline, MapView, Settings, StoryDetail
 │   │   │   └── services/  # API service client
 │   │   └── package.json
 │   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
-├── V1_FEATURE_SPEC.md     # Scope and roadmap for the V1 release
 └── README.md              # This file
 ```
 

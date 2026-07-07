@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Search, MapPin, Map as MapIcon, ChevronLeft, Maximize2, Minimize2, Check } from 'lucide-react';
 
-// Fix for Leaflet default icon paths in React
 import L from 'leaflet';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -22,7 +22,6 @@ function MapPicker({ position, setPosition, centerView }) {
     },
   });
 
-  // Only change the view if an explicit centerView is provided (e.g. from search result)
   useEffect(() => {
     if (centerView && centerView.lat && centerView.lng) {
       map.setView([centerView.lat, centerView.lng], 13);
@@ -35,18 +34,16 @@ function MapPicker({ position, setPosition, centerView }) {
 }
 
 export default function LocationModal({ isOpen, onClose, onSave, initialLocation }) {
-  const [mode, setMode] = useState('search'); // 'search' or 'map'
+  const [mode, setMode] = useState('search');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   
-  // Coordinates for the map pin
   const [mapPosition, setMapPosition] = useState(null);
-  const [mapCenter, setMapCenter] = useState(null); // Used to command the map to fly to a location
+  const [mapCenter, setMapCenter] = useState(null);
   const [customName, setCustomName] = useState('');
 
-  // When modal opens, initialize map position if we have an existing location
   useEffect(() => {
     if (isOpen) {
       setMode('search');
@@ -59,7 +56,6 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
         setMapPosition(initPos);
         setMapCenter(initPos);
       } else {
-        // Default to London or somewhere generic if no initial location
         const defaultPos = { lat: 51.5074, lng: -0.1278 };
         setMapPosition(defaultPos);
         setMapCenter(defaultPos);
@@ -87,7 +83,7 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
 
   const handleSelectResult = (result) => {
     onSave({
-      location_name: result.display_name.split(',')[0], // Take first part as name
+      location_name: result.display_name.split(',')[0],
       location_lat: parseFloat(result.lat),
       location_lng: parseFloat(result.lon)
     });
@@ -107,7 +103,7 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
     if (lat && lng) {
       const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
       setMapPosition(pos);
-      setMapCenter(pos); // Tell map to center here
+      setMapCenter(pos);
     }
     if (name) {
       setCustomName(name.split(',')[0]);
@@ -117,77 +113,107 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: isFullscreen ? '0' : 'var(--sv-space-4)'
+      backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      zIndex: 1000, animation: 'fade-in 0.3s ease'
     }}>
-      <div className="sv-card sv-slide-up" style={{
-        width: '100%', 
-        maxWidth: isFullscreen ? '100%' : 600, 
-        height: isFullscreen ? '100%' : 'auto',
-        maxHeight: isFullscreen ? '100%' : '90vh',
+      <div style={{
+        width: isFullscreen ? '100%' : '100%', 
+        maxWidth: isFullscreen ? '100%' : '600px',
+        backgroundColor: 'var(--ios-bg)',
+        borderTopLeftRadius: isFullscreen ? '0' : '24px', 
+        borderTopRightRadius: isFullscreen ? '0' : '24px',
+        height: isFullscreen ? '100dvh' : '85dvh',
+        maxHeight: '100dvh',
         display: 'flex', flexDirection: 'column',
+        boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
+        animation: 'slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         overflow: 'hidden',
-        borderRadius: isFullscreen ? '0' : 'var(--sv-radius-md)'
+        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        position: 'relative'
       }}>
-        <div style={{ padding: 'var(--sv-space-4)', borderBottom: '1px solid var(--sv-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Add Location</h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="sv-btn sv-btn--ghost" onClick={() => setIsFullscreen(!isFullscreen)} style={{ padding: '0.2rem 0.5rem' }} title="Toggle Fullscreen">
-              {isFullscreen ? '🗗' : '🗖'}
+        {/* iOS Grabber */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '4px' }}>
+          <div style={{ width: '36px', height: '5px', borderRadius: '3px', backgroundColor: 'var(--ios-border)' }}></div>
+        </div>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 12px 16px', borderBottom: '1px solid var(--ios-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {mode === 'map' && (
+              <button onClick={() => setMode('search')} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', display: 'flex', alignItems: 'center', padding: 0, cursor: 'pointer' }}>
+                <ChevronLeft size={24} /> <span style={{ fontSize: '17px' }}>Back</span>
+              </button>
+            )}
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 600 }}>{mode === 'search' ? 'Search Location' : 'Pin Location'}</h2>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            {mode === 'map' && (
+              <button onClick={() => setIsFullscreen(!isFullscreen)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', padding: 0, cursor: 'pointer' }}>
+                {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+              </button>
+            )}
+            <button onClick={onClose} style={{ background: 'var(--ios-border)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--ios-text-primary)' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>✕</span>
             </button>
-            <button className="sv-btn sv-btn--ghost" onClick={onClose} style={{ padding: '0.2rem 0.5rem' }} title="Close">✕</button>
           </div>
         </div>
 
-        <div style={{ padding: 'var(--sv-space-4)', overflowY: 'auto', flex: 1 }}>
+        {/* Body */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           {mode === 'search' ? (
-            <>
-              <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{ padding: '16px' }}>
+              <form onSubmit={handleSearch} style={{ position: 'relative', marginBottom: '24px' }}>
+                <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ios-text-secondary)' }}>
+                  <Search size={18} />
+                </div>
                 <input
                   type="text"
-                  className="sv-input"
-                  placeholder="Search city or place..."
+                  placeholder="Search for a place or address"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  style={{ flex: 1 }}
+                  style={{
+                    width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px',
+                    border: 'none', backgroundColor: 'var(--ios-bg-card)', fontSize: '16px',
+                    color: 'var(--ios-text-primary)', outline: 'none'
+                  }}
                   autoFocus
                 />
-                <button type="submit" className="sv-btn sv-btn--primary" disabled={isSearching}>
-                  {isSearching ? '...' : 'Search'}
-                </button>
+                <button type="submit" style={{ display: 'none' }}></button>
               </form>
 
-              {searchResults.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {isSearching && <div style={{ textAlign: 'center', color: 'var(--ios-text-secondary)', padding: '24px' }}>Searching...</div>}
+
+              {!isSearching && searchResults.length > 0 && (
+                <div style={{ background: 'var(--ios-bg-card)', borderRadius: '12px', overflow: 'hidden' }}>
                   {searchResults.map((res, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div 
-                        className="sv-card sv-card--clickable" 
-                        onClick={() => handleSelectResult(res)}
-                        style={{ flex: 1, padding: '0.8rem', fontSize: '0.9rem' }}
-                      >
-                        📍 {res.display_name}
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: i === searchResults.length - 1 ? 'none' : '1px solid var(--ios-border)' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', color: 'var(--ios-text-secondary)' }}>
+                        <MapPin size={16} />
                       </div>
-                      <button 
-                        className="sv-btn sv-btn--ghost" 
-                        onClick={() => switchToMap(res.lat, res.lon, res.display_name)}
-                        title="View on Map"
-                      >
-                        🗺️
+                      <div onClick={() => handleSelectResult(res)} style={{ flex: 1, cursor: 'pointer' }}>
+                        <div style={{ fontSize: '16px', fontWeight: 500 }}>{res.display_name.split(',')[0]}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>
+                          {res.display_name.split(',').slice(1).join(',')}
+                        </div>
+                      </div>
+                      <button onClick={() => switchToMap(res.lat, res.lon, res.display_name)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', padding: '8px', cursor: 'pointer' }}>
+                        <MapIcon size={20} />
                       </button>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div style={{ textAlign: 'center', color: 'var(--sv-text-muted)', margin: '2rem 0' }}>
-                  {searchQuery && !isSearching ? 'No results found.' : 'Search for a place above.'}
+              )}
+
+              {!isSearching && searchResults.length === 0 && searchQuery && (
+                <div style={{ textAlign: 'center', color: 'var(--ios-text-secondary)', padding: '48px 24px' }}>
+                  No results found for "{searchQuery}"
                 </div>
               )}
 
-              <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                <button 
-                  className="sv-btn sv-btn--secondary" 
+              <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                <button
+                  style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontSize: '16px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }}
                   onClick={() => {
                     if (searchResults.length > 0) {
                       const first = searchResults[0];
@@ -197,46 +223,48 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
                     }
                   }}
                 >
-                  Add from Map
+                  <MapIcon size={18} /> Or choose from map
                 </button>
               </div>
-            </>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', height: isFullscreen ? '100%' : '400px' }}>
-              <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)' }}>
                 <input 
                   type="text" 
-                  className="sv-input" 
                   placeholder="Name this location..." 
                   value={customName}
                   onChange={e => setCustomName(e.target.value)}
-                  style={{ flex: 1 }}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '10px',
+                    border: 'none', backgroundColor: 'var(--ios-bg-card)', fontSize: '16px',
+                    color: 'var(--ios-text-primary)', outline: 'none', fontWeight: 600
+                  }}
                 />
               </div>
-              <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--sv-border)', minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <MapContainer 
                   center={mapPosition ? [mapPosition.lat, mapPosition.lng] : [51.5074, -0.1278]} 
                   zoom={13} 
                   style={{ height: '100%', width: '100%' }}
+                  zoomControl={false}
                 >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
-                  <MapPicker 
-                    position={mapPosition} 
-                    setPosition={setMapPosition} 
-                    centerView={mapCenter} 
-                  />
+                  <MapPicker position={mapPosition} setPosition={setMapPosition} centerView={mapCenter} />
                 </MapContainer>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-                <button className="sv-btn sv-btn--ghost" onClick={() => setMode('search')}>
-                  ← Back to Search
-                </button>
-                <button className="sv-btn sv-btn--primary" onClick={handleSaveMap} disabled={!mapPosition}>
-                  Save Location
-                </button>
+                
+                <div style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px', zIndex: 1000 }}>
+                  <button 
+                    onClick={handleSaveMap} 
+                    disabled={!mapPosition}
+                    className="ios-btn"
+                    style={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    <Check size={20} /> Use this location
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { Menu, RefreshCcw } from 'lucide-react'
 
 const pageTitles = {
   '/': 'Dashboard',
-  '/timeline': 'Timeline',
+  '/timeline': 'Memories',
+  '/reels': 'Reels',
+  '/map': 'Map View',
   '/settings': 'Settings',
 }
 
 export default function Header({ onMenuClick }) {
   const location = useLocation()
 
-  // Extract page title from path
   const title = pageTitles[location.pathname] ||
     (location.pathname.startsWith('/story/') ? 'Story Detail' : 'MemWault')
 
@@ -22,61 +24,65 @@ export default function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="sv-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        {/* Mobile menu toggle */}
+    <header className="ios-glass" style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '20px 40px',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      borderBottom: '1px solid var(--ios-border)',
+      margin: '-40px -40px 40px -40px'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button
-          className="sv-btn sv-btn--ghost sv-btn--icon"
+          className="ios-btn-secondary"
           onClick={onMenuClick}
-          style={{ display: 'none' }}
-          id="mobile-menu-btn"
+          style={{ display: window.innerWidth <= 768 ? 'flex' : 'none', padding: '8px', borderRadius: '8px' }}
         >
-          ☰
+          <Menu size={20} />
         </button>
-        <h1 className="sv-header__title">{title}</h1>
+        <h1 style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px' }}>{title}</h1>
       </div>
 
-      <div className="sv-header__actions">
+      <div>
         <button
-          className="sv-btn sv-btn--secondary sv-btn--sm"
+          className="ios-btn"
+          style={{ padding: '10px 16px', fontSize: '14px', borderRadius: 'var(--ios-radius-sm)' }}
           onClick={() => {
             import('../services/api').then(api => {
               api.triggerScrape(true)
-                .then(() => showToast('✨ Scrape triggered! Check back in a moment.'))
+                .then(() => showToast('Syncing your archive...'))
                 .catch(err => showToast(`Error: ${err.message}`))
             })
           }}
         >
-          🔄 Sync Now
+          <RefreshCcw size={16} />
+          Sync Now
         </button>
       </div>
 
       {toast && (
-        <div style={{
+        <div className="ios-glass" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
           zIndex: 9999,
-          background: 'var(--sv-surface-raised)',
-          border: '1px solid var(--sv-border-light)',
-          padding: 'var(--sv-space-3) var(--sv-space-4)',
-          borderRadius: 'var(--sv-radius-md)',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-          color: 'var(--sv-text-primary)',
-          animation: 'fadeIn 0.3s ease-out',
+          padding: '12px 20px',
+          borderRadius: 'var(--ios-radius-md)',
+          boxShadow: 'var(--ios-shadow-lg)',
+          color: 'var(--ios-text-primary)',
+          fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
-          gap: 'var(--sv-space-2)'
+          gap: '12px',
+          border: '1px solid var(--ios-border)'
         }}>
+          <RefreshCcw size={18} className="spin-anim" />
           {toast}
         </div>
       )}
-
-      <style>{`
-        @media (max-width: 768px) {
-          #mobile-menu-btn { display: flex !important; }
-        }
-      `}</style>
     </header>
   )
 }

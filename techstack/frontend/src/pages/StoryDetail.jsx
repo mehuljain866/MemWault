@@ -4,6 +4,7 @@ import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, toggl
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X } from 'lucide-react'
 
 export default function StoryDetail() {
   const { id } = useParams()
@@ -14,6 +15,7 @@ export default function StoryDetail() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('metadata')
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false)
 
   useEffect(() => {
     loadStory()
@@ -23,9 +25,9 @@ export default function StoryDetail() {
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'ArrowLeft' && adjacent.prev_id) {
-        navigate(`/story/${adjacent.prev_id}`)
+        navigate(`/story/${adjacent.prev_id}`, { replace: true })
       } else if (e.key === 'ArrowRight' && adjacent.next_id) {
-        navigate(`/story/${adjacent.next_id}`)
+        navigate(`/story/${adjacent.next_id}`, { replace: true })
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -65,7 +67,6 @@ export default function StoryDetail() {
   async function handleSaveLocation(locData) {
     try {
       const res = await updateStoryLocation(id, locData);
-      // Update local story state
       setStory(prev => ({
         ...prev,
         location_name: locData.location_name,
@@ -89,387 +90,243 @@ export default function StoryDetail() {
 
   if (loading) {
     return (
-      <div className="sv-empty">
-        <div className="sv-empty__icon">⏳</div>
-        <div className="sv-empty__title">Loading Story...</div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
+        <Clock size={32} className="spin-anim" />
+        <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading Story...</div>
       </div>
     )
   }
 
   if (!story) {
     return (
-      <div className="sv-empty">
-        <div className="sv-empty__icon">❌</div>
-        <div className="sv-empty__title">Story Not Found</div>
-        <button className="sv-btn sv-btn--primary" onClick={() => navigate('/timeline')}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
+        <X size={48} color="var(--ios-danger)" />
+        <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Story Not Found</div>
+        <button className="ios-btn" onClick={() => navigate('/timeline')}>
           Back to Timeline
         </button>
       </div>
     )
   }
 
-  // Ensure the datetime string is treated as UTC by appending 'Z' if missing
   const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
   const date = new Date(dateStrUtc)
   const isVideo = story.media_type === 2
 
-  return (
-    <div className="sv-fade-in">
-      {/* Back button */}
-      <button
-        className="sv-btn sv-btn--ghost"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: 'var(--sv-space-4)' }}
-      >
-        ← Back
-      </button>
-
-      <div className="sv-story-detail">
-        {/* ── Media Player ──────────────────── */}
-        <div 
-          className="sv-story-detail__media-container sv-story-nav-container" 
-          style={{ background: 'transparent' }}
+  const SegmentedControl = ({ tabs, activeTab, onChange }) => (
+    <div style={{
+      display: 'flex',
+      backgroundColor: 'var(--ios-border)',
+      borderRadius: '8px',
+      padding: '2px',
+      marginBottom: '16px',
+    }}>
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          style={{
+            flex: 1,
+            padding: '6px 12px',
+            border: 'none',
+            backgroundColor: activeTab === tab.id ? 'var(--ios-bg-card)' : 'transparent',
+            color: activeTab === tab.id ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+            borderRadius: '6px',
+            fontWeight: activeTab === tab.id ? 600 : 500,
+            fontSize: '13px',
+            cursor: 'pointer',
+            boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all var(--ios-spring-fast)',
+          }}
         >
-          <StoryPlayer story={story} />
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const InfoRow = ({ icon: Icon, label, value, children }) => (
+    <div style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid var(--ios-border)' }}>
+      <div style={{ color: 'var(--ios-text-secondary)', marginRight: '16px', marginTop: '2px' }}>
+        <Icon size={20} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ios-text-secondary)', fontWeight: 600, marginBottom: '4px' }}>{label}</div>
+        <div style={{ fontSize: '16px', color: 'var(--ios-text-primary)' }}>{value}</div>
+        {children && <div style={{ marginTop: '8px' }}>{children}</div>}
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '17px', cursor: 'pointer', padding: 0 }}
+        >
+          <ChevronLeft size={24} /> Back
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', alignItems: 'flex-start' }}>
+        {/* ── Media Player ──────────────────── */}
+        <div style={{ flex: '1 1 350px', maxWidth: '400px', margin: '0 auto', position: 'relative' }}>
+          <div style={{
+            borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--ios-shadow-lg)',
+            backgroundColor: '#000', position: 'relative'
+          }}>
+            <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
+          </div>
           
           {/* Navigation Arrows */}
           {adjacent.prev_id && (
             <button
-              className="sv-story-nav-btn sv-story-nav-btn--prev"
-              onClick={() => navigate(`/story/${adjacent.prev_id}`)}
-              title="Previous Story (Left Arrow)"
+              onClick={() => navigate(`/story/${adjacent.prev_id}`, { replace: true })}
+              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10 }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <ChevronLeft size={24} />
             </button>
           )}
           
           {adjacent.next_id && (
             <button
-              className="sv-story-nav-btn sv-story-nav-btn--next"
-              onClick={() => navigate(`/story/${adjacent.next_id}`)}
-              title="Next Story (Right Arrow)"
+              onClick={() => navigate(`/story/${adjacent.next_id}`, { replace: true })}
+              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10 }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <ChevronRight size={24} />
             </button>
           )}
         </div>
 
-        {/* ── Metadata Panel ────────────────── */}
-        <div className="sv-story-detail__info">
+        {/* ── Metadata Panel (Slide up feel) ────────────────── */}
+        <div style={{
+          flex: '1 1 400px',
+          minWidth: 0,
+          backgroundColor: 'var(--ios-bg-card)',
+          borderRadius: '24px',
+          padding: '24px',
+          boxShadow: 'var(--ios-shadow-md)',
+          border: '1px solid var(--ios-border)',
+        }}>
           {/* Tab Nav */}
-          <div style={{ display: 'flex', gap: 'var(--sv-space-2)', borderBottom: '1px solid var(--sv-border)', paddingBottom: 'var(--sv-space-3)' }}>
-            {['metadata', 'music', 'viewers', 'manifest'].map(tab => (
-              <button
-                key={tab}
-                className={`sv-btn sv-btn--sm ${activeTab === tab ? 'sv-btn--primary' : 'sv-btn--ghost'}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl 
+            tabs={[
+              { id: 'metadata', label: 'Info' },
+              { id: 'music', label: 'Music' },
+              { id: 'viewers', label: 'Viewers' },
+              { id: 'manifest', label: 'Data' }
+            ]}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+          />
 
           {/* ── Metadata Tab ──────────────── */}
           {activeTab === 'metadata' && (
-            <div className="sv-story-detail__section sv-slide-up">
-              <div className="sv-story-detail__section-title">Story Info</div>
-
-              <div className="sv-story-detail__metadata-row">
-                <span className="sv-story-detail__metadata-icon">📅</span>
-                <div>
-                  <div className="sv-story-detail__metadata-label">Posted</div>
-                  <div className="sv-story-detail__metadata-value">
-                    {date.toLocaleDateString('en-US', {
-                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                    })} at {date.toLocaleTimeString()}
-                  </div>
+            <div style={{ animation: 'fade-in 0.3s ease' }}>
+              <InfoRow icon={Calendar} label="Date" value={`${date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${date.toLocaleTimeString()}`} />
+              <InfoRow icon={FileType} label="Type" value={`${isVideo ? 'Video' : 'Photo'}${story.width && story.height ? ` · ${story.width}×${story.height}` : ''}${story.duration_ms ? ` · ${(story.duration_ms / 1000).toFixed(1)}s` : ''}`} />
+              
+              <InfoRow icon={MapPin} label="Location" value={story.location_name || <span style={{ color: 'var(--ios-text-muted)' }}>No location</span>}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer' }}>Edit Location</button>
                 </div>
-              </div>
+              </InfoRow>
 
-              <div className="sv-story-detail__metadata-row">
-                <span className="sv-story-detail__metadata-icon">
-                  {isVideo ? '🎬' : '📷'}
-                </span>
-                <div>
-                  <div className="sv-story-detail__metadata-label">Type</div>
-                  <div className="sv-story-detail__metadata-value">
-                    {isVideo ? 'Video' : 'Photo'}
-                    {story.width && story.height ? ` · ${story.width}×${story.height}` : ''}
-                    {story.duration_ms ? ` · ${(story.duration_ms / 1000).toFixed(1)}s` : ''}
-                  </div>
-                </div>
-              </div>
-
-              <div className="sv-story-detail__metadata-row" style={{ alignItems: 'flex-start' }}>
-                <span className="sv-story-detail__metadata-icon">📍</span>
-                <div style={{ flex: 1 }}>
-                  <div className="sv-story-detail__metadata-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    Location
-                    <button 
-                      className="sv-btn sv-btn--ghost" 
-                      style={{ padding: 0, height: 'auto', color: 'var(--sv-primary)' }}
-                      onClick={() => setIsLocationModalOpen(true)}
-                    >
-                      ✎ Edit
-                    </button>
-                  </div>
-                  <div className="sv-story-detail__metadata-value">
-                    {story.location_name ? (
-                      <>
-                        {story.location_name}
-                        {story.location_lat && story.location_lng && (
-                          <div style={{ marginTop: 'var(--sv-space-2)', display: 'flex', gap: 'var(--sv-space-2)' }}>
-                            <a 
-                              href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${story.location_lat},${story.location_lng}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="sv-btn sv-btn--secondary sv-btn--sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                            >
-                              🚶‍♂️ View Street View
-                            </a>
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(story.location_name)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="sv-btn sv-btn--ghost sv-btn--sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                            >
-                              🗺️ Open in Maps
-                            </a>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <span style={{ color: 'var(--sv-text-muted)' }}>No location added. <a href="#" onClick={(e) => { e.preventDefault(); setIsLocationModalOpen(true); }}>Add one?</a></span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {story.caption_text && (
-                <div className="sv-story-detail__metadata-row">
-                  <span className="sv-story-detail__metadata-icon">💬</span>
-                  <div>
-                    <div className="sv-story-detail__metadata-label">Caption</div>
-                    <div className="sv-story-detail__metadata-value">{story.caption_text}</div>
-                  </div>
-                </div>
-              )}
-
-              {story.viewer_count != null && (
-                <div className="sv-story-detail__metadata-row">
-                  <span className="sv-story-detail__metadata-icon">👁️</span>
-                  <div>
-                    <div className="sv-story-detail__metadata-label">Views</div>
-                    <div className="sv-story-detail__metadata-value">{story.viewer_count}</div>
-                  </div>
-                </div>
-              )}
+              {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
+              {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
+              <InfoRow icon={FileType} label="Is Reel?" value={story.is_reel ? 'Yes' : 'No'}>
+                <button onClick={handleToggleReel} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer', marginTop: '8px' }}>
+                  {story.is_reel ? 'Unmark as Reel' : 'Mark as Reel'}
+                </button>
+              </InfoRow>
 
               {/* Music Quick Link */}
               {story.music && (
-                <>
-                  <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
-                    Music
+                <div 
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px', marginTop: '16px', cursor: 'pointer' }}
+                  onClick={() => setActiveTab('music')}
+                >
+                  <Music size={24} color="var(--ios-accent)" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{story.music.track_title}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{story.music.artist_name}</div>
                   </div>
-                  <div 
-                    className="sv-card" 
-                    style={{ padding: 'var(--sv-space-3)', display: 'flex', alignItems: 'center', gap: 'var(--sv-space-3)', cursor: 'pointer' }}
-                    onClick={() => setActiveTab('music')}
-                  >
-                    <div style={{ fontSize: '1.5rem' }}>🎵</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{story.music.track_title}</div>
-                      <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)' }}>{story.music.artist_name}</div>
-                    </div>
-                    <div style={{ color: 'var(--sv-primary)' }}>Play →</div>
-                  </div>
-                </>
+                  <ChevronRight size={20} color="var(--ios-text-secondary)" />
+                </div>
               )}
 
-              {/* Management Info */}
               {story.mentions?.length > 0 && (
-                <>
-                  <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
-                    Mentions
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sv-space-2)' }}>
+                <InfoRow icon={Users} label="Mentions" value={
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {story.mentions.map((m) => (
-                      <span key={m.id} className="sv-badge sv-badge--accent">
-                        @{m.username}
-                      </span>
+                      <span key={m.id} style={{ background: 'var(--ios-bg)', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>@{m.username}</span>
                     ))}
                   </div>
-                </>
+                } />
               )}
 
-              {/* Links */}
               {story.links?.length > 0 && (
-                <>
-                  <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
-                    Links
+                <InfoRow icon={Link2} label="Links" value={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {story.links.map((l) => (
+                      <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ios-accent)', textDecoration: 'none', fontWeight: 600 }}>
+                        {l.link_title || l.display_url || l.url}
+                      </a>
+                    ))}
                   </div>
-                  {story.links.map((l) => (
-                    <a
-                      key={l.id}
-                      href={l.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="sv-card sv-card--clickable"
-                      style={{ padding: 'var(--sv-space-3)', display: 'block' }}
-                    >
-                      🔗 {l.link_title || l.display_url || l.url}
-                    </a>
-                  ))}
-                </>
+                } />
               )}
 
-              {/* Polls */}
               {story.polls?.length > 0 && (
-                <>
-                  <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)' }}>
-                    Polls & Quizzes
+                <InfoRow icon={BarChart2} label="Polls" value={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {story.polls.map((p) => (
+                      <div key={p.id} style={{ background: 'var(--ios-bg)', padding: '12px', borderRadius: '8px' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{p.question_text || 'Poll'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{p.total_votes} votes · {p.poll_type}</div>
+                      </div>
+                    ))}
                   </div>
-                  {story.polls.map((p) => (
-                    <div key={p.id} className="sv-card" style={{ padding: 'var(--sv-space-4)' }}>
-                      <div style={{ fontWeight: 600, marginBottom: 'var(--sv-space-2)' }}>
-                        {p.question_text || 'Poll'}
-                      </div>
-                      <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)' }}>
-                        {p.total_votes} total votes · {p.poll_type}
-                      </div>
-                    </div>
-                  ))}
-                </>
+                } />
               )}
 
-              <div className="sv-story-detail__section-title" style={{ marginTop: 'var(--sv-space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Management</span>
-                <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
-                  <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleToggleReel}>
-                    {story.is_reel ? "Move to Memories" : "Move to Reels"}
+              <div style={{ marginTop: '24px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--ios-text-secondary)', marginBottom: '12px' }}>Management</div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <button className="ios-btn ios-btn-secondary" onClick={handleToggleReel} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                    {story.is_reel ? "Remove from Memories" : "Move to Memories"}
                   </button>
                   {story.is_downloaded && (
-                    <button className="sv-btn sv-btn--sm sv-btn--secondary" onClick={handleLocate}>
-                      Show in Explorer
+                    <button className="ios-btn ios-btn-secondary" onClick={handleLocate} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                      Show File
                     </button>
                   )}
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
-                <span className={`sv-badge ${story.is_downloaded ? 'sv-badge--success' : 'sv-badge--warning'}`}>
-                  {story.is_downloaded ? '✓ Downloaded' : '⏳ Pending'}
-                </span>
-                <span className={`sv-badge ${story.is_metadata_written ? 'sv-badge--success' : 'sv-badge--warning'}`}>
-                  {story.is_metadata_written ? '✓ Metadata Written' : '⏳ Metadata Pending'}
-                </span>
-                <span className={`sv-badge ${story.is_uploaded_to_s3 ? 'sv-badge--success' : 'sv-badge--warning'}`}>
-                  {story.is_uploaded_to_s3 ? '✓ Uploaded' : '⏳ Upload Pending'}
-                </span>
-              </div>
-              {story.file_name && (
-                <div style={{
-                  fontSize: 'var(--sv-text-xs)',
-                  color: 'var(--sv-text-muted)',
-                  fontFamily: 'var(--sv-font-mono)',
-                  marginTop: 'var(--sv-space-2)',
-                }}>
-                  {story.file_name}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: 600 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_downloaded ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
+                    {story.is_downloaded ? <Check size={14}/> : <Clock size={14}/>} Downloaded
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_metadata_written ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
+                    {story.is_metadata_written ? <Check size={14}/> : <Clock size={14}/>} Metadata
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
           {/* ── Music Tab ─────────────────── */}
           {activeTab === 'music' && (
-            <div className="sv-story-detail__section sv-slide-up">
+            <div style={{ animation: 'fade-in 0.3s ease' }}>
               {story.music ? (
-                <>
-                  <div className="sv-card" style={{ padding: 'var(--sv-space-5)' }}>
-                    <div style={{ display: 'flex', gap: 'var(--sv-space-4)', alignItems: 'center' }}>
-                      {story.music.cover_art_url ? (
-                        <img
-                          src={story.music.cover_art_url}
-                          alt="Cover art"
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 'var(--sv-radius-md)',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 'var(--sv-radius-md)',
-                          background: 'var(--sv-gradient-warm)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
-                        }}>
-                          🎵
-                        </div>
-                      )}
-                      <div>
-                        <div style={{ fontSize: 'var(--sv-text-lg)', fontWeight: 700 }}>
-                          {story.music.track_title}
-                        </div>
-                        <div style={{ color: 'var(--sv-text-secondary)' }}>
-                          {story.music.artist_name}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: 'var(--sv-space-4)',
-                      marginTop: 'var(--sv-space-5)',
-                    }}>
-                      {story.music.start_time_ms != null && (
-                        <div>
-                          <div className="sv-story-detail__metadata-label">Start Offset</div>
-                          <div className="sv-story-detail__metadata-value">
-                            {(story.music.start_time_ms / 1000).toFixed(1)}s
-                          </div>
-                        </div>
-                      )}
-                      {story.music.play_duration_ms != null && (
-                        <div>
-                          <div className="sv-story-detail__metadata-label">Duration</div>
-                          <div className="sv-story-detail__metadata-value">
-                            {(story.music.play_duration_ms / 1000).toFixed(1)}s
-                          </div>
-                        </div>
-                      )}
-                      {story.music.ig_audio_id && (
-                        <div>
-                          <div className="sv-story-detail__metadata-label">IG Audio ID</div>
-                          <div className="sv-story-detail__metadata-value" style={{ fontFamily: 'var(--sv-font-mono)', fontSize: 'var(--sv-text-xs)' }}>
-                            {story.music.ig_audio_id}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Interactive Music Player */}
-                    <MusicPlayer music={story.music} />
-                  </div>
-                </>
+                <div>
+                  <MusicPlayer music={story.music} onPlayStateChange={setIsMusicPlaying} />
+                </div>
               ) : (
-                <div className="sv-empty" style={{ padding: 'var(--sv-space-12)' }}>
-                  <div className="sv-empty__icon" style={{ fontSize: '3rem' }}>🔇</div>
-                  <div className="sv-empty__title">No Music</div>
-                  <div className="sv-empty__description">
-                    This story was posted without a music sticker.
-                  </div>
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
+                  <Music size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                  <div>No music attached to this story.</div>
                 </div>
               )}
             </div>
@@ -477,74 +334,27 @@ export default function StoryDetail() {
 
           {/* ── Viewers Tab ───────────────── */}
           {activeTab === 'viewers' && (
-            <div className="sv-story-detail__section sv-slide-up">
+            <div style={{ animation: 'fade-in 0.3s ease' }}>
               {viewers.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {viewers.map((v) => (
-                    <div
-                      key={v.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--sv-space-3)',
-                        padding: 'var(--sv-space-2)',
-                        borderRadius: 'var(--sv-radius-md)',
-                      }}
-                    >
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
                       {v.profile_pic_url ? (
-                        <img
-                          src={v.profile_pic_url}
-                          alt={v.username}
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                          }}
-                        />
+                        <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
-                        <div style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: 'var(--sv-surface)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 'var(--sv-text-sm)',
-                        }}>
-                          👤
-                        </div>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} color="var(--ios-text-secondary)" /></div>
                       )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 'var(--sv-text-sm)' }}>
-                          <a 
-                            href={`https://instagram.com/${v.username}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            style={{ color: 'inherit', textDecoration: 'none' }}
-                            onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                            onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                          >
-                            {v.username}
-                          </a>
-                        </div>
-                        {v.full_name && (
-                          <div style={{ fontSize: 'var(--sv-text-xs)', color: 'var(--sv-text-muted)' }}>
-                            {v.full_name}
-                          </div>
-                        )}
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{v.username}</div>
+                        {v.full_name && <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="sv-empty" style={{ padding: 'var(--sv-space-12)' }}>
-                  <div className="sv-empty__icon" style={{ fontSize: '3rem' }}>👁️</div>
-                  <div className="sv-empty__title">No Viewer Data</div>
-                  <div className="sv-empty__description">
-                    Viewer data is only captured while the story is still active (within 24 hours).
-                  </div>
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
+                  <Eye size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                  <div>No viewer data available.</div>
                 </div>
               )}
             </div>
@@ -552,24 +362,12 @@ export default function StoryDetail() {
 
           {/* ── Manifest Tab ──────────────── */}
           {activeTab === 'manifest' && (
-            <div className="sv-story-detail__section sv-slide-up">
-              <div className="sv-story-detail__section-title">
-                .mem Manifest (Layout Recipe)
-              </div>
-              <pre
-                style={{
-                  background: 'var(--sv-bg-primary)',
-                  border: '1px solid var(--sv-border)',
-                  borderRadius: 'var(--sv-radius-md)',
-                  padding: 'var(--sv-space-4)',
-                  overflow: 'auto',
-                  maxHeight: 500,
-                  fontSize: 'var(--sv-text-xs)',
-                  fontFamily: 'var(--sv-font-mono)',
-                  color: 'var(--sv-text-secondary)',
-                  lineHeight: 1.8,
-                }}
-              >
+            <div style={{ animation: 'fade-in 0.3s ease', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+              <pre style={{
+                background: '#1e1e1e', color: '#d4d4d4', padding: '16px', borderRadius: '12px',
+                overflow: 'auto', flex: 1, maxHeight: '500px', fontSize: '12px', fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+              }}>
                 {JSON.stringify(story, null, 2)}
               </pre>
             </div>
@@ -581,11 +379,7 @@ export default function StoryDetail() {
         isOpen={isLocationModalOpen} 
         onClose={() => setIsLocationModalOpen(false)} 
         onSave={handleSaveLocation}
-        initialLocation={story.location_name ? {
-          name: story.location_name,
-          lat: story.location_lat,
-          lng: story.location_lng
-        } : null}
+        initialLocation={story.location_name ? { name: story.location_name, lat: story.location_lat, lng: story.location_lng } : null}
       />
     </div>
   )

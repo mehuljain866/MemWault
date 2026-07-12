@@ -15,10 +15,14 @@ import { ChevronUp, ChevronDown, RotateCw, Map as MapIcon } from 'lucide-react'
 delete L.Icon.Default.prototype._getIconUrl;
 
 // iOS Style Pin Icon
-const createIosPin = (mediaUrl) => {
+const createIosPin = (mediaUrl, mediaType) => {
+  const mediaElement = mediaType === 2 
+    ? `<video src="${mediaUrl}#t=0.1" style="width: 100%; height: 100%; object-fit: cover;" muted playsinline></video>`
+    : `<img src="${mediaUrl}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+
   const html = mediaUrl 
     ? `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden; background: #333; position: relative;">
-         <img src="${mediaUrl}" style="width: 100%; height: 100%; object-fit: cover;" />
+         ${mediaElement}
          <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid white;"></div>
        </div>`
     : `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: #333; display: flex; align-items: center; justify-content: center; position: relative;">
@@ -171,9 +175,9 @@ export default function MapView() {
   // Split Screen Render
   if (!isImmersive) {
     return (
-      <div className="sv-card" style={{ padding: 0, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', background: 'var(--sv-bg)' }}>
+      <div className="ios-card" style={{ padding: 0, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', background: 'var(--ios-bg-app)' }}>
         <div ref={containerRef} style={{ 
-            display: 'flex', flexDirection: isVerticalSplit ? 'column' : 'row', flex: 1, overflow: 'hidden', position: 'relative', padding: 'var(--sv-space-3)', gap: '4px'
+            display: 'flex', flexDirection: isVerticalSplit ? 'column' : 'row', flex: 1, overflow: 'hidden', position: 'relative', padding: '12px', gap: '4px'
         }}>
           {/* MAP */}
           <div style={{ flexBasis: `${splitRatio}%`, flexGrow: 0, flexShrink: 0, position: 'relative', zIndex: 1, borderRadius: 'var(--ios-radius-lg)', border: '1px solid var(--ios-border)', overflow: 'hidden', background: 'var(--ios-bg-card)' }}>
@@ -184,8 +188,8 @@ export default function MapView() {
                 <MapResizer />
                 <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
                   {locations.map(loc => (
-                    <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url)}>
-                      <Popup className="sv-map-popup">
+                    <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
+                      <Popup className="ios-map-popup">
                         <div style={{ textAlign: 'center' }}>
                           <strong>{loc.location_name}</strong><br/>
                           <Link to={`/story/${loc.id}`} style={{ display: 'inline-block', marginTop: '4px' }}>View Story</Link>
@@ -245,11 +249,21 @@ export default function MapView() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
                     {locs.map(loc => (
                       <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
-                        <img 
-                          src={loc.media_url} 
-                          onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        />
+                        {loc.media_type === 2 ? (
+                          <video 
+                            src={`${loc.media_url}#t=0.1`} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            muted playsInline 
+                            onMouseOver={(e) => e.target.play()} 
+                            onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
+                          />
+                        ) : (
+                          <img 
+                            src={loc.media_url} 
+                            onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -286,7 +300,7 @@ export default function MapView() {
         <MapEvents onBoundsChange={handleBoundsChange} />
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
           {locations.map(loc => (
-            <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url)}>
+            <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
               <Popup><strong>{loc.location_name}</strong><br/><Link to={`/story/${loc.id}`}>View</Link></Popup>
             </Marker>
           ))}
@@ -343,11 +357,21 @@ export default function MapView() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
                 {locs.map(loc => (
                   <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
-                    <img 
-                      src={loc.media_url} 
-                      onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
+                    {loc.media_type === 2 ? (
+                      <video 
+                        src={`${loc.media_url}#t=0.1`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        muted playsInline 
+                        onMouseOver={(e) => e.target.play()} 
+                        onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
+                      />
+                    ) : (
+                      <img 
+                        src={loc.media_url} 
+                        onError={(e) => { e.target.src = 'https://placehold.co/400x600/1c1c1e/ffffff?text=Image+Error' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    )}
                   </div>
                 ))}
               </div>

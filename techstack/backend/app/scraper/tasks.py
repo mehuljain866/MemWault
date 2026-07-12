@@ -181,11 +181,25 @@ def poll_stories(self, user_id: Optional[str] = None):
                 ).first()
                 if existing:
                     logger.info("Story %s already archived, updating views", media_id)
-                    # Update viewer count if present in new fetch
-                    new_viewer_count = story_data.get("viewer_count")
-                    if new_viewer_count is not None:
-                        existing.viewer_count = new_viewer_count
+                    try:
+                        viewers_list = scraper.fetch_story_viewers(media_id)
+                        existing.viewer_count = len(viewers_list)
+                        
+                        from app.models import StoryViewer
+                        db.query(StoryViewer).filter(StoryViewer.story_id == existing.id).delete()
+                        for v_data in viewers_list:
+                            sv = StoryViewer(
+                                story_id=existing.id,
+                                ig_user_id=v_data["ig_user_id"],
+                                username=v_data["username"],
+                                full_name=v_data.get("full_name"),
+                                profile_pic_url=v_data.get("profile_pic_url"),
+                            )
+                            db.add(sv)
                         db.commit()
+                        logger.info("Updated %d viewers for existing story %s", len(viewers_list), media_id)
+                    except Exception as e:
+                        logger.error("Failed to update viewers for %s: %s", media_id, e)
                     continue
 
                 try:
@@ -287,6 +301,26 @@ def poll_stories(self, user_id: Optional[str] = None):
                         db.add(story_sticker)
 
                     db.commit()
+                    
+                    try:
+                        viewers_list = scraper.fetch_story_viewers(media_id)
+                        new_story.viewer_count = len(viewers_list)
+                        
+                        from app.models import StoryViewer
+                        for v_data in viewers_list:
+                            sv = StoryViewer(
+                                story_id=new_story.id,
+                                ig_user_id=v_data["ig_user_id"],
+                                username=v_data["username"],
+                                full_name=v_data.get("full_name"),
+                                profile_pic_url=v_data.get("profile_pic_url"),
+                            )
+                            db.add(sv)
+                        db.commit()
+                        logger.info("Fetched %d initial viewers for new story %s", len(viewers_list), media_id)
+                    except Exception as e:
+                        logger.error("Failed to fetch initial viewers for %s: %s", media_id, e)
+                        
                     new_count += 1
                     logger.info("Processed story: %s -> %s", media_id, s3_key)
 

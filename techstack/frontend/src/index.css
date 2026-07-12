@@ -364,3 +364,69 @@ ul {
 .spin-anim {
   animation: spin 1s linear infinite;
 }
+
+/* â ¬ â ¬  Highlights Tab â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬  */
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 24px;
+  padding: 16px;
+}
+
+.album-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.album-card:hover {
+  transform: scale(1.05);
+}
+
+.album-cover-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  padding: 4px;
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  margin-bottom: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.album-cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--ios-bg);
+}
+
+.album-count {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--ios-bg-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--ios-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--ios-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.album-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ios-text);
+  text-align: center;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

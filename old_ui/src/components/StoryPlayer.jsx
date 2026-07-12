@@ -14,7 +14,7 @@ import {
  * It renders the base media (image/video) and overlays stickers exactly
  * where they appeared using the layout manifest.
  */
-export default function StoryPlayer({ story, isMusicPlaying }) {
+export default function StoryPlayer({ story }) {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
   const timerRef = useRef(null)
@@ -22,13 +22,6 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
-
-  useEffect(() => {
-    if (isMusicPlaying && isPlaying && videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
-  }, [isMusicPlaying, isPlaying]);
 
   useEffect(() => {
     if (!videoRef.current || !story) return;
@@ -108,7 +101,7 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
 
   return (
     <div 
-      className="ios-story-player" 
+      className="sv-story-player" 
       ref={containerRef}
       style={{
         position: 'relative',

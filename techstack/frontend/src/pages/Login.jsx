@@ -36,139 +36,272 @@ export default function Login() {
   }
 
   return (
-    <div className="sv-login">
-      <div className="sv-login__card sv-card sv-slide-up">
-        {/* Logo */}
-        <div className="sv-login__logo">
-          <div className="sv-login__logo-icon">🏛️</div>
-          <div className="sv-login__title">MemWault</div>
-          <div className="sv-login__subtitle">
-            Your portable memory archive
-          </div>
-        </div>
-
-        {/* Form */}
-        <form className="sv-login__form" onSubmit={handleSubmit}>
-          {error && <div className="sv-login__error">{error}</div>}
-
-          <div className="sv-login__field">
-            <label className="sv-label" htmlFor="username">Username</label>
-            <input
-              id="username"
-              className="sv-input"
-              type="text"
-              value={form.username}
-              onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))}
-              placeholder="Enter your username"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="sv-login__field">
-            <label className="sv-label" htmlFor="password">Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="password"
-                className="sv-input"
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                style={{ paddingRight: '40px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--sv-text-muted)',
-                  cursor: 'pointer',
-                  padding: '5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? '👁️‍🗨️' : '👁️'}
-              </button>
+    <div style={{
+      minHeight: '100vh',
+      width: '100vw',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--ios-bg-app)',
+      padding: '24px',
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '420px',
+        animation: 'slideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
+      }}>
+        {/* Glass Card */}
+        <div style={{
+          background: 'var(--ios-bg-card)',
+          borderRadius: '24px',
+          padding: '48px 40px',
+          boxShadow: 'var(--ios-shadow-lg)',
+          border: '1px solid var(--ios-border)',
+        }}>
+          {/* Logo & Title */}
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <div style={{
+              fontSize: '56px',
+              marginBottom: '16px',
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))',
+            }}>🏛️</div>
+            <div style={{
+              fontSize: '28px',
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+              color: 'var(--ios-text-primary)',
+              marginBottom: '6px',
+            }}>MemWault</div>
+            <div style={{
+              fontSize: '15px',
+              color: 'var(--ios-text-secondary)',
+              fontWeight: 400,
+            }}>
+              {isRegister ? 'Create your account' : 'Your portable memory archive'}
             </div>
           </div>
 
-          {isRegister && (
-            <div className="sv-login__field" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <label className="sv-label" htmlFor="confirmPassword">Confirm Password</label>
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {error && (
+              <div style={{
+                background: 'rgba(255, 59, 48, 0.1)',
+                border: '1px solid rgba(255, 59, 48, 0.3)',
+                color: 'var(--ios-danger)',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}>
+                {error}
+              </div>
+            )}
+
+            {/* Username */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--ios-text-secondary)',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>Username</label>
+              <input
+                type="text"
+                value={form.username}
+                onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))}
+                placeholder="Enter your username"
+                required
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: 'var(--ios-bg-app)',
+                  border: '1.5px solid var(--ios-border)',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  color: 'var(--ios-text-primary)',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  fontFamily: 'inherit',
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--ios-accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--ios-border)'}
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--ios-text-secondary)',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>Password</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  id="confirmPassword"
-                  className="sv-input"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  style={{
+                    width: '100%',
+                    padding: '14px 48px 14px 16px',
+                    background: 'var(--ios-bg-app)',
+                    border: '1.5px solid var(--ios-border)',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    color: 'var(--ios-text-primary)',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    fontFamily: 'inherit',
+                  }}
+                  onFocus={e => e.target.style.borderColor = 'var(--ios-accent)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--ios-border)'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: '14px', top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none', border: 'none',
+                    color: 'var(--ios-text-secondary)',
+                    cursor: 'pointer', fontSize: '18px',
+                    display: 'flex', alignItems: 'center',
+                  }}
+                >
+                  {showPassword ? '👁️‍🗨️' : '👁️'}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password (register only) */}
+            {isRegister && (
+              <div style={{ animation: 'slideUp 0.3s ease-out' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--ios-text-secondary)',
+                  marginBottom: '8px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>Confirm Password</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  style={{ paddingRight: '40px' }}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    background: 'var(--ios-bg-app)',
+                    border: '1.5px solid var(--ios-border)',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    color: 'var(--ios-text-primary)',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    fontFamily: 'inherit',
+                  }}
+                  onFocus={e => e.target.style.borderColor = 'var(--ios-accent)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--ios-border)'}
                 />
               </div>
-            </div>
-          )}
+            )}
 
-          <button
-            className="sv-btn sv-btn--primary sv-btn--lg"
-            type="submit"
-            disabled={loading}
-            style={{ width: '100%', marginTop: 'var(--sv-space-2)' }}
-          >
-            {loading
-              ? '⏳ Please wait...'
-              : isRegister
-              ? '✨ Create Account'
-              : '🔐 Sign In'
-            }
-          </button>
-        </form>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="ios-btn"
+              style={{
+                width: '100%',
+                marginTop: '8px',
+                padding: '16px',
+                fontSize: '16px',
+                fontWeight: 600,
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loading
+                ? '⏳ Please wait...'
+                : isRegister
+                ? '✨ Create Account'
+                : '🔐 Sign In'}
+            </button>
+          </form>
 
-        {/* Toggle register/login */}
+          {/* Toggle Register/Login */}
+          <div style={{
+            textAlign: 'center',
+            marginTop: '28px',
+            fontSize: '14px',
+            color: 'var(--ios-text-secondary)',
+          }}>
+            {isRegister ? (
+              <>
+                Already have an account?{' '}
+                <button
+                  style={{
+                    background: 'none', border: 'none',
+                    color: 'var(--ios-accent)', cursor: 'pointer',
+                    fontSize: '14px', fontWeight: 600,
+                    padding: '0', fontFamily: 'inherit',
+                  }}
+                  onClick={() => { setIsRegister(false); setError('') }}
+                >
+                  Sign In
+                </button>
+              </>
+            ) : (
+              <>
+                First time?{' '}
+                <button
+                  style={{
+                    background: 'none', border: 'none',
+                    color: 'var(--ios-accent)', cursor: 'pointer',
+                    fontSize: '14px', fontWeight: 600,
+                    padding: '0', fontFamily: 'inherit',
+                  }}
+                  onClick={() => { setIsRegister(true); setError('') }}
+                >
+                  Create Account
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
         <div style={{
           textAlign: 'center',
-          marginTop: 'var(--sv-space-6)',
-          fontSize: 'var(--sv-text-sm)',
-          color: 'var(--sv-text-tertiary)',
+          marginTop: '24px',
+          fontSize: '13px',
+          color: 'var(--ios-text-secondary)',
+          opacity: 0.6,
         }}>
-          {isRegister ? (
-            <>
-              Already have an account?{' '}
-              <button
-                className="sv-btn sv-btn--ghost"
-                style={{ display: 'inline', padding: 0, fontSize: 'inherit', color: 'var(--sv-accent-primary)' }}
-                onClick={() => { setIsRegister(false); setError('') }}
-              >
-                Sign In
-              </button>
-            </>
-          ) : (
-            <>
-              First time?{' '}
-              <button
-                className="sv-btn sv-btn--ghost"
-                style={{ display: 'inline', padding: 0, fontSize: 'inherit', color: 'var(--sv-accent-primary)' }}
-                onClick={() => { setIsRegister(true); setError('') }}
-              >
-                Create Account
-              </button>
-            </>
-          )}
+          MemWault · Your memories, forever yours.
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

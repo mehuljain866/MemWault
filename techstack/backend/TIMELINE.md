@@ -59,28 +59,4 @@ The decision was made to build a self-hosted platform called **MemWault** using 
 
 ---
 
-## July 08, 2026
-* Goal:** Address edge cases in UI rendering, fix visual consistency across tabs, and squash media syncing bugs.
-* 01:00 AM - Data Tab Overflow Fix:** Fixed a massive layout bug in the `StoryDetail` Data tab where large JSON payloads caused infinite width scrolling. Applied `minWidth: 0` flex constraints and `pre-wrap` styling to correctly contain the raw manifest data.
-* 01:15 AM - MapView Header Polish:** Redesigned the date headers in the Map Split-Screen view. Replaced the generic headers with floating Apple-style glassmorphic date bubbles to match the aesthetics of the Memories page.
-* 01:30 AM - Fast Scroll Navigation:** Built and integrated a new `FastScrollbar.jsx` component into both the Timeline and Map views, allowing users to rapidly drag through chronological history rather than scrolling manually.
-* 01:45 AM - Media Sync Diagnosis (467 Client Error):** Investigated why the newest uploaded stories were appearing as "Image Error" placeholders. Discovered that the backend Instagram session (cookies) had expired, preventing media downloads. Wrote repair scripts and built a flow to prompt users to reconnect their session when downloads fail.
-* 02:00 AM - Location Modal Fullscreen Fix:** Repaired the "Edit Location" map UI which was failing to maximize properly. Upgraded CSS from static viewport units (`100vh`) to dynamic viewport heights (`100dvh`) and removed `maxWidth` constraints to perfectly emulate the Apple Photos bottom-sheet map experience.
-* 02:15 AM - Manual Reel Toggling:** Encountered edge cases where Instagram's API obfuscates reshared reels in new sticker formats, bypassing the auto-detection. Added a manual "Mark as Reel / Unmark as Reel" toggle directly into the `StoryDetail` Info tab so users can easily filter out accidental reels from their organic memories.
-* 02:30 AM - Environment Restoration:** Automatically re-initialized the Uvicorn backend and Vite frontend environments following a server restart to bring the app back online.
-
----
-
 *(This timeline is continuously updated with exact, timestamped precision as the project evolves.)*
-
----
-
-## July 09, 2026
-**Goal:** Comprehensive bug audit after discovering multiple broken areas post-v2.0 push.
-
-* **12:46 AM - System Audit:** Full codebase audit run. Identified 4 categories of bugs: (1) Login page completely unstyled, (2) Missing thumbnails on recent stories, (3) Stale `sv-` CSS classes in `StoryPlayer.jsx` and `MapView.jsx`, (4) No Instagram session management (disconnect/renew) in Settings.
-* **12:55 AM - Bug Fix: Login Page:** Completely rewrote `Login.jsx` from the old `sv-` design system to the new `ios-` CSS architecture. Added glassmorphic card, proper input focus states, Apple-style typography, and a slide-up entrance animation matching the rest of the app.
-* **01:00 AM - Bug Fix: CSS Class Remnants:** Removed stale `sv-story-player` class from `StoryPlayer.jsx`. Fixed `sv-card`, `var(--sv-bg)`, `var(--sv-space-3)`, and `sv-map-popup` in `MapView.jsx`, replacing all with proper `ios-` equivalents.
-* **01:05 AM - Feature: Instagram Session Management:** Added two new backend endpoints: `DELETE /instagram/session` (disconnect) and `POST /instagram/renew` (re-launch Playwright browser to refresh expired cookies). Added `disconnectInstagram()` and `renewInstagramSession()` to the frontend API service layer.
-* **01:10 AM - Feature: Settings UI Update:** Wired up Renew Session + Disconnect buttons in `Settings.jsx`. Session status now shows a green "Connected ✓" or red "Session Expired" indicator with `Wifi`/`WifiOff` icons. When session is expired, the Renew button is prominently displayed.
-

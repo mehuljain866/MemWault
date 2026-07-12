@@ -273,9 +273,94 @@ async def get_instagram_session(
     return result.scalar_one_or_none()
 
 
-# ═══════════════════════════════════════════════════════════
-# Story Endpoints
-# ═══════════════════════════════════════════════════════════
+@router.delete("/instagram/session", status_code=204)
+async def disconnect_instagram_session(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disconnect (invalidate) the current Instagram session."""
+    result = await db.execute(
+        select(InstagramSession).where(InstagramSession.user_id == user.id)
+    )
+    sessions = result.scalars().all()
+    for session in sessions:
+        session.is_valid = False
+        session.session_data = {}
+    await db.flush()
+
+
+@router.post("/instagram/renew", response_model=BrowserLoginResponse)
+async def renew_instagram_session(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Re-launch the browser login flow to refresh expired Instagram cookies.
+    Same as browser-login but ensures old session data is cleared first.
+    """
+    import asyncio
+    from app.scraper.browser_login import browser_login
+    from app.scraper.instagram import InstagramScraper
+
+    try:
+        from starlette.concurrency import run_in_threadpool
+
+        def run_browser_sync():
+            import asyncio
+            import sys
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            return asyncio.run(browser_login(timeout_ms=300_000))
+
+        login_result = await run_in_threadpool(run_browser_sync)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Browser login failed: {e}")
+
+    cookies = login_result["cookies"]
+    ig_username = login_result.get("ig_username", "unknown")
+    user_agent = login_result.get("user_agent", "")
+
+    scraper = InstagramScraper(
+        username=ig_username,
+        web_cookies=cookies,
+        web_user_agent=user_agent,
+    )
+    session_data = scraper.login()
+
+    # Upsert session
+    result = await db.execute(
+        select(InstagramSession).where(InstagramSession.user_id == user.id)
+    )
+    ig_session = result.scalar_one_or_none()
+
+    if ig_session:
+        ig_session.session_data = session_data
+        ig_session.ig_username = ig_username
+        ig_session.ig_user_id = scraper.user_id
+        ig_session.is_valid = True
+        ig_session.last_login = datetime.now(timezone.utc)
+    else:
+        ig_session = InstagramSession(
+            user_id=user.id,
+            ig_username=ig_username,
+            ig_user_id=scraper.user_id,
+            session_data=session_data,
+            is_valid=True,
+        )
+        db.add(ig_session)
+
+    await db.flush()
+
+    return BrowserLoginResponse(
+        status="login_success",
+        ig_username=ig_username,
+        message=f"Session renewed successfully for @{ig_username}",
+    )
+
+
+
 
 @router.get("/stories", response_model=StoryListRead)
 async def list_stories(

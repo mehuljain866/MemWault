@@ -3,7 +3,7 @@
  * Centralized fetch wrapper for all backend API calls.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 /**
  * Get the stored JWT token from localStorage.
@@ -54,14 +54,9 @@ async function apiFetch(endpoint, options = {}) {
 
   if (response.status === 401) {
     clearToken();
-    // Only redirect if we're not already on the login page (avoids infinite spinner bug)
-    if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login';
-    }
-    const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
-    throw new Error(error.detail || 'Invalid credentials');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
   }
-
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Network error' }));
@@ -139,25 +134,10 @@ export async function getInstagramSession() {
   return apiFetch('/instagram/session');
 }
 
-export async function disconnectInstagram() {
-  return apiFetch('/instagram/session', { method: 'DELETE' });
-}
 
-export async function renewInstagramSession() {
-  // Opens a real browser window on the server to refresh cookies
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 330000); // 5.5 min timeout
-  try {
-    return await apiFetch('/instagram/renew', {
-      method: 'POST',
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-
+// ═══════════════════════════════════════════════════════════
+// Stories API
+// ═══════════════════════════════════════════════════════════
 
 export async function getStories(params = {}) {
   const searchParams = new URLSearchParams();

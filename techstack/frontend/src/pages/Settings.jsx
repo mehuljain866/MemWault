@@ -2,19 +2,23 @@ import { useState, useEffect } from 'react'
 import {
   getInstagramSession,
   browserLoginInstagram,
+  disconnectInstagram,
+  renewInstagramSession,
   getScrapeLogs,
   clearToken,
   rescanMetadata,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun } from 'lucide-react'
+import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff } from 'lucide-react'
 
 export default function Settings() {
   const navigate = useNavigate()
   const [igSession, setIgSession] = useState(null)
   const [scrapeLogs, setScrapeLogs] = useState([])
   const [connecting, setConnecting] = useState(false)
+  const [renewing, setRenewing] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
   const [rescanning, setRescanning] = useState(false)
   const [error, setError] = useState('')
   const [playbackSettings, setPlaybackSettings] = useState(getSettings())
@@ -62,6 +66,40 @@ export default function Settings() {
     if (confirm('Sign out of MemWault?')) {
       clearToken()
       navigate('/login')
+    }
+  }
+
+  async function handleDisconnectInstagram() {
+    if (!confirm('Disconnect your Instagram account? Your archived stories will remain, but syncing will stop.')) return
+    setDisconnecting(true)
+    try {
+      await disconnectInstagram()
+      setIgSession(null)
+    } catch (err) {
+      alert('Failed to disconnect: ' + err.message)
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  async function handleRenewSession() {
+    setError('')
+    setRenewing(true)
+    try {
+      const result = await renewInstagramSession()
+      if (result.status === 'login_success') {
+        await loadData()
+      } else {
+        setError(result.message || 'Renewal failed. Please try again.')
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setError('Login timed out. Please try again.')
+      } else {
+        setError(err.message)
+      }
+    } finally {
+      setRenewing(false)
     }
   }
 
@@ -146,8 +184,48 @@ export default function Settings() {
         {igSession ? (
           <>
             <IosListItem icon={UserIcon} iconBg="#007aff" title="Username" value={`@${igSession.ig_username}`} />
-            <IosListItem icon={UserIcon} iconBg="#5856d6" title="Status" value={igSession.is_valid ? 'Connected' : 'Expired'} />
-            <IosListItem icon={UserIcon} iconBg="#34c759" title="Last Login" value={new Date(igSession.last_login).toLocaleDateString()} last />
+            <IosListItem 
+              icon={igSession.is_valid ? Wifi : WifiOff} 
+              iconBg={igSession.is_valid ? '#34c759' : '#ff3b30'} 
+              title="Status" 
+              value={igSession.is_valid ? 'Connected ✓' : 'Session Expired'}
+            />
+            <IosListItem icon={UserIcon} iconBg="#5856d6" title="Last Login" value={new Date(igSession.last_login).toLocaleDateString()} />
+            {/* Action Buttons */}
+            <div style={{ padding: '16px', display: 'flex', gap: '12px', borderTop: '1px solid var(--ios-border)' }}>
+              {(renewing) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ios-text-secondary)', fontSize: '14px' }}>
+                  <RefreshCcw size={18} className="spin-anim" color="var(--ios-accent)" />
+                  A browser window is open. Please log in there...
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="ios-btn"
+                    onClick={handleRenewSession}
+                    style={{ flex: 1, fontSize: '14px', padding: '10px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <RefreshCcw size={16} /> Renew Session
+                  </button>
+                  <button
+                    onClick={handleDisconnectInstagram}
+                    disabled={disconnecting}
+                    style={{
+                      flex: 1, fontSize: '14px', padding: '10px',
+                      background: 'rgba(255, 59, 48, 0.1)',
+                      border: '1px solid rgba(255, 59, 48, 0.3)',
+                      borderRadius: '12px', color: 'var(--ios-danger)',
+                      cursor: 'pointer', fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <WifiOff size={16} /> {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                  </button>
+                </>
+              )}
+            </div>
+            {error && <div style={{ padding: '8px 16px 16px', color: 'var(--ios-danger)', fontSize: '13px' }}>{error}</div>}
           </>
         ) : (
           <div style={{ padding: '24px 16px', textAlign: 'center' }}>

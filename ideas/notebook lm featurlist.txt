@@ -1,0 +1,101 @@
+This comprehensive specification details the complete feature set for **MemWault**, integrating every technical capability, design philosophy, and research opportunity identified across the sources.
+
+### I. The Vision: MemWault and the Memory Object Model (MOM)
+**MemWault** is not a simple backup tool; it is a **user-owned memory preservation layer**. While standard backups capture flattened, low-bitrate outputs, MemWault preserves the **creative history** and **intent** behind a memory.
+
+The core of this system is the **Memory Object Model (MOM)**. 
+*   **What it is:** MOM treats a digital memory as a dynamic object with multiple representations. 
+*   **The Unit of Memory:** A single "Memory" object can represent a birthday, which might include 40 RAW photos, Lightroom edits, an Instagram Story, a WhatsApp Status, and a Google Drive album—all linked as the same event.
+*   **Previous vs. New Variation:** 
+    *   *Previous:* Initially considered building a standalone story composer to compete with Instagram.
+    *   *New:* The current strategy is to **not compete with Instagram**. Instagram remains the editor; MemWault becomes the **archivist**.
+
+---
+
+### II. Feature Set: "What’s Possible"
+
+#### 1. Archivist Core (The MVP)
+*   **Original Asset Harvesting:** Capture high-resolution photos and videos before they undergo destructive platform-side compression.
+*   **Final Render Preservation:** Save the finished story exactly as everyone else saw it, including music and stickers.
+*   **Magic Byte Sniffing:** Automatically identify the true file type of extensionless cache fragments by analyzing headers (e.g., `FF D8 FF` for JPEG, `89 50 4E 47` for PNG).
+*   **Music Metadata Archiving:** Store exact song titles and precise start/end timestamps.
+*   **Interactive State Capture:** While live polls cannot be re-functionalized once servers are down, MemWault preserves the **final static verdict** of polls and questions as structured metadata.
+*   **Contextual Notes:** Every story can have a personal note attached ("First time trying astrophotography") because humans remember stories, not pixels.
+*   **Social Context:** Capture mentions, tagged accounts, story links, and location data.
+*   **Temporal Context:** Preserve exact timestamps, viewer lists (while available), and replies.
+
+#### 2. Universal Portability & Metadata
+*   **Universal Metadata Layer:** Extend existing standards (JPEG, MP4) so files remain compatible with any gallery app.
+*   **Custom XMP Namespaces:** Inject MemWault-specific data (IDs, music tags, timezone locations) into standard image headers using ExifTool configurations.
+*   **MP4 Atom Injection:** Write layout metrics and creative intent into a user-defined `uuid` box inside the video's `moov` atom.
+*   **Motion Photo Support:** Archive "Boomerangs" and "Live Photos" as a JPEG with an embedded MP4, compatible with Samsung and Google gallery features.
+*   **Gallery Integration:** Provide a "swipe up" experience in native galleries to show MemWault metadata or a button to "Open in MemWault".
+
+#### 3. Creative Replay & Re-Editing (The `.mem` Format)
+*   **The .mem Container:** A platform-agnostic, versioned, ZIP-based "project file".
+*   **The Creative "Recipe":** A JSON manifest storing the exact position, font, color, rotation, scale, and layer order of every sticker and text element.
+*   **The Replay Engine:** Reconstruct stories with absolute spatial and temporal fidelity years later.
+*   **Post-Hoc Editing:** Treat stories like Photoshop PSDs; users can move text, change crops, or re-export at higher resolutions for future repurposing.
+
+---
+
+### III. Platform Investigation & Feasibility Matrix
+
+| Feature Category | Feature | Status | Mechanism |
+| :--- | :--- | :--- | :--- |
+| **Archiving** | Raw Asset Harvesting | **Green** | Cache sniffing magic bytes. |
+| **Archiving** | Custom XMP/EXIF Writing | **Green** | Local parsers/ExifTool. |
+| **Archiving** | Manual Export Pipeline | **Green** | Standard PhotoKit/Media APIs. |
+| **Archiving** | .mem Package Compilation | **Green** | Open Packaging Conventions (OPC). |
+| **Android** | Accessing `/Android/data` | **Yellow** | Shizuku bypass or PC/ADB workaround. |
+| **Android** | UI Tree Metadata (Stickers/Fonts) | **Yellow** | Accessibility Service `FLAG_RETRIEVE_INTERACTIVE_WINDOWS`. |
+| **Android** | Background Persistence | **Yellow** | Local loopback scripts to keep Shizuku running on reboot. |
+| **iOS** | Background Monitoring | **Yellow** | `PHPersistentChangeToken` to find assets after app closes. |
+| **Networking** | Traffic Inspection | **Yellow** | Rooted secondary device using Frida SSL pinning bypass. |
+| **Interactivity** | Re-functionalizing Live Polls | **Red** | Server-side voting logic is unreachable. |
+
+---
+
+### IV. Platform Specifics
+
+#### Android: The "God-Mode" Approach
+*   **Accessibility Service Power:** Can read every text field, button, and image description on screen. It receives real-time events like `TYPE_VIEW_TEXT_CHANGED` for contextual keylogging.
+*   **Gesture Injection:** Using `dispatchGesture()`, MemWault could programmatically interact with the UI, bypassing traditional touch-blocking rules.
+*   **Shizuku Integration:** Enables file management in protected directories (Scoped Storage) without root by coordinating with ADB.
+*   **Root Investigation:** A secondary device will use **Magisk, Frida, and LSPosed** to reverse-engineer Instagram's video upload sequences and SSL pinning logic.
+
+#### iOS: The Sandbox Strategy
+*   **Background Constraints:** iOS suspends apps quickly.
+*   **The PhotoKit Bridge:** MemWault uses `fetchPersistentChanges(since:)` upon app launch to identify any assets added to the camera roll while the app was closed.
+*   **Proxy Setup:** Reconstructing network stories on iOS requires a manual manual desktop proxy (Proxyman/Fiddler) and custom root CA certificate installation.
+
+---
+
+### V. Database & System Architecture
+*   **Layered Storage:** The gallery stores standard files for easy access; the database (SQLite/PostgreSQL) stores the rich MOM relationships and history.
+*   **Deployment Options:**
+    *   **Self-Hosted:** Docker-compose setup for NAS (Synology/Unraid) with automated incremental snapshots using Borg.
+    *   **PWA (Web App):** A potential cross-platform solution to avoid architecture-specific builds for Windows, Mac, and Linux.
+    *   **Managed SaaS (Pixel Labs):** Managed cloud hosting for non-technical users, server provisioning, and encrypted remote replication.
+
+---
+
+### VI. Research Opportunities & AI Indexing
+*   **On-Device AI:** To protect privacy, all ML tasks run locally.
+*   **Memory Indexing & Semantic Retrieval:** Search your life by mood or context: "Show me every rainy evening with friends" or "Find every memory with Dad".
+*   **On-Device OCR:** 
+    *   *Android:* ONNX Runtime Mobile with PaddleOCR.
+    *   *iOS:* Native Apple Vision framework using the Neural Engine.
+    *   *Cross-Platform:* Picovoice's picoOCR for real-time extraction.
+*   **Face Clustering:** A two-pass pipeline using MLKit for detection and FaceNet-512 for vector embedding. It matches facial groupings across lighting/angles using cosine similarity.
+
+---
+
+### VII. Roadmap
+1.  **Phase 1: MVP (Archivist Core):** Build the local cache harvester for Android and the PhotoKit change tracker for iOS.
+2.  **Phase 2: Alpha/Beta (The MOM Engine):** Integrate the .mem hybrid container and deploy local OCR/face clustering models.
+3.  **Phase 3: SaaS and Distributed Scaling:** Launch managed cloud hosting (Pixel Labs) and automated off-site backup.
+
+### VIII. Threat Model & Future-Proofing
+*   **Platform API Deprecations:** By focusing on local filesystem harvesting and Accessibility tree parsing instead of fragile network hooks, MemWault remains resilient to Instagram server changes.
+*   **OS Storage Hardening:** If Shizuku or Scoped Storage access is deprecated, the system falls back to the manual export pipeline.

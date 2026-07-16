@@ -16,17 +16,25 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 
 ---
 
-## ✨ Features (Version 2.1 Updates)
+## ✨ What's New in Version 2.1 (The Highlights Update)
 
 * **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally. This bypasses Meta's API restrictions by letting you organize your existing local timeline stories effortlessly.
+* **Map View Immersive Toggle:** Easily switch between full-screen immersive map mode and a constrained "Bento plane" layout to fit your workflow.
+* **Robust Media Sync:** Improved resilience for handling Instagram session expirations to prevent missing thumbnails.
+* **Safe Authentication Engine:** Added strict fallback protocols to bypass strict Meta scraping bans when authenticating via web cookies.
+
+## 🚀 Version 2.0 Features
+
 * **Premium UI Overhaul:** A massive interface upgrade featuring dynamic glassmorphic date bubbles, responsive split-screen layouts, and a clean, modern design system.
-* **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
 * **Interactive Map View & Clustering:** See your memories geographically plotted. Features automatic clustering, bounding-box timeline filtering, and immersive/split-screen toggle modes.
+* **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
 * **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API. It also dynamically generates "Open in App" links for Spotify, Apple Music, YouTube Music, or Amazon Music.
 * **Advanced Story Segregation & Management:** Automatically segregates "Reels reposted to Stories" so they don't clutter your organic memories. Includes a manual "Mark as Reel / Unmark as Reel" toggle for edge-case sticker formats.
-* **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys.
+
+## 💾 Core Platform Features
+
 * **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
-* **Robust Media Sync:** Improved resilience for handling Instagram session expirations to prevent missing thumbnails.
+* **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys.
 * **Customizable Playback:** Fine-tune your experience with adjustable auto-play delays for video stories and configurable global themes.
 
 ---

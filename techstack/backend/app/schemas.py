@@ -192,6 +192,16 @@ class StoryRead(BaseModel):
     is_downloaded: bool
     is_metadata_written: bool
     is_uploaded_to_s3: bool
+    
+    # Reel/Memory Dual Mode
+    is_reel: bool
+    is_memory: bool
+    is_trashed: bool = False
+    primary_view: str
+    og_reel_media_id: Optional[str] = None
+    og_reel_url: Optional[str] = None  # Pre-signed S3 URL for OG Reel
+    og_reel_likes: Optional[int] = None
+    og_reel_plays: Optional[int] = None
 
     # Engagement
     viewer_count: Optional[int] = None
@@ -204,6 +214,13 @@ class StoryRead(BaseModel):
     polls: list[StoryPollRead] = []
 
     model_config = {"from_attributes": True}
+
+
+class StoryUpdate(BaseModel):
+    is_memory: Optional[bool] = None
+    is_trashed: Optional[bool] = None
+    is_reel: Optional[bool] = None
+    primary_view: Optional[str] = None
 
 
 class StoryListRead(BaseModel):
@@ -278,3 +295,32 @@ class AdjacentStoriesRead(BaseModel):
     """Adjacent story IDs for chronological navigation."""
     prev_id: Optional[uuid.UUID] = None
     next_id: Optional[uuid.UUID] = None
+
+# ═══════════════════════════════════════════════════════════
+# Highlight Schemas
+# ═══════════════════════════════════════════════════════════
+
+class HighlightResponse(BaseModel):
+    id: uuid.UUID
+    ig_highlight_id: str
+    title: str
+    cover_media_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class HighlightStoryLinkResponse(BaseModel):
+    id: uuid.UUID
+    highlight_id: uuid.UUID
+    story_id: uuid.UUID
+    added_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ManualHighlightCreate(BaseModel):
+    title: str
+    story_ids: list[uuid.UUID]

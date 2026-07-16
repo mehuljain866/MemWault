@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../services/api'
-import { Images, Video, Music, MapPin, Users, Database, Server, HardDrive, RefreshCcw, DownloadCloud } from 'lucide-react'
+import { useOutletContext } from 'react-router-dom'
+import { Images, Video, Music, MapPin, Users, Database, Server, HardDrive, RefreshCcw, DownloadCloud, Menu } from 'lucide-react'
 
 export default function Dashboard() {
+  const { onMenuClick } = useOutletContext() || {}
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
@@ -83,8 +85,17 @@ export default function Dashboard() {
   )
 
   return (
-    <div>
-      <h2 className="ios-title">Overview</h2>
+    <div style={{ paddingTop: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+        <button
+          className="ios-btn-secondary"
+          onClick={onMenuClick}
+          style={{ display: window.innerWidth <= 768 ? 'flex' : 'none', padding: '8px', borderRadius: '8px' }}
+        >
+          <Menu size={24} />
+        </button>
+        <h2 className="ios-title" style={{ margin: 0 }}>Overview</h2>
+      </div>
       
       {/* ── Stats Grid (Bento) ──────────────────────── */}
       <div style={{ 

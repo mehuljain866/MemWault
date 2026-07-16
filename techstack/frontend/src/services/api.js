@@ -169,6 +169,7 @@ export async function getStories(params = {}) {
   if (params.dateFrom) searchParams.set('date_from', params.dateFrom);
   if (params.dateTo) searchParams.set('date_to', params.dateTo);
   if (params.isReel !== undefined) searchParams.set('is_reel', params.isReel);
+  if (params.isMemory !== undefined) searchParams.set('is_memory', params.isMemory);
 
   const query = searchParams.toString();
   return apiFetch(`/stories${query ? `?${query}` : ''}`);
@@ -194,6 +195,14 @@ export async function getAllStoryLocations() {
   return apiFetch(`/stories/locations/all`);
 }
 
+export async function updateStory(storyId, updates) {
+  return apiFetch(`/stories/${storyId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates)
+  });
+}
+
+// Deprecated, use updateStory instead
 export async function toggleStoryReel(storyId) {
   return apiFetch(`/stories/${storyId}/toggle-reel`, {
     method: 'PUT'
@@ -252,4 +261,16 @@ export async function updateStoryLocation(storyId, locationData) {
     body: JSON.stringify(locationData)
   })
   return res
+}
+
+export async function getHighlights() {
+  return apiFetch('/highlights')
+}
+
+export async function triggerHighlightsSync() {
+  return apiFetch('/scrape/highlights', { method: 'POST' })
+}
+
+export async function getHighlightStories(highlightId) {
+  return apiFetch(`/highlights/${highlightId}/stories`)
 }

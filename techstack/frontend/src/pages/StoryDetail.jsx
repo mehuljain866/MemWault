@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, toggleStoryReel, getAdjacentStories } from '../services/api'
+import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video } from 'lucide-react'
 
 export default function StoryDetail() {
   const { id } = useParams()
@@ -79,14 +79,7 @@ export default function StoryDetail() {
     }
   }
 
-  async function handleToggleReel() {
-    try {
-      const data = await toggleStoryReel(id);
-      setStory(prev => ({ ...prev, is_reel: data.is_reel }));
-    } catch (err) {
-      alert('Failed to toggle reel status: ' + err.message);
-    }
-  }
+
 
   if (loading) {
     return (
@@ -158,8 +151,26 @@ export default function StoryDetail() {
     </div>
   )
 
+  const ToggleSwitch = ({ checked, onChange, label }) => (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '8px 0', width: '100%' }}>
+      <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--ios-text-primary)' }}>{label}</span>
+      <div style={{
+        position: 'relative', width: '50px', height: '30px', borderRadius: '15px',
+        background: checked ? 'var(--ios-success)' : 'var(--ios-border)',
+        transition: 'background 0.3s'
+      }}>
+        <div style={{
+          position: 'absolute', top: '2px', left: checked ? '22px' : '2px',
+          width: '26px', height: '26px', borderRadius: '50%', background: '#fff',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.3s'
+        }} />
+      </div>
+      <input type="checkbox" checked={checked} onChange={onChange} style={{ display: 'none' }} />
+    </label>
+  )
+
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}>
+    <div style={{ maxWidth: '1000px', margin: '-20px auto 0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
         <button
@@ -177,8 +188,47 @@ export default function StoryDetail() {
             borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--ios-shadow-lg)',
             backgroundColor: '#000', position: 'relative'
           }}>
-            <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
+            {story.primary_view === 'reel' && story.og_reel_url ? (
+               <StoryPlayer story={{ ...story, media_url: story.og_reel_url, media_type: 2 }} isMusicPlaying={isMusicPlaying} />
+            ) : (
+               <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
+            )}
           </div>
+          
+          {(story.is_reel || story.og_reel_media_id) && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+              <div style={{ background: 'var(--ios-bg-card)', borderRadius: '20px', padding: '4px', display: 'flex', gap: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <button
+                  onClick={async () => {
+                    setStory(s => ({...s, primary_view: 'story'}));
+                    try { await updateStory(id, { primary_view: 'story' }); } catch (e) {}
+                  }}
+                  style={{
+                    padding: '8px 16px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                    background: story.primary_view !== 'reel' ? 'var(--ios-accent)' : 'transparent',
+                    color: story.primary_view !== 'reel' ? '#fff' : 'var(--ios-text-secondary)',
+                    fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <FileType size={16}/> Story
+                </button>
+                <button
+                  onClick={async () => {
+                    setStory(s => ({...s, primary_view: 'reel'}));
+                    try { await updateStory(id, { primary_view: 'reel' }); } catch (e) {}
+                  }}
+                  style={{
+                    padding: '8px 16px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                    background: story.primary_view === 'reel' ? 'var(--ios-accent)' : 'transparent',
+                    color: story.primary_view === 'reel' ? '#fff' : 'var(--ios-text-secondary)',
+                    fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <Video size={16}/> Original Reel
+                </button>
+              </div>
+            </div>
+          )}
           
           {/* Navigation Arrows */}
           {adjacent.prev_id && (
@@ -236,11 +286,49 @@ export default function StoryDetail() {
 
               {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
               {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
-              <InfoRow icon={FileType} label="Is Reel?" value={story.is_reel ? 'Yes' : 'No'}>
-                <button onClick={handleToggleReel} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer', marginTop: '8px' }}>
-                  {story.is_reel ? 'Unmark as Reel' : 'Mark as Reel'}
-                </button>
+              <InfoRow icon={FileType} label="Visibility" value="">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                  <ToggleSwitch 
+                    label="Show in Memories Tab"
+                    checked={story.is_memory}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      try {
+                        await updateStory(id, { is_memory: val });
+                        setStory(prev => ({ ...prev, is_memory: val }));
+                      } catch (err) { alert('Update failed'); e.target.checked = !val; }
+                    }}
+                  />
+                  <ToggleSwitch 
+                    label="Show in Reels Tab"
+                    checked={story.is_reel}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      try {
+                        await updateStory(id, { is_reel: val });
+                        setStory(prev => ({ ...prev, is_reel: val }));
+                      } catch (err) { alert('Update failed'); e.target.checked = !val; }
+                    }}
+                  />
+                </div>
               </InfoRow>
+
+              {story.og_reel_media_id && (
+                <InfoRow icon={BarChart2} label="Original Reel Stats" value="">
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+                    <div><span style={{ fontWeight: 600 }}>{story.og_reel_likes?.toLocaleString() || 0}</span> Likes</div>
+                    <div><span style={{ fontWeight: 600 }}>{story.og_reel_plays?.toLocaleString() || 0}</span> Plays</div>
+                  </div>
+                  <button className="ios-btn ios-btn-secondary" onClick={() => alert("Manual refresh not fully wired yet but it will call an endpoint")} style={{ padding: '6px 12px', fontSize: '13px', marginTop: '12px' }}>
+                    Manual Refresh
+                  </button>
+                  {story.og_reel_url && (
+                    <a href={story.og_reel_url} download={`reel_${story.og_reel_media_id}.mp4`} target="_blank" rel="noopener noreferrer" className="ios-btn ios-btn-secondary" style={{ padding: '6px 12px', fontSize: '13px', marginTop: '8px', textDecoration: 'none', display: 'inline-block' }}>
+                      Download OG Reel
+                    </a>
+                  )}
+                </InfoRow>
+              )}
 
               {/* Music Quick Link */}
               {story.music && (
@@ -295,9 +383,6 @@ export default function StoryDetail() {
               <div style={{ marginTop: '24px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--ios-text-secondary)', marginBottom: '12px' }}>Management</div>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  <button className="ios-btn ios-btn-secondary" onClick={handleToggleReel} style={{ padding: '6px 12px', fontSize: '13px' }}>
-                    {story.is_reel ? "Remove from Memories" : "Move to Memories"}
-                  </button>
                   {story.is_downloaded && (
                     <button className="ios-btn ios-btn-secondary" onClick={handleLocate} style={{ padding: '6px 12px', fontSize: '13px' }}>
                       Show File

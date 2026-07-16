@@ -98,6 +98,14 @@ class MetadataWriter:
             if music:
                 cmd.append(f"-XMP-Memwault:MusicArtist={music.get('artist_name', '')}")
                 cmd.append(f"-XMP-Memwault:MusicTitle={music.get('track_title', '')}")
+                
+            og_likes = story_data.get("og_reel_likes")
+            if og_likes is not None:
+                cmd.append(f"-XMP-Memwault:OgReelLikes={og_likes}")
+                
+            og_plays = story_data.get("og_reel_plays")
+            if og_plays is not None:
+                cmd.append(f"-XMP-Memwault:OgReelPlays={og_plays}")
 
             # Embed full JSON data to guarantee portability
             mom_json = MetadataWriter._build_mom_json(story_data)
@@ -124,7 +132,9 @@ class MetadataWriter:
             "memwault_version": "0.1.0",
             "ig_media_id": story_data.get("ig_media_id"),
             "media_type": "video" if story_data.get("media_type") == 2 else "photo",
-            "viewer_count": story_data.get("viewer_count", 0)
+            "viewer_count": story_data.get("viewer_count", 0),
+            "og_reel_likes": story_data.get("og_reel_likes"),
+            "og_reel_plays": story_data.get("og_reel_plays")
         }
         
         taken_at = story_data.get("taken_at")

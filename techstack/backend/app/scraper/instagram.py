@@ -228,6 +228,10 @@ class InstagramScraper:
         Fetch the list of users who viewed a specific story.
         Must be called before the story expires (24h window).
         """
+        if self.web_cookies:
+            logger.warning("fetch_story_viewers disabled for web sessions to prevent account locks.")
+            return []
+            
         self._ensure_logged_in()
         viewers = self.client.story_viewers(media_id)
         return [
@@ -239,6 +243,28 @@ class InstagramScraper:
             }
             for v in viewers
         ]
+
+    def fetch_reel_stats(self, media_id: str) -> dict:
+        """
+        Fetch stats (likes, plays) and the CDN URL for a given reel media ID.
+        """
+        if self.web_cookies:
+            logger.warning("fetch_reel_stats disabled for web sessions to prevent account locks.")
+            return {}
+            
+        self._ensure_logged_in()
+        try:
+            # We strip the _username part if present in media_id
+            clean_id = media_id.split("_")[0]
+            media_info = self.client.media_info(clean_id)
+            return {
+                "like_count": getattr(media_info, "like_count", 0),
+                "play_count": getattr(media_info, "play_count", 0),
+                "video_url": str(media_info.video_url) if getattr(media_info, "video_url", None) else None,
+            }
+        except Exception as e:
+            logger.error("Failed to fetch reel stats for %s: %s", media_id, e)
+            return {}
 
     def fetch_archive_stories(self, max_stories: Optional[int] = None) -> list[dict]:
         """
@@ -334,6 +360,10 @@ class InstagramScraper:
         Fetch all highlight reels for a user.
         If target_user_id is None, fetches own highlights.
         """
+        if self.web_cookies:
+            logger.warning("fetch_highlights disabled for web sessions to prevent account locks.")
+            return []
+            
         self._ensure_logged_in()
         uid = int(target_user_id) if target_user_id else self.client.user_id
 
@@ -391,6 +421,7 @@ class InstagramScraper:
             "location_id": None,
             "manifest": {},  # Will be populated from sticker coordinates
             "is_reel": False,
+            "og_reel_media_id": None,
         }
 
         # ── Location ────────────────────────────────────
@@ -441,14 +472,20 @@ class InstagramScraper:
                 raw_type = getattr(sticker, "type", "")
                 if raw_type == "story_reels_media" or raw_type == "reels_media":
                     parsed["is_reel"] = True
+                    if hasattr(sticker, "media") and getattr(sticker.media, "id", None):
+                        parsed["og_reel_media_id"] = str(sticker.media.id)
                 elif raw_type == "feed_media":
                     # Check if the feed media is a video (Reel)
                     if hasattr(sticker, "media"):
                         media = sticker.media
                         if isinstance(media, dict) and media.get("media_type") == 2:
                             parsed["is_reel"] = True
+                            if media.get("id"):
+                                parsed["og_reel_media_id"] = str(media.get("id"))
                         elif hasattr(media, "media_type") and media.media_type == 2:
                             parsed["is_reel"] = True
+                            if hasattr(media, "id"):
+                                parsed["og_reel_media_id"] = str(media.id)
 
                 parsed["stickers"].append(sticker_data)
 
@@ -526,6 +563,7 @@ class InstagramScraper:
             "location_id": None,
             "manifest": {},
             "is_reel": False,
+            "og_reel_media_id": None,
         }
 
         # ── Location ────────────────────────────────────
@@ -559,10 +597,15 @@ class InstagramScraper:
             # Detect Reshared Reels
             if sticker_type in ("story_reels_media", "reels_media"):
                 parsed["is_reel"] = True
+                media_info = sticker.get("media", {})
+                if media_info.get("id"):
+                    parsed["og_reel_media_id"] = str(media_info.get("id"))
             elif sticker_type == "feed_media":
                 media_info = sticker.get("media", {})
                 if media_info.get("media_type") == 2:
                     parsed["is_reel"] = True
+                    if media_info.get("id"):
+                        parsed["og_reel_media_id"] = str(media_info.get("id"))
                     
             parsed["stickers"].append({
                 "sticker_type": sticker_type,
@@ -674,8 +717,28 @@ class InstagramScraper:
     def _extract_music_from_raw(self, raw: dict) -> Optional[dict]:
         """
         Extract music metadata from the raw Instagram API response.
-        Checks multiple possible locations for music sticker data.
+        Checks multiple possible locations for music sticker data and reel clips_metadata.
         """
+        # Check clips_metadata (for reels)
+        clips_metadata = raw.get("clips_metadata") or {}
+        if clips_metadata and clips_metadata.get("music_info"):
+            music_data = clips_metadata.get("music_info").get("music_asset_info", {}) or clips_metadata.get("music_info")
+            if music_data:
+                return {
+                    "track_title": music_data.get("title", "Unknown"),
+                    "artist_name": music_data.get("display_artist", "") or music_data.get("artist_name", "Unknown"),
+                    "ig_audio_id": str(music_data.get("audio_id", "")),
+                    "ig_audio_asset_id": str(music_data.get("audio_asset_id", "")),
+                    "start_time_ms": music_data.get("start_time_in_ms") or music_data.get("clip_start_time_in_ms"),
+                    "play_duration_ms": music_data.get("playback_duration_in_ms") or music_data.get("overlap_duration_in_ms"),
+                    "cover_art_url": music_data.get("cover_artwork_uri") or music_data.get("cover_artwork_thumbnail_uri"),
+                    "x": None,
+                    "y": None,
+                    "width": None,
+                    "height": None,
+                    "rotation": None,
+                }
+
         # Check story_music_stickers
         music_stickers = raw.get("story_music_stickers", [])
         if not music_stickers:

@@ -108,6 +108,7 @@ export default function MapView() {
 
   // Immersive state
   const [sheetState, setSheetState] = useState('half') // 'collapsed', 'half', 'full'
+  const [immersiveFullScreen, setImmersiveFullScreen] = useState(true)
 
   useEffect(() => {
     async function fetchLocations() {
@@ -286,12 +287,21 @@ export default function MapView() {
     }
   }
 
+  const containerStyle = immersiveFullScreen 
+    ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 1000, background: '#000' }
+    : { flex: 1, position: 'relative', height: '100%', overflow: 'hidden', background: '#000', borderRadius: 'var(--ios-radius-lg)' }
+
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 1000, background: '#000' }}>
-      {/* Back Button */}
-      <div style={{ position: 'absolute', top: '40px', left: '20px', zIndex: 1010 }}>
-        <button className="ios-glass" onClick={() => navigate('/timeline')} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <ChevronDown size={24} color="#000" style={{ transform: 'rotate(90deg)' }} />
+    <div style={containerStyle}>
+      {/* Back Button and Full Screen Toggle */}
+      <div style={{ position: 'absolute', top: immersiveFullScreen ? '40px' : '20px', left: '20px', zIndex: 1010, display: 'flex', gap: '12px' }}>
+        {immersiveFullScreen && (
+          <button className="ios-glass" onClick={() => navigate('/timeline')} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <ChevronDown size={24} color="#000" style={{ transform: 'rotate(90deg)' }} />
+          </button>
+        )}
+        <button className="ios-glass" onClick={() => setImmersiveFullScreen(!immersiveFullScreen)} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '22px', padding: '0 16px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 600 }}>
+          {immersiveFullScreen ? 'Minimize to Bento' : 'Full Screen'}
         </button>
       </div>
 
@@ -320,7 +330,7 @@ export default function MapView() {
           onClick={() => {
             if (sheetState === 'collapsed') setSheetState('half')
             else if (sheetState === 'half') setSheetState('full')
-            else setSheetState('half')
+            else setSheetState('collapsed')
           }}
           style={{ width: '100%', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >

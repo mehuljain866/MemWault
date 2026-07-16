@@ -43,6 +43,7 @@ from app.schemas import (
     UserCreate,
     UserRead,
     AdjacentStoriesRead,
+    StoryUpdate,
 )
 from app.storage.s3 import get_storage
 
@@ -371,7 +372,8 @@ async def list_stories(
     has_location: Optional[bool] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    is_reel: Optional[bool] = False,
+    is_reel: Optional[bool] = None,
+    is_memory: Optional[bool] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -403,6 +405,8 @@ async def list_stories(
         query = query.where(Story.taken_at <= datetime.fromisoformat(date_to))
     if is_reel is not None:
         query = query.where(Story.is_reel == is_reel)
+    if is_memory is not None:
+        query = query.where(Story.is_memory == is_memory)
 
     # Count total
     count_query = select(func.count()).select_from(
@@ -424,6 +428,8 @@ async def list_stories(
         sr = StoryRead.model_validate(story)
         if story.s3_key_compressed:
             sr.media_url = storage.get_presigned_url(story.s3_key_compressed)
+        if story.og_reel_s3_key:
+            sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key)
         story_reads.append(sr)
 
     return StoryListRead(
@@ -459,9 +465,51 @@ async def get_story(
         raise HTTPException(status_code=404, detail="Story not found")
 
     sr = StoryRead.model_validate(story)
+    storage = get_storage()
     if story.s3_key_compressed:
-        storage = get_storage()
         sr.media_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
+    if story.og_reel_s3_key:
+        sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key, expires_in=7200)
+    return sr
+
+
+@router.patch("/stories/{story_id}", response_model=StoryRead)
+async def update_story(
+    story_id: uuid.UUID,
+    update_data: StoryUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update story fields (like is_memory, is_reel, primary_view)."""
+    result = await db.execute(
+        select(Story)
+        .where(Story.id == story_id, Story.user_id == user.id)
+        .options(
+            selectinload(Story.music),
+            selectinload(Story.mentions),
+            selectinload(Story.stickers),
+            selectinload(Story.links),
+            selectinload(Story.polls),
+        )
+    )
+    story = result.scalar_one_or_none()
+    
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+        
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(story, key, value)
+        
+    await db.commit()
+    await db.refresh(story)
+    
+    sr = StoryRead.model_validate(story)
+    storage = get_storage()
+    if story.s3_key_compressed:
+        sr.media_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
+    if story.og_reel_s3_key:
+        sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key, expires_in=7200)
     return sr
 
 
@@ -636,6 +684,40 @@ async def rescan_story_metadata(
 # ═══════════════════════════════════════════════════════════
 
 from fastapi import BackgroundTasks
+from app.schemas import HighlightResponse
+
+@router.get("/highlights", response_model=list[HighlightResponse])
+async def get_highlights(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all highlights for the current user."""
+    from sqlalchemy import select
+    from app.models import Highlight
+    result = await db.execute(
+        select(Highlight)
+        .where(Highlight.user_id == user.id)
+        .order_by(Highlight.created_at.desc())
+    )
+    return result.scalars().all()
+
+@router.get("/highlights/{highlight_id}/stories", response_model=list[StoryRead])
+async def get_highlight_stories(
+    highlight_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all stories for a specific highlight."""
+    from sqlalchemy import select
+    from app.models import Story, HighlightStoryLink
+    result = await db.execute(
+        select(Story)
+        .join(HighlightStoryLink, Story.id == HighlightStoryLink.story_id)
+        .where(HighlightStoryLink.highlight_id == highlight_id)
+        .where(Story.user_id == user.id)
+        .order_by(Story.taken_at.asc())
+    )
+    return result.scalars().all()
 
 @router.post("/scrape/now", response_model=ScrapeLogRead)
 async def trigger_scrape(
@@ -672,6 +754,18 @@ async def trigger_archive_import(
 
     background_tasks.add_task(import_archive.delay, str(user.id), body.max_stories)
     return {"status": "started", "max_stories": body.max_stories}
+
+@router.post("/scrape/highlights")
+async def trigger_highlights_sync(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user)
+):
+    """Trigger a sync of user's highlights."""
+    from app.scraper.tasks import sync_highlights
+    background_tasks.add_task(sync_highlights.delay, str(user.id))
+    return {"status": "started"}
+
+
 
 
 @router.get("/scrape/logs", response_model=list[ScrapeLogRead])
@@ -893,3 +987,65 @@ async def update_story_location(
             MetadataWriter.write_metadata(file_path, story_data)
 
     return {"status": "success", "location_name": story.location_name}
+
+from app.schemas import ManualHighlightCreate
+@router.post('/highlights/manual', response_model=HighlightResponse)
+async def create_manual_highlight(
+    body: ManualHighlightCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models import Highlight, HighlightStoryLink, Story
+    import uuid
+    from datetime import datetime, timezone
+
+    # Verify all stories exist and belong to user
+    from sqlalchemy import select
+    stories_res = await db.execute(
+        select(Story).where(Story.id.in_(body.story_ids)).where(Story.user_id == user.id)
+    )
+    stories = stories_res.scalars().all()
+    if len(stories) != len(body.story_ids):
+        raise HTTPException(status_code=400, detail='Some stories not found or unauthorized')
+
+    # Create Highlight
+    new_h = Highlight(
+        ig_highlight_id=f'manual_{uuid.uuid4().hex[:10]}',
+        user_id=user.id,
+        title=body.title,
+        cover_media_url=stories[0].s3_key_compressed if stories else None,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_h)
+    await db.flush()
+
+    # Link Stories
+    for s_id in body.story_ids:
+        link = HighlightStoryLink(
+            highlight_id=new_h.id,
+            story_id=s_id,
+            added_at=datetime.now(timezone.utc)
+        )
+        db.add(link)
+
+    await db.commit()
+    await db.refresh(new_h)
+    return new_h
+
+@router.post('/stories/{story_id}/trash', response_model=StoryRead)
+async def toggle_trash_story(
+    story_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import select
+    from app.models import Story
+    result = await db.execute(select(Story).where(Story.id == story_id, Story.user_id == user.id))
+    story = result.scalar_one_or_none()
+    if not story:
+        raise HTTPException(status_code=404, detail='Story not found')
+    
+    story.is_trashed = not story.is_trashed
+    await db.commit()
+    await db.refresh(story)
+    return story

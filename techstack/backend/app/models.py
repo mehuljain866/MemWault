@@ -139,14 +139,26 @@ class Story(Base):
     # ── Engagement Metrics ───────────────────────────────
     viewer_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # ── Processing State ─────────────────────────────────
+    # ── Processing State & View Mode ─────────────────────
     is_downloaded: Mapped[bool] = mapped_column(Boolean, default=False)
     is_metadata_written: Mapped[bool] = mapped_column(Boolean, default=False)
     is_uploaded_to_s3: Mapped[bool] = mapped_column(Boolean, default=False)
     is_reel: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_memory: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_trashed: Mapped[bool] = mapped_column(Boolean, default=False)
+    primary_view: Mapped[str] = mapped_column(String(32), default="story")
+
+    # ── Original Reel Data ───────────────────────────────
+    og_reel_media_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    og_reel_s3_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    og_reel_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    og_reel_plays: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="stories")
+    highlight_links: Mapped[list["HighlightStoryLink"]] = relationship(
+        back_populates="story", cascade="all, delete-orphan"
+    )
     music: Mapped["StoryMusic | None"] = relationship(
         back_populates="story", cascade="all, delete-orphan", uselist=False
     )
@@ -293,6 +305,54 @@ class StoryPoll(Base):
     rotation: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     story: Mapped["Story"] = relationship(back_populates="polls")
+
+class Highlight(Base):
+    """
+    An Instagram Highlight (Album) containing multiple stories.
+    """
+    __tablename__ = "highlights"
+    __table_args__ = (
+        UniqueConstraint("ig_highlight_id", name="uq_highlights_ig_highlight_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=new_uuid
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    ig_highlight_id: Mapped[str] = mapped_column(String(255), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    cover_media_url: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    # Relationships
+    story_links: Mapped[list["HighlightStoryLink"]] = relationship(
+        back_populates="highlight", cascade="all, delete-orphan"
+    )
+
+class HighlightStoryLink(Base):
+    """
+    Association table linking Stories to Highlights.
+    Stories can belong to multiple highlights.
+    """
+    __tablename__ = "highlight_stories"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=new_uuid
+    )
+    highlight_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("highlights.id", ondelete="CASCADE"), index=True
+    )
+    story_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), index=True
+    )
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # Relationships
+    highlight: Mapped["Highlight"] = relationship(back_populates="story_links")
+    story: Mapped["Story"] = relationship(back_populates="highlight_links")
 
 
 class StoryViewer(Base):

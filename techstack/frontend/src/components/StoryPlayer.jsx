@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { Maximize } from 'lucide-react'
 import { getSettings } from '../services/settings'
 import {
   MentionSticker,
@@ -8,6 +9,132 @@ import {
   GenericSticker,
   TextSticker
 } from './StoryOverlays'
+
+const VideoScrubber = ({ videoSrc, duration, progress, onScrub, onPlay, onPause }) => {
+  const [hoverTime, setHoverTime] = useState(null);
+  const [hoverX, setHoverX] = useState(0);
+  const hiddenVideoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const trackRef = useRef(null);
+  const [thumbnailSrc, setThumbnailSrc] = useState(null);
+  const hoverTimeRef = useRef(null);
+
+  const handleMouseMove = (e) => {
+    if (!trackRef.current || duration <= 0) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    const time = percentage * duration;
+    setHoverTime(time);
+    setHoverX(x);
+    hoverTimeRef.current = time;
+  };
+
+  const handleMouseLeave = () => {
+    setHoverTime(null);
+    hoverTimeRef.current = null;
+  };
+
+  useEffect(() => {
+    const video = hiddenVideoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const handleSeeked = () => {
+      try {
+        const ctx = canvas.getContext('2d');
+        canvas.width = 90;
+        canvas.height = 160;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        setThumbnailSrc(canvas.toDataURL());
+      } catch (err) {
+        console.error("Canvas thumbnail error (CORS):", err);
+      }
+    };
+
+    video.addEventListener('seeked', handleSeeked);
+    return () => video.removeEventListener('seeked', handleSeeked);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hiddenVideoRef.current && hoverTimeRef.current !== null) {
+        if (Math.abs(hiddenVideoRef.current.currentTime - hoverTimeRef.current) > 0.1) {
+          hiddenVideoRef.current.currentTime = hoverTimeRef.current;
+        }
+      }
+    }, 150);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+      {hoverTime !== null && thumbnailSrc && (
+        <div style={{
+          position: 'absolute',
+          bottom: '30px',
+          left: hoverX,
+          transform: 'translateX(-50%)',
+          width: '90px',
+          height: '160px',
+          backgroundColor: '#000',
+          borderRadius: '8px',
+          border: '2px solid white',
+          overflow: 'hidden',
+          zIndex: 40,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+        }}>
+          <img src={thumbnailSrc} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', color: 'white', fontSize: '12px', fontWeight: 600, textShadow: '0 1px 4px black' }}>
+            {Math.floor(hoverTime / 60)}:{Math.floor(hoverTime % 60).toString().padStart(2, '0')}
+          </div>
+        </div>
+      )}
+      
+      <video 
+        ref={hiddenVideoRef} 
+        src={videoSrc} 
+        style={{ display: 'none' }} 
+        muted 
+        playsInline 
+        crossOrigin="anonymous" 
+      />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      <div 
+        ref={trackRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ width: '100%', height: '24px', display: 'flex', alignItems: 'center', position: 'relative', cursor: 'pointer' }}
+      >
+        <input 
+          type="range"
+          min="0"
+          max={duration || 1}
+          step="0.01"
+          value={progress}
+          onChange={onScrub}
+          onPointerDown={onPause}
+          onPointerUp={onPlay}
+          style={{ 
+            width: '100%',
+            cursor: 'pointer',
+            accentColor: 'white',
+            height: '4px',
+            outline: 'none',
+            WebkitAppearance: 'none',
+            background: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: '2px',
+            position: 'absolute',
+            zIndex: 10
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 
 /**
  * StoryPlayer reconstructs an Instagram story on a 9:16 canvas.
@@ -133,9 +260,10 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
       >
         {isVideo ? (
           <video
+            key={`vid_${story.media_url}`}
             ref={videoRef}
             src={story.media_url}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
             loop
             playsInline
             controls={false}
@@ -144,9 +272,10 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
           />
         ) : (
           <img
+            key={`img_${story.media_url}`}
             src={story.media_url}
             alt="Story background"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
           />
         )}
       </div>
@@ -214,31 +343,65 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
           left: '16px',
           right: '16px',
           zIndex: 30,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
         }}>
-          <input 
-            type="range"
-            min="0"
-            max={duration}
-            step="0.01"
-            value={progress}
-            onChange={handleScrub}
-            onPointerDown={() => {
+          <VideoScrubber 
+            videoSrc={story.media_url}
+            duration={duration}
+            progress={progress}
+            onScrub={handleScrub}
+            onPause={() => {
               if (videoRef.current && isPlaying) videoRef.current.pause();
             }}
-            onPointerUp={() => {
+            onPlay={() => {
               if (videoRef.current && isPlaying) videoRef.current.play();
             }}
-            style={{ 
-              width: '100%',
-              cursor: 'pointer',
-              accentColor: 'white',
-              height: '4px',
-              outline: 'none',
-              WebkitAppearance: 'none',
-              background: 'rgba(255, 255, 255, 0.3)',
-              borderRadius: '2px',
-            }}
           />
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (containerRef.current) {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  containerRef.current.requestFullscreen();
+                }
+              }
+            }}
+            style={{
+              background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%',
+              width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0
+            }}
+          >
+            <Maximize size={16} />
+          </button>
+        </div>
+      )}
+
+      {!isVideo && (
+        <div style={{ position: 'absolute', bottom: '24px', right: '16px', zIndex: 30 }}>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (containerRef.current) {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  containerRef.current.requestFullscreen();
+                }
+              }
+            }}
+            style={{
+              background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%',
+              width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0
+            }}
+          >
+            <Maximize size={16} />
+          </button>
         </div>
       )}
     </div>

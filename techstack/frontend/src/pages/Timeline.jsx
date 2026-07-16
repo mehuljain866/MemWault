@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 import FastScrollbar from '../components/FastScrollbar'
-import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut } from 'lucide-react'
+import { useOutletContext } from 'react-router-dom'
+import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut, Menu } from 'lucide-react'
 
 export default function Timeline({ isReelView = false }) {
   const [stories, setStories] = useState([])
@@ -11,6 +12,7 @@ export default function Timeline({ isReelView = false }) {
   const [total, setTotal] = useState(0)
   const [hasNext, setHasNext] = useState(false)
   const [filters, setFilters] = useState({ mediaType: null })
+  const { onMenuClick } = useOutletContext() || {}
   
   // zoomLevel: 'day' | 'month' | 'year'
   const [zoomLevel, setZoomLevel] = useState('day')
@@ -20,12 +22,19 @@ export default function Timeline({ isReelView = false }) {
   const loadStories = useCallback(async (pageNum = 1) => {
     if (pageNum === 1) setLoading(true)
     try {
-      const data = await getStories({
+      const queryParams = {
         page: pageNum,
         pageSize: PAGE_SIZE,
         mediaType: filters.mediaType,
-        isReel: isReelView,
-      })
+      }
+      
+      if (isReelView) {
+        queryParams.isReel = true
+      } else {
+        queryParams.isMemory = true
+      }
+
+      const data = await getStories(queryParams)
       if (pageNum === 1) {
         setStories(data.stories)
       } else {
@@ -116,8 +125,20 @@ export default function Timeline({ isReelView = false }) {
     <div style={{ position: 'relative', height: '100%', paddingBottom: '40px' }}>
       <FastScrollbar items={stories} getDate={(s) => new Date(s.taken_at)} scrollContainerSelector=".ios-main-content" />
       {/* ── Header & Filters ─────────────────────────── */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '16px', position: 'sticky', top: 0, zIndex: 50, background: 'var(--ios-bg-app)', paddingTop: '16px', paddingBottom: '8px' }}>
+      <div style={{ 
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', 
+        marginBottom: '24px', gap: '16px', position: 'sticky', top: '-1px', zIndex: 60, 
+        background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', borderBottom: '1px solid var(--ios-border)',
+        paddingTop: '20px', paddingBottom: '20px', paddingLeft: '40px', paddingRight: '40px', margin: '-40px -40px 0 -40px' 
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            className="ios-btn-secondary"
+            onClick={onMenuClick}
+            style={{ display: window.innerWidth <= 768 ? 'flex' : 'none', padding: '8px', borderRadius: '8px' }}
+          >
+            <Menu size={20} />
+          </button>
           <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Timeline"}</h2>
           <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', overflow: 'hidden', padding: '2px' }}>
             <button onClick={zoomOut} disabled={zoomLevel === 'year'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'year' ? 'default' : 'pointer', opacity: zoomLevel === 'year' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomOut size={16}/></button>
@@ -129,9 +150,21 @@ export default function Timeline({ isReelView = false }) {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px' }}>
+          <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px', display: window.innerWidth <= 768 ? 'none' : 'block' }}>
             {total} items
           </div>
+          <button
+            className="ios-btn"
+            style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '16px' }}
+            onClick={() => {
+              import('../services/api').then(api => {
+                api.triggerScrape(true).catch(console.error)
+              })
+            }}
+          >
+            <RefreshCcw size={16} />
+            Sync Now
+          </button>
           <div style={{
             display: 'flex', background: 'var(--ios-border)', padding: '2px',
             borderRadius: '9px', width: '280px'
@@ -160,7 +193,7 @@ export default function Timeline({ isReelView = false }) {
             <div key={dateStr} style={{ position: 'relative', marginBottom: zoomLevel === 'day' ? '40px' : '20px' }}>
               
               {/* Apple Photos floating bubble date */}
-              <div style={{ position: 'sticky', top: '70px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '8px 0' }}>
+              <div style={{ position: 'sticky', top: '74px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '8px 0' }}>
                 <div style={{
                   background: 'var(--ios-glass)',
                   backdropFilter: 'blur(25px) saturate(180%)',

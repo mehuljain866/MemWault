@@ -1,8 +1,8 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.0 (Massive UI & UX Overhaul) 🚀
+> **Project Status:** v2.1 (The Highlights & Archive Update) 🚀
 
-MemWault is a digital memory preservation platform designed to help you permanently own, archive, and replay your Instagram Stories independently of Instagram.
+MemWault is a digital memory preservation platform designed to help you permanently own, archive, and replay your Instagram Stories independently of Meta's ecosystem.
 
 ---
 
@@ -16,16 +16,17 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 
 ---
 
-## ✨ Features (Version 2.0 Updates)
+## ✨ Features (Version 2.1 Updates)
 
-* **Premium Apple-Style UI Overhaul:** Massive interface improvements across the board, featuring floating glassmorphic date bubbles, dynamic `100dvh` Apple Maps-style location modals, and fully responsive Split-Screen layouts.
+* **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally. This bypasses Meta's API restrictions by letting you organize your existing local timeline stories effortlessly.
+* **Premium UI Overhaul:** A massive interface upgrade featuring dynamic glassmorphic date bubbles, responsive split-screen layouts, and a clean, modern design system.
 * **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
 * **Interactive Map View & Clustering:** See your memories geographically plotted. Features automatic clustering, bounding-box timeline filtering, and immersive/split-screen toggle modes.
 * **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API. It also dynamically generates "Open in App" links for Spotify, Apple Music, YouTube Music, or Amazon Music.
 * **Advanced Story Segregation & Management:** Automatically segregates "Reels reposted to Stories" so they don't clutter your organic memories. Includes a manual "Mark as Reel / Unmark as Reel" toggle for edge-case sticker formats.
-* **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys (just like Instagram Web).
+* **Web-Style Arrow Navigation:** Seamlessly glide through your chronological story history using left/right UI chevrons or your keyboard's arrow keys.
 * **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
-* **Robust Media Sync:** Improved resilience for handling Instagram session (`467 Client Error`) expirations to prevent missing thumbnails.
+* **Robust Media Sync:** Improved resilience for handling Instagram session expirations to prevent missing thumbnails.
 * **Customizable Playback:** Fine-tune your experience with adjustable auto-play delays for video stories and configurable global themes.
 
 ---
@@ -34,7 +35,7 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 
 MemWault is designed as a self-hosted or cloud-deployable full-stack application.
 
-* **Frontend:** React + Vite PWA (Progressive Web App) styled with premium glassmorphic dark-mode CSS.
+* **Frontend:** React + Vite PWA (Progressive Web App) styled with premium modern CSS.
 * **Backend:** FastAPI (Python) web server providing a highly concurrent REST API.
 * **Database:** SQLite (local development) / PostgreSQL (production) running SQLAlchemy ORM.
 * **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks.
@@ -50,13 +51,13 @@ MemWault/
 │   │   │   ├── api/       # API endpoints (Auth, Stories, Session)
 │   │   │   ├── scraper/   # Story scraping & metadata parser
 │   │   │   └── storage/   # S3/Local media storage client
-│   │   └── requirements.txt
+│   │   └── requirements.txt # Python dependencies
 │   ├── frontend/          # React + Vite frontend
 │   │   ├── src/
 │   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
 │   │   │   ├── pages/     # Dashboard, Timeline, MapView, Settings, StoryDetail
 │   │   │   └── services/  # API service client
-│   │   └── package.json
+│   │   └── package.json   # Node.js dependencies
 │   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
 └── README.md              # This file
 ```
@@ -154,7 +155,7 @@ celery -A app.scraper.tasks beat --loglevel=info
 
 Once your backend server is running (Step 3), FastAPI automatically generates interactive documentation for developers:
 
-* **Swagger UI (`http://localhost:8000/docs`):** A web interface listing all available REST API endpoints. You can expand any route (like `/instagram/login` or `/stories`) and click **"Try it out"** to send requests and inspect responses directly from your web browser.
+* **Swagger UI (`http://localhost:8000/docs`):** A web interface listing all available REST API endpoints. You can expand any route and click **"Try it out"** to send requests and inspect responses directly from your web browser.
 * **ReDoc (`http://localhost:8000/redoc`):** An alternative, beautifully structured schema documentation layout.
 * **Health Check (`http://localhost:8000/health`):** A quick checkpoint endpoint that returns `{"status": "ok"}` to confirm the API server is alive and communicating.
 
@@ -162,14 +163,13 @@ Once your backend server is running (Step 3), FastAPI automatically generates in
 
 ## 🔐 Authentication Architecture (How it Works)
 
-Connecting an Instagram account to a self-hosted archiver used to be notoriously difficult due to Meta's aggressive anti-scraping and bot-detection systems (blocking residential IP logins, breaking on Facebook-linked accounts, and flagging manual session cookies).
+Connecting an Instagram account to a self-hosted archiver used to be notoriously difficult due to Meta's aggressive anti-scraping and bot-detection systems.
 
-To solve this, MemWault uses **Browser Automation via Playwright**.
+To solve this, MemWault uses **Browser Automation via Chrome Extensions & Playwright**.
 
 ### The Flow:
-1. **Real Browser:** When you click "Connect with Instagram," the backend spins up a visible, interactive Chromium browser on your computer.
-2. **Direct Login:** The browser navigates to the official Instagram login page. You log in manually (handling 2FA, Facebook-linked accounts, etc., perfectly).
-3. **Cookie Extraction:** Once logged in, MemWault intercepts the browser session and extracts the complete cookie jar (including `sessionid`, `csrftoken`, `mid`, `ig_did`, and `ds_user_id`) along with the exact `User-Agent`.
-4. **Headless Scraping:** Future API calls to sync your stories use these exact cookies and headers. To Instagram, the scraping requests look 100% identical to the browser tab you just used to log in.
+1. **Real Browser / Extension:** You use our custom Chrome extension or a real browser to log in securely. You handle 2FA, Facebook-linked accounts, etc., perfectly naturally.
+2. **Cookie Extraction:** Once logged in, the session intercepts and extracts the complete cookie jar (including `sessionid`, `csrftoken`, `mid`, `ig_did`, and `ds_user_id`) along with the exact `User-Agent`.
+3. **Headless Scraping:** Future API calls to sync your stories use these exact cookies and headers. To Instagram, the scraping requests look identical to your real browser session.
 
 This provides the most secure, stable, and user-friendly authentication possible for self-hosted instances.

@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration } from 'react-router-dom'
 import { isAuthenticated } from './services/api'
 import Sidebar from './components/Sidebar'
-import Header from './components/Header'
 import Dashboard from './pages/Dashboard'
 import Timeline from './pages/Timeline'
 import StoryDetail from './pages/StoryDetail'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import MapView from './pages/MapView'
+import Highlights from './pages/Highlights'
+import HighlightViewer from './pages/HighlightViewer'
 
 /**
  * Protected route wrapper — redirects to /login if not authenticated.
@@ -36,9 +37,8 @@ function AppShell() {
     <div className="app-container">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="ios-main-content">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <Outlet />
+          <Outlet context={{ onMenuClick: () => setSidebarOpen(true) }} />
         </div>
       </div>
       <ScrollRestoration />
@@ -62,7 +62,8 @@ const router = createBrowserRouter([
       { path: "/", element: <Dashboard /> },
       { path: "/timeline", element: <Timeline key="timeline" isReelView={false} /> },
       { path: "/reels", element: <Timeline key="reels" isReelView={true} /> },
-      { path: "/highlights", element: <Timeline key="highlights" isReelView={false} /> },
+      { path: "/highlights", element: <Highlights /> },
+      { path: "/highlights/:id", element: <HighlightViewer /> },
       { path: "/story/:id", element: <StoryDetail /> },
       { path: "/map", element: <MapView /> },
       { path: "/settings", element: <Settings /> },

@@ -19,9 +19,9 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 ## ✨ What's New in Version 2.1 (The Highlights Update)
 
 * **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally. This bypasses Meta's API restrictions by letting you organize your existing local timeline stories effortlessly.
-* **Intelligent Fuzzy Search:** A lightning-fast, client-side fuzzy search engine (powered by `fuse.js`) in the Highlight Creator, allowing you to search across dates, locations, music, and captions instantly.
-* **Map View Immersive Toggle:** Easily switch between full-screen immersive map mode and a constrained "Bento plane" layout to fit your workflow. Fluid iOS-style bottom sheet physics let you drag and snap panels naturally.
-* **Fluid Page Transitions:** Entirely rewritten routing shell using React Router and Framer Motion to provide buttery-smooth, native-feeling iOS page transitions (slide and fade) between all tabs without lag or double-rendering.
+* **Intelligent Fuzzy Search:** A lightning-fast, client-side fuzzy search engine (powered by `fuse.js`) available globally on the Timeline and Highlight Creator. Instantly filter thousands of memories by location, music, artist, or caption.
+* **Map View Immersive Toggle:** Easily switch between full-screen immersive map mode and a constrained "Bento plane" layout to fit your workflow.
+* **Fluid Page & Layout Transitions:** Entirely rewritten routing shell and grid engine using React Router and Framer Motion. Enjoy buttery-smooth iOS page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
 * **Robust Media Sync & S3 URLs:** Improved backend APIs that dynamically generate pre-signed S3 URLs for Highlights, ensuring your covers and story media load perfectly even in decoupled storage environments.
 
 ## 🚀 Version 2.0 Features

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Fuse from 'fuse.js'
 import { getStories, bulkUpdateStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
@@ -14,6 +15,7 @@ export default function Timeline({ isReelView = false }) {
   const [total, setTotal] = useState(0)
   const [hasNext, setHasNext] = useState(false)
   const [filters, setFilters] = useState({ mediaType: null })
+  const [searchQuery, setSearchQuery] = useState('')
   const { onMenuClick } = useOutletContext() || {}
   
   // zoomLevel: 'day' | 'month' | 'year'
@@ -63,7 +65,18 @@ export default function Timeline({ isReelView = false }) {
   }, [loadStories, isReelView])
 
   const groupedStories = useMemo(() => {
-    return stories.reduce((acc, story) => {
+    let filteredStories = stories
+
+    if (searchQuery.trim()) {
+      const fuse = new Fuse(stories, {
+        keys: ['location_name', 'music.title', 'music.artist', 'caption_text'],
+        threshold: 0.3,
+        ignoreLocation: true,
+      })
+      filteredStories = fuse.search(searchQuery).map(res => res.item)
+    }
+
+    return filteredStories.reduce((acc, story) => {
       const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
       const d = new Date(dateStrUtc)
       let groupKey = ''
@@ -80,7 +93,7 @@ export default function Timeline({ isReelView = false }) {
       acc[groupKey].push(story)
       return acc
     }, {})
-  }, [stories, zoomLevel])
+  }, [stories, zoomLevel, searchQuery])
 
   // ── Multi-select handlers ────────────────────────────────
 
@@ -233,6 +246,19 @@ export default function Timeline({ isReelView = false }) {
                 <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
                 <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters({ mediaType: 2 })} icon={Video} label="Videos" />
               </div>
+              <input
+                type="text"
+                placeholder="Search memories..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  padding: '8px 16px', borderRadius: '16px', border: '1px solid var(--ios-border)',
+                  backgroundColor: 'var(--ios-glass)', color: 'var(--ios-text-primary)',
+                  fontSize: '13px', outline: 'none', width: '200px', transition: 'all 0.2s'
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--ios-accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--ios-border)'}
+              />
             </>
           )}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
   FolderHeart,
   MoreHorizontal,
@@ -207,7 +208,9 @@ export default function Highlights() {
             const displayCover = hl.cover_media_url
 
             return (
-              <div
+              <motion.div
+                layout
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 key={hl.id}
                 onClick={() => navigate(`/highlights/${hl.id}`)}
                 style={{
@@ -336,7 +339,7 @@ export default function Highlights() {
                     ))}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
         </div>

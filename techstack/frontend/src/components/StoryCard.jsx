@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check } from 'lucide-react'
 
 /**
@@ -44,7 +45,9 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
   }
 
   return (
-    <div
+    <motion.div
+      layout
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       className="ios-story-card"
       onClick={handleClick}
       role={isSelectMode ? 'checkbox' : 'button'}
@@ -56,7 +59,6 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
         // Blue border highlight when selected
         outline: isSelected ? '2.5px solid var(--ios-accent)' : 'none',
         outlineOffset: '-2px',
-        transition: 'outline 0.15s ease, transform 0.15s ease',
         // Slight scale-down feedback in select mode
         transform: isSelected ? 'scale(0.97)' : 'scale(1)',
         cursor: isSelectMode ? 'pointer' : undefined,
@@ -171,6 +173,6 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

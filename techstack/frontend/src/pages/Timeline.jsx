@@ -115,7 +115,7 @@ export default function Timeline({ isReelView = false }) {
     if (selectedIds.length === 0) return
     try {
       setBulkLoading(true)
-      await bulkUpdateStories(selectedIds, { is_archived: true })
+      await bulkUpdateStories(selectedIds, { is_trashed: true })
       // Remove archived stories from the local list optimistically
       setStories(prev => prev.filter(s => !selectedIds.includes(s.id)))
       exitSelectMode()

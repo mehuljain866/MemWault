@@ -4,7 +4,7 @@ import { Archive, RefreshCcw, RotateCcw, Image as ImageIcon, Video, Menu } from 
 import { getStories, updateStory } from '../services/api'
 
 /**
- * Archives page — shows stories where is_archived = true.
+ * Archives page — shows stories where is_trashed = true.
  * Lets the user restore individual stories back to the main timeline.
  */
 export default function Archives() {
@@ -20,7 +20,7 @@ export default function Archives() {
     setError(null)
     try {
       // Fetch all archived stories (no pagination — archives are typically small)
-      const data = await getStories({ isArchived: true, pageSize: 200 })
+      const data = await getStories({ isTrashed: true, pageSize: 200 })
       setStories(data.stories || [])
     } catch (err) {
       console.error('Failed to load archived stories:', err)
@@ -40,7 +40,7 @@ export default function Archives() {
 
     setRestoringIds(prev => new Set(prev).add(storyId))
     try {
-      await updateStory(storyId, { is_archived: false })
+      await updateStory(storyId, { is_trashed: false })
       // Optimistically remove from the list
       setStories(prev => prev.filter(s => s.id !== storyId))
     } catch (err) {

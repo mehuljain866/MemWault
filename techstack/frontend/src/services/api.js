@@ -170,7 +170,7 @@ export async function getStories(params = {}) {
   if (params.dateTo) searchParams.set('date_to', params.dateTo);
   if (params.isReel !== undefined) searchParams.set('is_reel', params.isReel);
   if (params.isMemory !== undefined) searchParams.set('is_memory', params.isMemory);
-  if (params.isArchived !== undefined) searchParams.set('is_archived', params.isArchived);
+  if (params.isTrashed !== undefined) searchParams.set('is_trashed', params.isTrashed);
   if (params.search) searchParams.set('search', params.search);
 
   const query = searchParams.toString();
@@ -207,7 +207,7 @@ export async function updateStory(storyId, updates) {
 /**
  * Bulk update multiple stories in one request.
  * @param {number[]} story_ids  Array of story IDs to update
- * @param {object}  updates     Fields to patch (e.g. { is_archived: true })
+ * @param {object}  updates     Fields to patch (e.g. { is_trashed: true })
  */
 export async function bulkUpdateStories(story_ids, updates) {
   return apiFetch('/stories/bulk', {

@@ -374,6 +374,7 @@ async def list_stories(
     date_to: Optional[str] = None,
     is_reel: Optional[bool] = None,
     is_memory: Optional[bool] = None,
+    is_trashed: Optional[bool] = False,
     search: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -408,6 +409,8 @@ async def list_stories(
         query = query.where(Story.is_reel == is_reel)
     if is_memory is not None:
         query = query.where(Story.is_memory == is_memory)
+    if is_trashed is not None:
+        query = query.where(Story.is_trashed == is_trashed)
         
     if search:
         from sqlalchemy import or_
@@ -473,9 +476,7 @@ async def get_story(
             selectinload(Story.links),
             selectinload(Story.polls),
         )
-    )
     story = result.scalar_one_or_none()
-
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
@@ -487,6 +488,29 @@ async def get_story(
         sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key, expires_in=7200)
     return sr
 
+
+@router.patch("/stories/bulk", response_model=dict)
+async def bulk_update_stories(
+    body: StoryBulkUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk update fields (like is_trashed) for multiple stories."""
+    query = select(Story).where(Story.id.in_(body.story_ids), Story.user_id == user.id)
+    result = await db.execute(query)
+    stories = result.scalars().all()
+
+    if not stories:
+        raise HTTPException(status_code=404, detail="No stories found or permission denied")
+
+    updates = body.model_dump(exclude_unset=True, exclude={"story_ids"})
+    
+    for story in stories:
+        for key, value in updates.items():
+            setattr(story, key, value)
+
+    await db.commit()
+    return {"status": "ok", "updated_count": len(stories)}
 
 @router.patch("/stories/{story_id}", response_model=StoryRead)
 async def update_story(

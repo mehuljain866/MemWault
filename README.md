@@ -6,22 +6,24 @@
 
 MemWault is a private, local-first archive designed to permanently preserve, organize, and replay your Instagram stories outside of Meta's walled garden, while simultaneously serving as a self-hosted social media dashboard combining memories from multiple platforms into one unified timeline.
 
-Over the last decade, Instagram Stories have become the default medium for documenting our daily lives. However, they suffer from two major flaws:
-1. **Ephemeral by Design:** Stories disappear after 24 hours.
-2. **Walled Garden Archive:** While Instagram archives your stories internally, your memories are locked inside Meta's ecosystem. If your account is restricted, hacked, or banned, decades of personal history—along with tagged friends, locations, music, and social context—are lost forever.
-
-MemWault provides a personal, local-first archiving engine that downloads your stories, parses their rich metadata, and presents them in a beautiful, chronological timeline, combined with a private journaling layer that never alters the original metadata.
+Over the last decade, Instagram Stories have become the default medium for documenting our daily lives, yet they remain vulnerable. MemWault was built to solve these specific problems:
+* **Independence from Walled Gardens:** Meta locks your data in their ecosystem. If you lose your account (hacked or banned), you lose a decade of personal history. MemWault ensures you physically own it.
+* **Preservation of Rich Context:** Instagram's native archive doesn't let you easily search by tagged friends, locations, or music. MemWault parses and indexes this rich metadata locally for powerful searching and geographic mapping.
+* **Data Portability & Extensibility:** By having all stories and metadata in a local SQLite/Postgres database, it opens the door to personal analytics, journaling, and custom integrations.
+* **Privacy & Security:** A self-hosted, private archive means you don't have to rely on third-party backup services sniffing your personal data.
 
 ---
 
 ## 💾 Core Platform Features
 
-* **Interactive Map View:** Geographic plotting of your memories. Features automatic clustering, bounding-box timeline filtering, and an immersive full-screen map mode toggle. (A feature that doesn't even exist natively on Instagram!)
-* **Custom Highlight Albums:** Curate and group your downloaded stories into custom Highlight Albums locally. Organize your existing local timeline stories effortlessly without touching the Instagram app.
-* **Smart Media Segregation:** Automatically segregates "Reels reposted to Stories" from your organic memories, placing them in their own dedicated tab so they don't clutter your personal timeline.
 * **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), entirely bypassing Meta's API restrictions.
-* **Robust Full-Text Search:** A lightning-fast, backend-driven search engine using SQL `ILIKE` database queries. Instantly search your entire historical archive by location, caption, music title, or artist name without client-side loading limits.
-* **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
+* **Interactive Map View:** Geographic plotting, clustering, and bounding-box filtering of your memories on an immersive interactive map.
+* **Custom Highlight Albums:** Curate and group your downloaded local stories into custom albums independently of Instagram.
+* **Robust Full-Text Database Search:** A lightning-fast, backend SQL search engine. Instantly query your entire archive by location, caption, music title, or artist name.
+* **Smart Media Segregation:** Automatically segregates "Reels reposted to Stories" from your organic memories, placing them in their own dedicated tab so they don't clutter your personal timeline.
+* **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires, dynamically rendering them with clickable links to their Instagram profiles.
+* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API for the songs attached to your stories.
+* **PWA Offline Capabilities:** Progressive Web App architecture ensuring fast loading and offline capabilities.
 
 ---
 
@@ -35,7 +37,6 @@ MemWault provides a personal, local-first archiving engine that downloads your s
 ### Version 2.1 (The Highlights Update)
 * **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally.
 * **Robust Media Sync & S3 URLs:** Improved backend APIs that dynamically generate pre-signed S3 URLs for Highlights, ensuring your covers and story media load perfectly even in decoupled storage environments.
-* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API for the songs attached to your stories.
 
 ### Version 2.0 (The UI & Maps Update)
 * **Smooth Page & Layout Transitions:** Enjoy buttery-smooth page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
@@ -46,28 +47,28 @@ MemWault provides a personal, local-first archiving engine that downloads your s
 
 ## 🛠️ Tech Stack & Architecture
 
-MemWault is designed as a self-hosted full-stack application.
+MemWault is designed as a self-hosted full-stack application relying on a modern Python and JavaScript ecosystem.
 
-* **Frontend:** React + Vite PWA (Progressive Web App) styled with premium modern CSS.
-* **Backend:** FastAPI (Python) web server providing a highly concurrent REST API.
-* **Database:** SQLite (local development) / PostgreSQL (production) running SQLAlchemy ORM.
-* **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks.
-* **Storage:** Local directory structure / S3-compatible object storage (MinIO) for storing downloaded media.
+* **Frontend:** React, Vite, Framer Motion, and Leaflet JS built as a PWA (Progressive Web App).
+* **Backend:** FastAPI (Python) web server providing a highly concurrent async REST API.
+* **Database:** PostgreSQL (production) or SQLite (local development) managed via SQLAlchemy 2.0 and Alembic.
+* **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks via `instagrapi`.
+* **Storage:** Local directory structure or an S3-compatible object storage (MinIO/AWS) via `boto3`.
 
 ### Repository Layout
 ```text
 MemWault/
 ├── techstack/
-│   ├── backend/           # FastAPI backend & Instagram scraper
+│   ├── backend/           # FastAPI backend & Celery workers
 │   │   ├── app/
 │   │   │   ├── api/       # API endpoints (Auth, Stories, Session)
-│   │   │   ├── scraper/   # Story scraping & metadata parser
-│   │   │   └── storage/   # S3/Local media storage client
+│   │   │   ├── scraper/   # Instagram scraper & metadata parser
+│   │   │   └── storage/   # S3 / Local media storage client
 │   │   └── requirements.txt # Python dependencies
 │   ├── frontend/          # React + Vite frontend
 │   │   ├── src/
 │   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
-│   │   │   ├── pages/     # Dashboard, Timeline, MapView, Settings, StoryDetail
+│   │   │   ├── pages/     # Timeline, MapView, Settings, Archives, StoryDetail
 │   │   │   └── services/  # API service client
 │   │   └── package.json   # Node.js dependencies
 │   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
@@ -96,7 +97,7 @@ To secure the MemWault dashboard itself (ensuring nobody else on your network ca
 1. User logs into the MemWault dashboard (App Auth) -> Receives JWT.
 2. User provides Instagram credentials in the Settings panel.
 3. Backend logs into Instagram (IG Auth) -> Retrieves and encrypts session cookies in the DB.
-4. Background tasks use the stored IG cookies to periodically fetch new stories.
+4. Background Celery tasks use the stored IG cookies to periodically fetch new stories.
 5. The React UI requests stories from FastAPI, authenticated via JWT.
 
 ---
@@ -106,6 +107,8 @@ To secure the MemWault dashboard itself (ensuring nobody else on your network ca
 ### Prerequisites
 * Python 3.10+
 * Node.js 18+
+* Redis (Required for Celery background workers)
+* PostgreSQL (Optional, defaults to SQLite if not provided)
 
 ### 1. Backend Setup
 
@@ -129,9 +132,14 @@ Start the FastAPI backend server:
 uvicorn app.main:app --reload --port 8000
 ```
 
+Start the Celery worker (in a separate terminal, with venv activated):
+```bash
+celery -A app.worker worker --loglevel=info
+```
+
 ### 2. Frontend Setup
 
-Open a second terminal, navigate to the frontend directory, install dependencies, and start Vite:
+Open a new terminal, navigate to the frontend directory, install dependencies, and start Vite:
 
 ```bash
 cd techstack/frontend

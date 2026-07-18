@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.x 🚀
+> **Project Status:** v2.2 🚀
 
 ## 💡 What is MemWault?
 
@@ -14,16 +14,65 @@ MemWault provides a personal, local-first archiving engine that downloads your s
 
 ---
 
-## 🚀 Core Features (v2.x)
+## 💾 Core Platform Features
 
-* **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), entirely bypassing Meta's API restrictions.
-* **Interactive Map View:** See your memories geographically plotted on an interactive map. Features automatic clustering, bounding-box timeline filtering, and an immersive full-screen map mode toggle.
+* **Interactive Map View:** Geographic plotting of your memories. Features automatic clustering, bounding-box timeline filtering, and an immersive full-screen map mode toggle. (A feature that doesn't even exist natively on Instagram!)
 * **Custom Highlight Albums:** Curate and group your downloaded stories into custom Highlight Albums locally. Organize your existing local timeline stories effortlessly without touching the Instagram app.
+* **Smart Media Segregation:** Automatically segregates "Reels reposted to Stories" from your organic memories, placing them in their own dedicated tab so they don't clutter your personal timeline.
+* **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), entirely bypassing Meta's API restrictions.
 * **Robust Full-Text Search:** A lightning-fast, backend-driven search engine using SQL `ILIKE` database queries. Instantly search your entire historical archive by location, caption, music title, or artist name without client-side loading limits.
-* **Smooth Page & Layout Transitions:** Enjoy buttery-smooth page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
-* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API for the songs attached to your stories.
-* **Advanced Story Segregation:** Automatically segregates "Reels reposted to Stories" so they don't clutter your organic memories.
+* **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires. Viewers load dynamically with clickable links straight to their Instagram profiles.
+
+---
+
+## ✨ Version Updates
+
+### Version 2.2 (The Archive & Search Update)
 * **Robust Archives (Trash):** Soft-delete/archive individual or bulk-selected stories from the main timeline. Archived stories are hidden from Memories and Reels but can be viewed and fully restored back to the timeline from the Archives page.
+* **Timeline Bulk Actions:** Enter multi-select mode directly from the Timeline, select multiple memories, and archive them in one click via a sleek, glassmorphic bottom control bar.
+* **Full-Text Database Search Engine:** Complete migration from client-side fuzzy searching to a powerful backend SQL engine, allowing for instantaneous queries across thousands of historical stories.
+
+### Version 2.1 (The Highlights Update)
+* **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally.
+* **Robust Media Sync & S3 URLs:** Improved backend APIs that dynamically generate pre-signed S3 URLs for Highlights, ensuring your covers and story media load perfectly even in decoupled storage environments.
+* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API for the songs attached to your stories.
+
+### Version 2.0 (The UI & Maps Update)
+* **Smooth Page & Layout Transitions:** Enjoy buttery-smooth page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
+* **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
+* **Map View:** The initial release of the interactive map clustering feature.
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+MemWault is designed as a self-hosted full-stack application.
+
+* **Frontend:** React + Vite PWA (Progressive Web App) styled with premium modern CSS.
+* **Backend:** FastAPI (Python) web server providing a highly concurrent REST API.
+* **Database:** SQLite (local development) / PostgreSQL (production) running SQLAlchemy ORM.
+* **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks.
+* **Storage:** Local directory structure / S3-compatible object storage (MinIO) for storing downloaded media.
+
+### Repository Layout
+```text
+MemWault/
+├── techstack/
+│   ├── backend/           # FastAPI backend & Instagram scraper
+│   │   ├── app/
+│   │   │   ├── api/       # API endpoints (Auth, Stories, Session)
+│   │   │   ├── scraper/   # Story scraping & metadata parser
+│   │   │   └── storage/   # S3/Local media storage client
+│   │   └── requirements.txt # Python dependencies
+│   ├── frontend/          # React + Vite frontend
+│   │   ├── src/
+│   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
+│   │   │   ├── pages/     # Dashboard, Timeline, MapView, Settings, StoryDetail
+│   │   │   └── services/  # API service client
+│   │   └── package.json   # Node.js dependencies
+│   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
+└── README.md              # This file
+```
 
 ---
 
@@ -52,41 +101,7 @@ To secure the MemWault dashboard itself (ensuring nobody else on your network ca
 
 ---
 
-## 🛠️ Tech Stack & Architecture
-
-MemWault is designed as a self-hosted full-stack application.
-
-* **Frontend:** React + Vite PWA (Progressive Web App) styled with premium modern CSS.
-* **Backend:** FastAPI (Python) web server providing a highly concurrent REST API.
-* **Database:** SQLite (local development) / PostgreSQL (production) running SQLAlchemy ORM.
-* **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks.
-* **Storage:** Local directory structure / S3-compatible object storage (MinIO) for storing downloaded media.
-
-### Repository Layout
-```
-MemWault/
-├── techstack/
-│   ├── backend/           # FastAPI backend & Instagram scraper
-│   │   ├── app/
-│   │   │   ├── api/       # API endpoints (Auth, Stories, Session)
-│   │   │   ├── scraper/   # Story scraping & metadata parser
-│   │   │   └── storage/   # S3/Local media storage client
-│   │   └── requirements.txt # Python dependencies
-│   ├── frontend/          # React + Vite frontend
-│   │   ├── src/
-│   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
-│   │   │   ├── pages/     # Dashboard, Timeline, MapView, Settings, StoryDetail
-│   │   │   └── services/  # API service client
-│   │   └── package.json   # Node.js dependencies
-│   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
-└── README.md              # This file
-```
-
----
-
 ## 🚀 Quick Start Guide (Manual Setup)
-
-> **Note:** The old `.bat` 1-click starter has been removed as it spawned too many unstable background windows. Please use the manual terminal commands below. (A Docker Compose quick start method is planned for the future!)
 
 ### Prerequisites
 * Python 3.10+

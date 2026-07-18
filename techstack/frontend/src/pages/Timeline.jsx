@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { getStories } from '../services/api'
+import { getStories, bulkUpdateStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
+import BulkActionBar from '../components/BulkActionBar'
+import HighlightCreatorModal from '../components/HighlightCreatorModal'
 import FastScrollbar from '../components/FastScrollbar'
 import { useOutletContext } from 'react-router-dom'
-import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut, Menu } from 'lucide-react'
+import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon } from 'lucide-react'
 
 export default function Timeline({ isReelView = false }) {
   const [stories, setStories] = useState([])
@@ -16,6 +18,12 @@ export default function Timeline({ isReelView = false }) {
   
   // zoomLevel: 'day' | 'month' | 'year'
   const [zoomLevel, setZoomLevel] = useState('day')
+
+  // ── Multi-select state ──────────────────────────────────
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [showHighlightModal, setShowHighlightModal] = useState(false)
 
   const PAGE_SIZE = zoomLevel === 'year' ? 100 : zoomLevel === 'month' ? 48 : 24
 
@@ -74,6 +82,48 @@ export default function Timeline({ isReelView = false }) {
     }, {})
   }, [stories, zoomLevel])
 
+  // ── Multi-select handlers ────────────────────────────────
+
+  const enterSelectMode = () => {
+    setIsSelectMode(true)
+    setSelectedIds([])
+  }
+
+  const exitSelectMode = () => {
+    setIsSelectMode(false)
+    setSelectedIds([])
+  }
+
+  const toggleCard = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const handleArchive = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      setBulkLoading(true)
+      await bulkUpdateStories(selectedIds, { is_archived: true })
+      // Remove archived stories from the local list optimistically
+      setStories(prev => prev.filter(s => !selectedIds.includes(s.id)))
+      exitSelectMode()
+    } catch (err) {
+      console.error('Bulk archive failed:', err)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleAddToHighlight = () => {
+    setShowHighlightModal(true)
+  }
+
+  const handleHighlightCreated = () => {
+    setShowHighlightModal(false)
+    exitSelectMode()
+  }
+
   if (loading && stories.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
@@ -127,9 +177,8 @@ export default function Timeline({ isReelView = false }) {
       {/* ── Header & Filters ─────────────────────────── */}
       <div style={{ 
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', 
-        marginBottom: '24px', gap: '16px', position: 'sticky', top: '-1px', zIndex: 60, 
-        background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', borderBottom: '1px solid var(--ios-border)',
-        paddingTop: '20px', paddingBottom: '20px', paddingLeft: '40px', paddingRight: '40px', margin: '-40px -40px 0 -40px' 
+        marginBottom: '24px', gap: '16px', zIndex: 60, 
+        paddingTop: '20px', paddingBottom: '20px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
@@ -140,39 +189,77 @@ export default function Timeline({ isReelView = false }) {
             <Menu size={20} />
           </button>
           <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Timeline"}</h2>
-          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', overflow: 'hidden', padding: '2px' }}>
-            <button onClick={zoomOut} disabled={zoomLevel === 'year'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'year' ? 'default' : 'pointer', opacity: zoomLevel === 'year' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomOut size={16}/></button>
-            <div style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--ios-text-primary)', borderLeft: '1px solid var(--ios-border)', borderRight: '1px solid var(--ios-border)' }}>
-              {zoomLevel.charAt(0).toUpperCase() + zoomLevel.slice(1)}s
+          {/* Zoom controls — hidden in select mode */}
+          {!isSelectMode && (
+            <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', overflow: 'hidden', padding: '2px' }}>
+              <button onClick={zoomOut} disabled={zoomLevel === 'year'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'year' ? 'default' : 'pointer', opacity: zoomLevel === 'year' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomOut size={16}/></button>
+              <div style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--ios-text-primary)', borderLeft: '1px solid var(--ios-border)', borderRight: '1px solid var(--ios-border)' }}>
+                {zoomLevel.charAt(0).toUpperCase() + zoomLevel.slice(1)}s
+              </div>
+              <button onClick={zoomIn} disabled={zoomLevel === 'day'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'day' ? 'default' : 'pointer', opacity: zoomLevel === 'day' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomIn size={16}/></button>
             </div>
-            <button onClick={zoomIn} disabled={zoomLevel === 'day'} style={{ border: 'none', background: 'transparent', padding: '6px 12px', cursor: zoomLevel === 'day' ? 'default' : 'pointer', opacity: zoomLevel === 'day' ? 0.3 : 1, color: 'var(--ios-text-primary)' }}><ZoomIn size={16}/></button>
-          </div>
+          )}
+          {/* Select mode: show selection count next to title */}
+          {isSelectMode && (
+            <span style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 500 }}>
+              {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'Tap to select'}
+            </span>
+          )}
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px', display: window.innerWidth <= 768 ? 'none' : 'block' }}>
-            {total} items
-          </div>
+          {!isSelectMode && (
+            <>
+              <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px', display: window.innerWidth <= 768 ? 'none' : 'block' }}>
+                {total} items
+              </div>
+              <button
+                className="ios-btn"
+                style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '16px' }}
+                onClick={() => {
+                  import('../services/api').then(api => {
+                    api.triggerScrape(true).catch(console.error)
+                  })
+                }}
+              >
+                <RefreshCcw size={16} />
+                Sync Now
+              </button>
+              <div style={{
+                display: 'flex', background: 'var(--ios-border)', padding: '2px',
+                borderRadius: '9px', width: '280px'
+              }}>
+                <SegmentButton active={!filters.mediaType} onClick={() => setFilters({ mediaType: null })} icon={BoxSelect} label="All" />
+                <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
+                <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters({ mediaType: 2 })} icon={Video} label="Videos" />
+              </div>
+            </>
+          )}
+
+          {/* Select / Done toggle button */}
           <button
-            className="ios-btn"
-            style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '16px' }}
-            onClick={() => {
-              import('../services/api').then(api => {
-                api.triggerScrape(true).catch(console.error)
-              })
+            className={isSelectMode ? 'ios-btn' : 'ios-btn ios-btn-secondary'}
+            onClick={isSelectMode ? exitSelectMode : enterSelectMode}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              // Highlight the button when active
+              background: isSelectMode ? 'var(--ios-accent)' : undefined,
+              color: isSelectMode ? '#fff' : undefined,
             }}
+            aria-pressed={isSelectMode}
           >
-            <RefreshCcw size={16} />
-            Sync Now
+            {isSelectMode ? (
+              <><XIcon size={15} /> Done</>
+            ) : (
+              <><CheckSquare size={15} /> Select</>
+            )}
           </button>
-          <div style={{
-            display: 'flex', background: 'var(--ios-border)', padding: '2px',
-            borderRadius: '9px', width: '280px'
-          }}>
-            <SegmentButton active={!filters.mediaType} onClick={() => setFilters({ mediaType: null })} icon={BoxSelect} label="All" />
-            <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
-            <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters({ mediaType: 2 })} icon={Video} label="Videos" />
-          </div>
         </div>
       </div>
 
@@ -216,7 +303,15 @@ export default function Timeline({ isReelView = false }) {
                 marginTop: '8px'
               }}>
                 {dateStories.map((story) => (
-                  <StoryCard key={story.id} story={story} hideTitle={zoomLevel !== 'day'} zoomLevel={zoomLevel} />
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    hideTitle={zoomLevel !== 'day'}
+                    zoomLevel={zoomLevel}
+                    isSelectMode={isSelectMode}
+                    isSelected={selectedIds.includes(story.id)}
+                    onSelect={toggleCard}
+                  />
                 ))}
               </div>
             </div>
@@ -232,6 +327,22 @@ export default function Timeline({ isReelView = false }) {
           )}
         </div>
       )}
+
+      {/* ── Bulk Action Bar ──────────────────────────── */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        onArchive={handleArchive}
+        onHighlight={handleAddToHighlight}
+        onCancel={exitSelectMode}
+        loading={bulkLoading}
+      />
+
+      {/* ── Highlight Creator Modal ──────────────────── */}
+      <HighlightCreatorModal
+        isOpen={showHighlightModal}
+        onClose={() => setShowHighlightModal(false)}
+        onCreated={handleHighlightCreated}
+      />
     </div>
   )
 }

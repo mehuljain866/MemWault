@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
@@ -9,7 +10,7 @@ import { format } from 'date-fns'
 import { getStories } from '../services/api'
 import { getSettings } from '../services/settings'
 import FastScrollbar from '../components/FastScrollbar'
-import { ChevronUp, ChevronDown, RotateCw, Map as MapIcon } from 'lucide-react'
+import { ChevronDown, RotateCw, Map as MapIcon, Maximize2, Minimize2 } from 'lucide-react'
 
 // Fix default leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -108,7 +109,7 @@ export default function MapView() {
 
   // Immersive state
   const [sheetState, setSheetState] = useState('half') // 'collapsed', 'half', 'full'
-  const [immersiveFullScreen, setImmersiveFullScreen] = useState(true)
+  const [immersiveFullScreen, setImmersiveFullScreen] = useState(false)
 
   useEffect(() => {
     async function fetchLocations() {
@@ -279,11 +280,12 @@ export default function MapView() {
 
   // Immersive Render (Apple Photos Style)
   const getSheetHeight = () => {
+    const maxH = immersiveFullScreen ? '100vh' : '100%';
     switch (sheetState) {
-      case 'full': return 'calc(100vh - 40px)';
-      case 'half': return '40vh';
+      case 'full': return `calc(${maxH} - 40px)`;
+      case 'half': return immersiveFullScreen ? '40vh' : '50%';
       case 'collapsed': return '120px';
-      default: return '40vh';
+      default: return immersiveFullScreen ? '40vh' : '50%';
     }
   }
 
@@ -300,8 +302,17 @@ export default function MapView() {
             <ChevronDown size={24} color="#000" style={{ transform: 'rotate(90deg)' }} />
           </button>
         )}
-        <button className="ios-glass" onClick={() => setImmersiveFullScreen(!immersiveFullScreen)} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '22px', padding: '0 16px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 600 }}>
-          {immersiveFullScreen ? 'Minimize to Bento' : 'Full Screen'}
+        <button 
+          className="ios-glass" 
+          onClick={() => setImmersiveFullScreen(!immersiveFullScreen)} 
+          style={{ 
+            background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', 
+            width: '44px', height: '44px', display: 'flex', alignItems: 'center', 
+            justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: '#000' 
+          }}
+          title={immersiveFullScreen ? 'Minimize to Bento' : 'Full Screen'}
+        >
+          {immersiveFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </button>
       </div>
 
@@ -321,16 +332,23 @@ export default function MapView() {
       <div style={{
         position: 'absolute', bottom: 0, left: 0, width: '100%', height: getSheetHeight(),
         background: 'var(--ios-glass)', backdropFilter: 'blur(30px) saturate(200%)',
-        borderTopLeftRadius: '24px', borderTopRightRadius: '24px', borderTop: '1px solid rgba(255,255,255,0.1)',
+        borderTopLeftRadius: '24px', borderTopRightRadius: '24px', 
+        borderBottomLeftRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
+        borderBottomRightRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
         boxShadow: '0 -10px 40px rgba(0,0,0,0.2)', transition: 'height 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
         display: 'flex', flexDirection: 'column', zIndex: 1020
       }}>
         {/* Drag Handle Area */}
         <div 
           onClick={() => {
+            // Natural toggle logic: 
+            // If collapsed, go to half. 
+            // If half, go to full. 
+            // If full, go to half.
             if (sheetState === 'collapsed') setSheetState('half')
             else if (sheetState === 'half') setSheetState('full')
-            else setSheetState('collapsed')
+            else if (sheetState === 'full') setSheetState('half')
           }}
           style={{ width: '100%', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >

@@ -366,7 +366,7 @@ async def renew_instagram_session(
 @router.get("/stories", response_model=StoryListRead)
 async def list_stories(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=1000),
     media_type: Optional[int] = Query(None, description="1=photo, 2=video"),
     has_music: Optional[bool] = None,
     has_location: Optional[bool] = None,
@@ -699,7 +699,19 @@ async def get_highlights(
         .where(Highlight.user_id == user.id)
         .order_by(Highlight.created_at.desc())
     )
-    return result.scalars().all()
+    highlights = result.scalars().all()
+    
+    from app.services.storage import get_storage
+    storage = get_storage()
+    highlight_responses = []
+    
+    for h in highlights:
+        hr = HighlightResponse.model_validate(h)
+        if h.cover_media_url and not h.cover_media_url.startswith('http'):
+            hr.cover_media_url = storage.get_presigned_url(h.cover_media_url)
+        highlight_responses.append(hr)
+        
+    return highlight_responses
 
 @router.get("/highlights/{highlight_id}/stories", response_model=list[StoryRead])
 async def get_highlight_stories(
@@ -715,9 +727,30 @@ async def get_highlight_stories(
         .join(HighlightStoryLink, Story.id == HighlightStoryLink.story_id)
         .where(HighlightStoryLink.highlight_id == highlight_id)
         .where(Story.user_id == user.id)
+        .options(
+            selectinload(Story.music),
+            selectinload(Story.mentions),
+            selectinload(Story.stickers),
+            selectinload(Story.links),
+            selectinload(Story.polls),
+        )
         .order_by(Story.taken_at.asc())
     )
-    return result.scalars().all()
+    stories = result.scalars().all()
+    
+    from app.services.storage import get_storage
+    storage = get_storage()
+    story_reads = []
+    for story in stories:
+        sr = StoryRead.model_validate(story)
+        if story.s3_key_compressed:
+            sr.media_url = storage.get_presigned_url(story.s3_key_compressed)
+        if story.og_reel_s3_key:
+            sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key)
+        story_reads.append(sr)
+        
+    return story_reads
+
 
 @router.post("/scrape/now", response_model=ScrapeLogRead)
 async def trigger_scrape(

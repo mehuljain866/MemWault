@@ -223,6 +223,13 @@ class StoryUpdate(BaseModel):
     primary_view: Optional[str] = None
 
 
+class StoryBulkUpdate(BaseModel):
+    story_ids: list[uuid.UUID]
+    is_trashed: Optional[bool] = None
+    is_memory: Optional[bool] = None
+    is_reel: Optional[bool] = None
+
+
 class StoryListRead(BaseModel):
     """Paginated story list response."""
     stories: list[StoryRead]

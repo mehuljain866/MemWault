@@ -1,7 +1,15 @@
 import { useNavigate } from 'react-router-dom'
-import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play } from 'lucide-react'
+import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check } from 'lucide-react'
 
-export default function StoryCard({ story, hideTitle, zoomLevel }) {
+/**
+ * StoryCard
+ *
+ * New props for multi-select mode:
+ *  - isSelectMode  {boolean}  when true, clicking selects instead of navigating
+ *  - isSelected    {boolean}  whether this card is currently selected
+ *  - onSelect      {function} called with story.id when the card is tapped in select mode
+ */
+export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect }) {
   const navigate = useNavigate()
 
   // Ensure the datetime string is treated as UTC by appending 'Z' if missing
@@ -20,15 +28,38 @@ export default function StoryCard({ story, hideTitle, zoomLevel }) {
 
   const isVideo = story.media_type === 2
 
+  const handleClick = () => {
+    if (isSelectMode) {
+      onSelect && onSelect(story.id)
+    } else {
+      navigate(`/story/${story.id}`)
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
   return (
     <div
       className="ios-story-card"
-      onClick={() => navigate(`/story/${story.id}`)}
-      role="button"
+      onClick={handleClick}
+      role={isSelectMode ? 'checkbox' : 'button'}
+      aria-checked={isSelectMode ? isSelected : undefined}
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/story/${story.id}`)}
+      onKeyDown={handleKeyDown}
       style={{
-        borderRadius: zoomLevel === 'year' ? '2px' : zoomLevel === 'month' ? '6px' : 'var(--ios-radius-lg)'
+        borderRadius: zoomLevel === 'year' ? '2px' : zoomLevel === 'month' ? '6px' : 'var(--ios-radius-lg)',
+        // Blue border highlight when selected
+        outline: isSelected ? '2.5px solid var(--ios-accent)' : 'none',
+        outlineOffset: '-2px',
+        transition: 'outline 0.15s ease, transform 0.15s ease',
+        // Slight scale-down feedback in select mode
+        transform: isSelected ? 'scale(0.97)' : 'scale(1)',
+        cursor: isSelectMode ? 'pointer' : undefined,
       }}
     >
       {/* Media Thumbnail */}
@@ -40,10 +71,12 @@ export default function StoryCard({ story, hideTitle, zoomLevel }) {
             muted
             loop
             preload="metadata"
-            onMouseEnter={(e) => e.target.play()}
+            onMouseEnter={(e) => !isSelectMode && e.target.play()}
             onMouseLeave={(e) => {
-              e.target.pause()
-              e.target.currentTime = 0
+              if (!isSelectMode) {
+                e.target.pause()
+                e.target.currentTime = 0
+              }
             }}
           />
         ) : (
@@ -68,8 +101,35 @@ export default function StoryCard({ story, hideTitle, zoomLevel }) {
         </div>
       )}
 
-      {/* Type Badge (Top Right) */}
-      {zoomLevel === 'day' && (
+      {/* ── Multi-select checkbox overlay ─────────────────── */}
+      {isSelectMode && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            background: isSelected ? 'var(--ios-accent)' : 'rgba(0,0,0,0.35)',
+            border: isSelected ? '2px solid var(--ios-accent)' : '2px solid rgba(255,255,255,0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.18s ease, border-color 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1)',
+            transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+            pointerEvents: 'none', // click handled by parent card
+            zIndex: 10,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }}
+          aria-hidden="true"
+        >
+          {isSelected && <Check size={14} color="#fff" strokeWidth={3} />}
+        </div>
+      )}
+
+      {/* Type Badge (Top Right) — hidden in select mode to avoid clutter */}
+      {zoomLevel === 'day' && !isSelectMode && (
         <div className="ios-glass" style={{
           position: 'absolute', top: '12px', right: '12px',
           padding: '6px 8px', borderRadius: '8px',
@@ -82,7 +142,7 @@ export default function StoryCard({ story, hideTitle, zoomLevel }) {
       )}
 
       {/* Hover Overlay */}
-      {zoomLevel === 'day' && (
+      {zoomLevel === 'day' && !isSelectMode && (
         <div className="ios-story-card__overlay">
           <div style={{ color: 'white', fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
             {timeStr}

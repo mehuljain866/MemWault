@@ -171,6 +171,7 @@ export async function getStories(params = {}) {
   if (params.isReel !== undefined) searchParams.set('is_reel', params.isReel);
   if (params.isMemory !== undefined) searchParams.set('is_memory', params.isMemory);
   if (params.isArchived !== undefined) searchParams.set('is_archived', params.isArchived);
+  if (params.search) searchParams.set('search', params.search);
 
   const query = searchParams.toString();
   return apiFetch(`/stories${query ? `?${query}` : ''}`);

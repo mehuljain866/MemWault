@@ -374,6 +374,7 @@ async def list_stories(
     date_to: Optional[str] = None,
     is_reel: Optional[bool] = None,
     is_memory: Optional[bool] = None,
+    search: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -407,6 +408,20 @@ async def list_stories(
         query = query.where(Story.is_reel == is_reel)
     if is_memory is not None:
         query = query.where(Story.is_memory == is_memory)
+        
+    if search:
+        from sqlalchemy import or_
+        from app.models import StoryMusic
+        search_term = f"%{search}%"
+        # We need an outer join with StoryMusic to search by music title/artist if we aren't already joining
+        query = query.outerjoin(StoryMusic, Story.id == StoryMusic.story_id).where(
+            or_(
+                Story.location_name.ilike(search_term),
+                Story.caption_text.ilike(search_term),
+                StoryMusic.track_title.ilike(search_term),
+                StoryMusic.artist_name.ilike(search_term)
+            )
+        )
 
     # Count total
     count_query = select(func.count()).select_from(

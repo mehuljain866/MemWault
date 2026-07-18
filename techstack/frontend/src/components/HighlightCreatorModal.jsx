@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Check, Image as ImageIcon, Play, Film } from 'lucide-react';
 import { getStories, createHighlight } from '../services/api';
-import Fuse from 'fuse.js';
 import StoryCard from './StoryCard';
 import FastScrollbar from './FastScrollbar';
 
@@ -27,53 +26,50 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('memories'); // 'memories' | 'reels'
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Debounce search input
   useEffect(() => {
-    if (isOpen) {
-      loadStories();
-    }
-  }, [isOpen, activeTab]);
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedIds([]);
-      setTitle('');
-      setActiveTab('memories');
-      setSearchQuery('');
-    }
-  }, [isOpen]);
-
-  const filteredStories = useMemo(() => {
-    if (!searchQuery.trim()) return stories;
-    
-    const fuse = new Fuse(stories, {
-      keys: ['location_name', 'music.title', 'music.artist', 'caption_text'],
-      threshold: 0.3,
-      ignoreLocation: true,
-    });
-    
-    return fuse.search(searchQuery).map(result => result.item);
-  }, [stories, searchQuery]);
-
-  const loadStories = async () => {
+  const loadStories = useCallback(async () => {
     try {
       setLoading(true);
-      // Use the named export getStories from the api service
       const data = await getStories({ 
         pageSize: 200,
         isReel: activeTab === 'reels',
-        isMemory: activeTab === 'memories'
+        isMemory: activeTab === 'memories',
+        search: searchQuery.trim() || undefined
       });
       const list = Array.isArray(data) ? data : (data.stories || []);
-      // Only show downloaded, non-trashed stories
       setStories(list.filter(s => s.is_downloaded && !s.is_trashed));
     } catch (err) {
       console.error('Failed to load stories:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, searchQuery]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadStories();
+    }
+  }, [isOpen, loadStories]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedIds([]);
+      setTitle('');
+      setActiveTab('memories');
+      setSearchInput('');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
 
   const toggleSelection = (id) => {
     setSelectedIds(prev =>
@@ -119,7 +115,7 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
           height: '82vh', display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
           boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-          transform: 'translateZ(0)', // Create containing block for FastScrollbar fixed position
+          transform: 'translateZ(0)',
         }}
       >
         {/* ── Header ────────────────────────── */}
@@ -174,8 +170,8 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
           <input
             type="text"
             placeholder="Search by location, song, artist..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             style={{
               width: '100%', padding: '10px 16px', borderRadius: '12px',
               border: '1.5px solid var(--ios-border)',
@@ -199,9 +195,8 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
           alignContent: 'start',
           position: 'relative'
         }}>
-          <FastScrollbar items={filteredStories} getDate={(s) => new Date(s.taken_at + (s.taken_at.endsWith('Z') ? '' : 'Z'))} scrollContainerSelector="#modal-grid-scroll" />
+          <FastScrollbar items={stories} getDate={(s) => new Date(s.taken_at + (s.taken_at.endsWith('Z') ? '' : 'Z'))} scrollContainerSelector="#modal-grid-scroll" />
           {loading ? (
-            // Skeleton placeholders while stories load
             Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
@@ -211,7 +206,7 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
                 }}
               />
             ))
-          ) : filteredStories.length === 0 ? (
+          ) : stories.length === 0 ? (
             <div style={{
               gridColumn: '1 / -1', display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -221,7 +216,7 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
               <div style={{ fontSize: '14px' }}>No {activeTab} found{searchQuery ? ' for search' : ''}</div>
             </div>
           ) : (
-            filteredStories.map(story => (
+            stories.map(story => (
               <StoryCard
                 key={story.id}
                 story={story}

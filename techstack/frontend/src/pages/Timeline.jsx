@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import Fuse from 'fuse.js'
 import { getStories, bulkUpdateStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
@@ -15,6 +14,7 @@ export default function Timeline({ isReelView = false }) {
   const [total, setTotal] = useState(0)
   const [hasNext, setHasNext] = useState(false)
   const [filters, setFilters] = useState({ mediaType: null })
+  const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const { onMenuClick } = useOutletContext() || {}
   
@@ -36,6 +36,7 @@ export default function Timeline({ isReelView = false }) {
         page: pageNum,
         pageSize: PAGE_SIZE,
         mediaType: filters.mediaType,
+        search: searchQuery.trim() || undefined
       }
       
       if (isReelView) {
@@ -58,25 +59,22 @@ export default function Timeline({ isReelView = false }) {
     } finally {
       setLoading(false)
     }
-  }, [filters, isReelView, PAGE_SIZE])
+  }, [filters, isReelView, PAGE_SIZE, searchQuery])
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   useEffect(() => {
     loadStories(1)
-  }, [loadStories, isReelView])
+  }, [loadStories])
 
   const groupedStories = useMemo(() => {
-    let filteredStories = stories
-
-    if (searchQuery.trim()) {
-      const fuse = new Fuse(stories, {
-        keys: ['location_name', 'music.title', 'music.artist', 'caption_text'],
-        threshold: 0.3,
-        ignoreLocation: true,
-      })
-      filteredStories = fuse.search(searchQuery).map(res => res.item)
-    }
-
-    return filteredStories.reduce((acc, story) => {
+    return stories.reduce((acc, story) => {
       const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
       const d = new Date(dateStrUtc)
       let groupKey = ''
@@ -93,7 +91,7 @@ export default function Timeline({ isReelView = false }) {
       acc[groupKey].push(story)
       return acc
     }, {})
-  }, [stories, zoomLevel, searchQuery])
+  }, [stories, zoomLevel])
 
   // ── Multi-select handlers ────────────────────────────────
 
@@ -249,8 +247,8 @@ export default function Timeline({ isReelView = false }) {
               <input
                 type="text"
                 placeholder="Search memories..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
                 style={{
                   padding: '8px 16px', borderRadius: '16px', border: '1px solid var(--ios-border)',
                   backgroundColor: 'var(--ios-glass)', color: 'var(--ios-text-primary)',

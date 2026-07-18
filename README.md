@@ -1,8 +1,8 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.2 🚀
+> **Project Status:** v2.2
 
-## 💡 What is MemWault?
+## What is MemWault?
 
 MemWault is a private, local-first archive designed to permanently preserve, organize, and replay your Instagram stories outside of Meta's walled garden, while simultaneously serving as a self-hosted social media dashboard combining memories from multiple platforms into one unified timeline.
 
@@ -14,7 +14,7 @@ Over the last decade, Instagram Stories have become the default medium for docum
 
 ---
 
-## 💾 Core Platform Features
+## Core Platform Features
 
 * **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), entirely bypassing Meta's API restrictions.
 * **Interactive Map View:** Geographic plotting, clustering, and bounding-box filtering of your memories on an immersive interactive map.
@@ -27,7 +27,7 @@ Over the last decade, Instagram Stories have become the default medium for docum
 
 ---
 
-## ✨ Version Updates
+## Version Updates
 
 ### Version 2.2 (The Archive & Search Update)
 * **Robust Archives (Trash):** Soft-delete/archive individual or bulk-selected stories from the main timeline. Archived stories are hidden from Memories and Reels but can be viewed and fully restored back to the timeline from the Archives page.
@@ -45,7 +45,7 @@ Over the last decade, Instagram Stories have become the default medium for docum
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## Tech Stack & Architecture
 
 MemWault is designed as a self-hosted full-stack application relying on a modern Python and JavaScript ecosystem.
 
@@ -77,7 +77,7 @@ MemWault/
 
 ---
 
-## 🔒 Authentication Architecture
+## Authentication Architecture
 
 Because this is a highly data-sensitive project, absolute transparency into the authentication flow is required. MemWault utilizes a robust dual-layer authentication architecture:
 
@@ -102,7 +102,7 @@ To secure the MemWault dashboard itself (ensuring nobody else on your network ca
 
 ---
 
-## 🚀 Quick Start Guide (Manual Setup)
+## Quick Start Guide (Manual Setup)
 
 ### Prerequisites
 * Python 3.10+

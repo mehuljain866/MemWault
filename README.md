@@ -19,7 +19,9 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 ## ✨ What's New in Version 2.2 (The Highlights Update)
 
 * **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally. This bypasses Meta's API restrictions by letting you organize your existing local timeline stories effortlessly.
-* **Intelligent Fuzzy Search:** A lightning-fast, client-side fuzzy search engine (powered by `fuse.js`) available globally on the Timeline and Highlight Creator. Instantly filter thousands of memories by location, music, artist, or caption.
+* **Full-Text Database Search Engine:** A lightning-fast, backend-driven search engine using SQL `ILIKE` database queries, available globally on the Timeline and Highlight Creator. Instantly search your entire historical archive by location, caption, music title, or artist name without client-side loading limits.
+* **iOS Photos-style Archives (Trash):** Soft-delete/archive individual or bulk-selected stories from the main timeline. Archived stories are hidden from Memories and Reels but can be viewed and fully restored back to the timeline from the new Archives page.
+* **Timeline Bulk Actions:** Enter multi-select mode directly from the Timeline, select multiple memories, and archive them in one click via a sleek, glassmorphic bottom control bar.
 * **Map View Immersive Toggle:** Easily switch between full-screen immersive map mode and a constrained "Bento plane" layout to fit your workflow.
 * **Fluid Page & Layout Transitions:** Entirely rewritten routing shell and grid engine using React Router and Framer Motion. Enjoy buttery-smooth iOS page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
 * **Robust Media Sync & S3 URLs:** Improved backend APIs that dynamically generate pre-signed S3 URLs for Highlights, ensuring your covers and story media load perfectly even in decoupled storage environments.

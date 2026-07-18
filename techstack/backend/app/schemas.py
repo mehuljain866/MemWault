@@ -185,8 +185,9 @@ class StoryRead(BaseModel):
     location_lat: Optional[float] = None
     location_lng: Optional[float] = None
 
-    # Caption
+    # Caption / Notes
     caption_text: Optional[str] = None
+    journal_note: Optional[str] = None
 
     # Processing flags
     is_downloaded: bool
@@ -221,6 +222,7 @@ class StoryUpdate(BaseModel):
     is_trashed: Optional[bool] = None
     is_reel: Optional[bool] = None
     primary_view: Optional[str] = None
+    journal_note: Optional[str] = None
 
 
 class StoryBulkUpdate(BaseModel):

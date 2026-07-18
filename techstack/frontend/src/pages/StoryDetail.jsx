@@ -4,10 +4,13 @@ import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updat
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save } from 'lucide-react'
+import MDEditor, { commands } from '@uiw/react-md-editor'
+import { getSettings } from '../services/settings'
 
 export default function StoryDetail() {
   const { id } = useParams()
+  const settings = getSettings()
   const navigate = useNavigate()
   const [story, setStory] = useState(null)
   const [viewers, setViewers] = useState([])
@@ -16,6 +19,9 @@ export default function StoryDetail() {
   const [activeTab, setActiveTab] = useState('metadata')
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
+  
+  const [journalNote, setJournalNote] = useState('')
+  const [savingJournal, setSavingJournal] = useState(false)
 
   useEffect(() => {
     loadStory()
@@ -24,6 +30,10 @@ export default function StoryDetail() {
   // Keydown listener for arrow navigation
   useEffect(() => {
     function handleKeyDown(e) {
+      // Don't navigate if user is in the journal editor or typing in any input
+      if (activeTab === 'journal') return
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return
+
       if (e.key === 'ArrowLeft' && adjacent.prev_id) {
         navigate(`/story/${adjacent.prev_id}`, { replace: true })
       } else if (e.key === 'ArrowRight' && adjacent.next_id) {
@@ -32,7 +42,7 @@ export default function StoryDetail() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [adjacent, navigate])
+  }, [adjacent, navigate, activeTab])
 
   async function handleLocate() {
     try {
@@ -47,6 +57,7 @@ export default function StoryDetail() {
     try {
       const data = await getStory(id)
       setStory(data)
+      setJournalNote(data.journal_note || '')
 
       // Load viewers and adjacent stories in background
       Promise.all([
@@ -79,7 +90,17 @@ export default function StoryDetail() {
     }
   }
 
-
+  async function handleSaveJournal() {
+    setSavingJournal(true)
+    try {
+      await updateStory(id, { journal_note: journalNote })
+      setStory(prev => ({ ...prev, journal_note: journalNote }))
+    } catch (err) {
+      alert('Failed to save journal: ' + err.message)
+    } finally {
+      setSavingJournal(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -264,6 +285,7 @@ export default function StoryDetail() {
           <SegmentedControl 
             tabs={[
               { id: 'metadata', label: 'Info' },
+              { id: 'journal', label: story.journal_note ? 'Journal 📝' : 'Journal' },
               { id: 'music', label: 'Music' },
               { id: 'viewers', label: 'Viewers' },
               { id: 'manifest', label: 'Data' }
@@ -455,6 +477,79 @@ export default function StoryDetail() {
               }}>
                 {JSON.stringify(story, null, 2)}
               </pre>
+            </div>
+          )}
+
+          {/* ── Journal Tab ───────────────── */}
+          {activeTab === 'journal' && (
+            <div style={{ animation: 'fade-in 0.3s ease', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
+                  Meaning-Making Editor
+                </div>
+                <button 
+                  onClick={handleSaveJournal}
+                  disabled={savingJournal || journalNote === story.journal_note}
+                  style={{
+                    background: (journalNote === story.journal_note) ? 'var(--ios-bg)' : 'var(--ios-accent)',
+                    color: (journalNote === story.journal_note) ? 'var(--ios-text-muted)' : '#fff',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '16px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: (journalNote === story.journal_note) ? 'default' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Save size={16} />
+                  {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
+                </button>
+              </div>
+              
+              <div 
+                data-color-mode="dark" 
+                style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  minHeight: '400px', 
+                  borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
+                  overflow: 'hidden', 
+                  border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
+                  backgroundColor: 'transparent'
+                }}
+              >
+                <MDEditor
+                  value={journalNote}
+                  onChange={setJournalNote}
+                  height="100%"
+                  visibleDragbar={false}
+                  preview={settings.editorSplitPane ? 'live' : 'edit'}
+                  commands={
+                    settings.editorRibbonMode === 'advanced' 
+                      ? undefined 
+                      : [
+                          commands.bold,
+                          commands.italic,
+                          commands.strikethrough,
+                          commands.divider,
+                          ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
+                          ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
+                          ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
+                          ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
+                          ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
+                        ]
+                  }
+                  style={{ 
+                    backgroundColor: 'transparent',
+                    boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>

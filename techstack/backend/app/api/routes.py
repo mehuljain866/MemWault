@@ -545,8 +545,20 @@ async def update_story(
     await db.commit()
     await db.refresh(story)
     
-    sr = StoryRead.model_validate(story)
     storage = get_storage()
+    
+    # Write journal_note to a sidecar .md file if provided
+    if "journal_note" in update_dict and story.s3_key_compressed:
+        note_content = update_dict["journal_note"] or ""
+        # e.g., stories/2026-07/filename.mp4 -> stories/2026-07/filename.md
+        md_key = story.s3_key_compressed.rsplit(".", 1)[0] + ".md"
+        storage.upload_bytes(
+            data=note_content.encode("utf-8"),
+            s3_key=md_key,
+            content_type="text/markdown"
+        )
+    
+    sr = StoryRead.model_validate(story)
     if story.s3_key_compressed:
         sr.media_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
     if story.og_reel_s3_key:

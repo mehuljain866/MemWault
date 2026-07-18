@@ -6,6 +6,12 @@ const DEFAULT_SETTINGS = {
   skipDuration: 5, // 3, 4, 5
   mapMode: 'immersive', // 'immersive' or 'split'
   theme: 'dark', // 'dark' or 'light'
+  
+  // Meaning-Making Editor Settings
+  editorSplitPane: false,
+  editorStyle: 'docs', // 'docs' or 'invisible'
+  editorRibbonMode: 'simple', // 'simple' or 'advanced'
+  editorCustomTools: [], // array of command names like ['image', 'code']
 };
 
 export function getSettings() {

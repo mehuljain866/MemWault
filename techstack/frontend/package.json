@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ark-ui/react": "^5.37.2",
+    "@uiw/react-md-editor": "^4.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.42.2",
     "fuse.js": "^7.5.0",

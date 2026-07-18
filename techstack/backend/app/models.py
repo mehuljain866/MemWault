@@ -127,6 +127,7 @@ class Story(Base):
 
     # ── Caption / Text ───────────────────────────────────
     caption_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    journal_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Full Layout Manifest (JSON) ──────────────────────
     # This is the .mem manifest.json content — sticker coordinates,

@@ -59,4 +59,11 @@ The decision was made to build a self-hosted platform called **MemWault** using 
 
 ---
 
+## July 19, 2026
+* **System Action / Commit:** feat: Meaning-Making Journal Editor (v2.3)
+  * *Modified components:* `techstack/backend/app/models.py, techstack/backend/app/schemas.py, techstack/backend/app/api/routes.py, techstack/frontend/src/pages/StoryDetail.jsx, techstack/frontend/src/pages/Settings.jsx, techstack/frontend/src/services/settings.js`
+  * *Details:* Added a highly customizable side-by-side Markdown editor for memory journaling. Included a global Settings UI to toggle between 'Modern (Docs)' and 'Apple Notes (Invisible)' design philosophies, plus 'Simple' vs 'Advanced' toolbars. Implemented backend sync to generate raw `.md` sidecar files directly next to local media on the filesystem.
+
+---
+
 *(This timeline is continuously updated with exact, timestamped precision as the project evolves.)*

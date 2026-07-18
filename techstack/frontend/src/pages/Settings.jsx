@@ -362,6 +362,65 @@ export default function Settings() {
         </div>
       </IosListGroup>
 
+      {/* ── Journal Editor ────────────── */}
+      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
+        Journal Editor
+      </div>
+      <IosListGroup>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '16px' }}>Split Pane Preview</div>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', width: '50px', height: '30px', borderRadius: '15px', background: playbackSettings.editorSplitPane ? 'var(--ios-success)' : 'var(--ios-border)', transition: 'background 0.3s' }}>
+              <div style={{ position: 'absolute', top: '2px', left: playbackSettings.editorSplitPane ? '22px' : '2px', width: '26px', height: '26px', borderRadius: '50%', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.3s' }} />
+            </div>
+            <input type="checkbox" checked={playbackSettings.editorSplitPane} onChange={(e) => handleSettingChange('editorSplitPane', e.target.checked)} style={{ display: 'none' }} />
+          </label>
+        </div>
+
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '16px' }}>Design Philosophy</div>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px' }}>
+            {['docs', 'invisible'].map(style => (
+              <button key={style} onClick={() => handleSettingChange('editorStyle', style)} style={{ border: 'none', background: playbackSettings.editorStyle === style ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.editorStyle === style ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.editorStyle === style ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', textTransform: 'capitalize' }}>
+                {style === 'docs' ? 'Modern (Docs)' : 'Apple Notes (Invisible)'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '16px', borderBottom: playbackSettings.editorRibbonMode === 'simple' ? '1px solid var(--ios-border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '16px' }}>Ribbon Complexity</div>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px' }}>
+            {['simple', 'advanced'].map(mode => (
+              <button key={mode} onClick={() => handleSettingChange('editorRibbonMode', mode)} style={{ border: 'none', background: playbackSettings.editorRibbonMode === mode ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.editorRibbonMode === mode ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.editorRibbonMode === mode ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', textTransform: 'capitalize' }}>
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {playbackSettings.editorRibbonMode === 'simple' && (
+          <div style={{ padding: '16px' }}>
+            <div style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--ios-text-secondary)' }}>Add Custom Tools to Simple Ribbon:</div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {['image', 'link', 'code', 'quote', 'unordered-list'].map(tool => {
+                const isActive = (playbackSettings.editorCustomTools || []).includes(tool);
+                return (
+                  <button key={tool} onClick={() => {
+                    const tools = new Set(playbackSettings.editorCustomTools || []);
+                    if (isActive) tools.delete(tool);
+                    else tools.add(tool);
+                    handleSettingChange('editorCustomTools', Array.from(tools));
+                  }} style={{ padding: '6px 12px', borderRadius: '16px', border: isActive ? 'none' : '1px solid var(--ios-border)', backgroundColor: isActive ? 'var(--ios-accent)' : 'transparent', color: isActive ? '#fff' : 'var(--ios-text-primary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'capitalize' }}>
+                    {tool.replace('-', ' ')}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </IosListGroup>
+
       {/* ── Scrape History ────────────── */}
       <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
         Scrape History

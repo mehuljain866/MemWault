@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.1 (The Highlights & Archive Update) 🚀
+> **Project Status:** v2.2 (The Highlights & Archive Update) 🚀
 
 MemWault is a digital memory preservation platform designed to help you permanently own, archive, and replay your Instagram Stories independently of Meta's ecosystem.
 
@@ -16,7 +16,7 @@ MemWault was created to solve this. It provides a personal, local-first archivin
 
 ---
 
-## ✨ What's New in Version 2.1 (The Highlights Update)
+## ✨ What's New in Version 2.2 (The Highlights Update)
 
 * **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally. This bypasses Meta's API restrictions by letting you organize your existing local timeline stories effortlessly.
 * **Intelligent Fuzzy Search:** A lightning-fast, client-side fuzzy search engine (powered by `fuse.js`) available globally on the Timeline and Highlight Creator. Instantly filter thousands of memories by location, music, artist, or caption.

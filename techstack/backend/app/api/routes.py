@@ -44,6 +44,7 @@ from app.schemas import (
     UserRead,
     AdjacentStoriesRead,
     StoryUpdate,
+    StoryBulkUpdate,
 )
 from app.storage.s3 import get_storage
 
@@ -476,6 +477,7 @@ async def get_story(
             selectinload(Story.links),
             selectinload(Story.polls),
         )
+    )
     story = result.scalar_one_or_none()
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")

@@ -3,6 +3,7 @@ MemWault Backend — FastAPI Application Entry Point
 """
 
 import sys
+import os
 import asyncio
 
 if sys.platform == "win32":
@@ -72,6 +73,10 @@ app.add_middleware(
 
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
+
+# ── Static Media ─────────────────────────────────────────
+os.makedirs("data/media", exist_ok=True)
+app.mount("/api/v1/media", StaticFiles(directory="data/media"), name="media")
 
 # ── Routes ───────────────────────────────────────────────
 app.include_router(router, prefix="/api/v1")

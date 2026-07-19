@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.3
+> **Project Status:** v2.4
 
 ## What is MemWault?
 
@@ -29,6 +29,11 @@ Over the last decade, Instagram Stories have become the default medium for docum
 ---
 
 ## Version Updates
+
+### Version 2.4 (The Dynamic Covers Update)
+* **Dynamic Highlight Grid:** Your Highlight Albums now automatically adapt to their contents. Covers dynamically render as stunning 4-Image Grids, Apple-style 3-Image layouts, or full vertical dual-views depending on the stories inside them.
+* **Intelligent Media Previews:** Full support for video thumbnails inside Album Covers — video stories automatically loop quietly inside their grid cells.
+* **Custom Cover Uploads:** Complete freedom to select the Official Cover, your Latest Story, or upload your own completely custom image from your local file system to serve as an album cover.
 
 ### Version 2.3 (The Meaning-Making Update)
 * **Contextual Journaling:** Core feature addition allowing you to attach rich Markdown notes to any story. The editor runs side-by-side with your media for effortless journaling.

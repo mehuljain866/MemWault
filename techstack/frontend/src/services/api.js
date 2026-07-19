@@ -38,10 +38,13 @@ export function isAuthenticated() {
  */
 async function apiFetch(endpoint, options = {}) {
   const token = getToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers = { ...options.headers };
+  
+  if (!('Content-Type' in headers)) {
+    headers['Content-Type'] = 'application/json';
+  } else if (headers['Content-Type'] === null) {
+    delete headers['Content-Type'];
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -293,5 +296,40 @@ export async function createHighlight(title, storyIds) {
   return apiFetch('/highlights/manual', {
     method: 'POST',
     body: JSON.stringify({ title, story_ids: storyIds }),
+  })
+}
+
+export async function deleteHighlight(highlightId) {
+  return apiFetch(`/highlights/${highlightId}`, { method: 'DELETE' })
+}
+
+export async function uploadHighlightCover(highlightId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiFetch(`/highlights/${highlightId}/cover`, {
+    method: 'POST',
+    headers: { 'Content-Type': null },
+    body: formData
+  })
+}
+
+export async function updateHighlight(highlightId, title) {
+  return apiFetch(`/highlights/${highlightId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+  })
+}
+
+export async function addStoriesToHighlight(highlightId, storyIds) {
+  return apiFetch(`/highlights/${highlightId}/stories`, {
+    method: 'POST',
+    body: JSON.stringify({ story_ids: storyIds }),
+  })
+}
+
+export async function removeStoriesFromHighlight(highlightId, storyIds) {
+  return apiFetch(`/highlights/${highlightId}/stories`, {
+    method: 'DELETE',
+    body: JSON.stringify({ story_ids: storyIds }),
   })
 }

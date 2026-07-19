@@ -314,6 +314,7 @@ class HighlightResponse(BaseModel):
     ig_highlight_id: str
     title: str
     cover_media_url: Optional[str] = None
+    preview_stories: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -332,4 +333,10 @@ class HighlightStoryLinkResponse(BaseModel):
 
 class ManualHighlightCreate(BaseModel):
     title: str
+    story_ids: list[uuid.UUID]
+
+class HighlightUpdate(BaseModel):
+    title: str
+
+class HighlightStoriesUpdate(BaseModel):
     story_ids: list[uuid.UUID]

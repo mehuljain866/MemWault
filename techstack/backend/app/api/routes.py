@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -746,7 +746,7 @@ async def get_highlights(
 ):
     """Get all highlights for the current user."""
     from sqlalchemy import select
-    from app.models import Highlight
+    from app.models import Highlight, HighlightStoryLink, Story
     result = await db.execute(
         select(Highlight)
         .where(Highlight.user_id == user.id)
@@ -754,14 +754,32 @@ async def get_highlights(
     )
     highlights = result.scalars().all()
     
-    from app.services.storage import get_storage
+    from app.storage.s3 import get_storage
     storage = get_storage()
     highlight_responses = []
     
     for h in highlights:
         hr = HighlightResponse.model_validate(h)
-        if h.cover_media_url and not h.cover_media_url.startswith('http'):
+        # Check if cover_media_url starts with /api/v1/media for local custom uploads
+        if h.cover_media_url and not h.cover_media_url.startswith('http') and not h.cover_media_url.startswith('/api/v1/media'):
             hr.cover_media_url = storage.get_presigned_url(h.cover_media_url)
+            
+        story_res = await db.execute(
+            select(Story.s3_key_compressed, Story.cdn_url)
+            .join(HighlightStoryLink, Story.id == HighlightStoryLink.story_id)
+            .where(HighlightStoryLink.highlight_id == h.id)
+            .order_by(Story.taken_at.desc())
+            .limit(4)
+        )
+        stories = story_res.all()
+        preview_urls = []
+        for s in stories:
+            if s.s3_key_compressed:
+                preview_urls.append(storage.get_presigned_url(s.s3_key_compressed))
+            else:
+                preview_urls.append(s.cdn_url)
+        hr.preview_stories = preview_urls
+            
         highlight_responses.append(hr)
         
     return highlight_responses
@@ -791,7 +809,7 @@ async def get_highlight_stories(
     )
     stories = result.scalars().all()
     
-    from app.services.storage import get_storage
+    from app.storage.s3 import get_storage
     storage = get_storage()
     story_reads = []
     for story in stories:
@@ -1116,7 +1134,166 @@ async def create_manual_highlight(
 
     await db.commit()
     await db.refresh(new_h)
-    return new_h
+    
+    from app.storage.s3 import get_storage
+    storage = get_storage()
+    hr = HighlightResponse.model_validate(new_h)
+    if new_h.cover_media_url and not new_h.cover_media_url.startswith('http'):
+        hr.cover_media_url = storage.get_presigned_url(new_h.cover_media_url)
+        
+    return hr
+
+@router.delete('/highlights/{highlight_id}', status_code=204)
+async def delete_highlight(
+    highlight_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models import Highlight, HighlightStoryLink
+    from sqlalchemy import select, delete
+
+    # Fetch highlight to ensure it belongs to the user
+    res = await db.execute(
+        select(Highlight).where(Highlight.id == highlight_id).where(Highlight.user_id == user.id)
+    )
+    hl = res.scalar_one_or_none()
+    if not hl:
+        raise HTTPException(status_code=404, detail="Highlight not found or unauthorized")
+
+    # Delete links first
+    await db.execute(delete(HighlightStoryLink).where(HighlightStoryLink.highlight_id == highlight_id))
+    
+    # Delete the highlight itself
+    await db.execute(delete(Highlight).where(Highlight.id == highlight_id))
+    
+    await db.commit()
+    return
+
+from app.schemas import HighlightUpdate, HighlightStoriesUpdate
+import os
+import shutil
+
+@router.post('/highlights/{highlight_id}/cover', response_model=HighlightResponse)
+async def upload_highlight_cover(
+    highlight_id: uuid.UUID,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload a custom cover image for a highlight."""
+    from app.models import Highlight
+    result = await db.execute(select(Highlight).where(Highlight.id == highlight_id).where(Highlight.user_id == user.id))
+    hl = result.scalar_one_or_none()
+    if not hl:
+        raise HTTPException(status_code=404, detail="Highlight not found")
+
+    # Ensure directory exists
+    cover_dir = "data/media/covers"
+    os.makedirs(cover_dir, exist_ok=True)
+    
+    # Generate unique filename
+    ext = os.path.splitext(file.filename)[1]
+    if not ext:
+        ext = ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(cover_dir, filename)
+    
+    # Save file
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Update highlight with local path URL format that main.py serves
+    hl.cover_media_url = f"/api/v1/media/covers/{filename}"
+    hl.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(hl)
+    
+    # Return response without preview stories (not needed for this specific update response)
+    hr = HighlightResponse.model_validate(hl)
+    return hr
+
+@router.patch('/highlights/{highlight_id}', response_model=HighlightResponse)
+async def update_highlight(
+    highlight_id: uuid.UUID,
+    body: HighlightUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models import Highlight
+    from sqlalchemy import select
+    res = await db.execute(select(Highlight).where(Highlight.id == highlight_id).where(Highlight.user_id == user.id))
+    hl = res.scalar_one_or_none()
+    if not hl:
+        raise HTTPException(status_code=404, detail="Highlight not found")
+    
+    hl.title = body.title
+    await db.commit()
+    await db.refresh(hl)
+    
+    from app.storage.s3 import get_storage
+    storage = get_storage()
+    hr = HighlightResponse.model_validate(hl)
+    if hl.cover_media_url and not hl.cover_media_url.startswith('http'):
+        hr.cover_media_url = storage.get_presigned_url(hl.cover_media_url)
+    return hr
+
+@router.post('/highlights/{highlight_id}/stories', status_code=200)
+async def add_stories_to_highlight(
+    highlight_id: uuid.UUID,
+    body: HighlightStoriesUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models import Highlight, HighlightStoryLink
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+    
+    res = await db.execute(select(Highlight).where(Highlight.id == highlight_id).where(Highlight.user_id == user.id))
+    hl = res.scalar_one_or_none()
+    if not hl:
+        raise HTTPException(status_code=404, detail="Highlight not found")
+        
+    # Check existing links to ignore duplicates
+    existing_res = await db.execute(select(HighlightStoryLink.story_id).where(HighlightStoryLink.highlight_id == highlight_id))
+    existing_ids = {row[0] for row in existing_res.all()}
+    
+    added_count = 0
+    for s_id in body.story_ids:
+        if s_id not in existing_ids:
+            link = HighlightStoryLink(
+                highlight_id=hl.id,
+                story_id=s_id,
+                added_at=datetime.now(timezone.utc)
+            )
+            db.add(link)
+            added_count += 1
+            
+    if added_count > 0:
+        await db.commit()
+    return {"status": "success", "added_count": added_count}
+
+@router.delete('/highlights/{highlight_id}/stories', status_code=200)
+async def remove_stories_from_highlight(
+    highlight_id: uuid.UUID,
+    body: HighlightStoriesUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models import Highlight, HighlightStoryLink
+    from sqlalchemy import select, delete
+    
+    res = await db.execute(select(Highlight).where(Highlight.id == highlight_id).where(Highlight.user_id == user.id))
+    hl = res.scalar_one_or_none()
+    if not hl:
+        raise HTTPException(status_code=404, detail="Highlight not found")
+        
+    await db.execute(
+        delete(HighlightStoryLink)
+        .where(HighlightStoryLink.highlight_id == highlight_id)
+        .where(HighlightStoryLink.story_id.in_(body.story_ids))
+    )
+    await db.commit()
+    return {"status": "success"}
 
 @router.post('/stories/{story_id}/trash', response_model=StoryRead)
 async def toggle_trash_story(

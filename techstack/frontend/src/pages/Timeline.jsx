@@ -3,6 +3,7 @@ import { getStories, bulkUpdateStories } from '../services/api'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
+import AddToHighlightModal from '../components/AddToHighlightModal'
 import FastScrollbar from '../components/FastScrollbar'
 import { useOutletContext } from 'react-router-dom'
 import { Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon } from 'lucide-react'
@@ -22,10 +23,12 @@ export default function Timeline({ isReelView = false }) {
   const [zoomLevel, setZoomLevel] = useState('day')
 
   // ── Multi-select state ──────────────────────────────────
-  const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
+  const [isSelectMode, setIsSelectMode] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
-  const [showHighlightModal, setShowHighlightModal] = useState(false)
+  
+  const [showAddToHighlightModal, setShowAddToHighlightModal] = useState(false)
+  const [showHighlightCreatorModal, setShowHighlightCreatorModal] = useState(false)
 
   const PAGE_SIZE = zoomLevel === 'year' ? 100 : zoomLevel === 'month' ? 48 : 24
 
@@ -127,11 +130,16 @@ export default function Timeline({ isReelView = false }) {
   }
 
   const handleAddToHighlight = () => {
-    setShowHighlightModal(true)
+    setShowAddToHighlightModal(true)
   }
 
   const handleHighlightCreated = () => {
-    setShowHighlightModal(false)
+    setShowHighlightCreatorModal(false)
+    exitSelectMode()
+  }
+
+  const handleAddedToExisting = () => {
+    setShowAddToHighlightModal(false)
     exitSelectMode()
   }
 
@@ -361,11 +369,23 @@ export default function Timeline({ isReelView = false }) {
         loading={bulkLoading}
       />
 
-      {/* ── Highlight Creator Modal ──────────────────── */}
+      {/* ── Highlight Modals ──────────────────── */}
+      <AddToHighlightModal
+        isOpen={showAddToHighlightModal}
+        onClose={() => setShowAddToHighlightModal(false)}
+        selectedStoryIds={selectedIds}
+        onAdded={handleAddedToExisting}
+        onCreateNewRequest={() => {
+          setShowAddToHighlightModal(false)
+          setShowHighlightCreatorModal(true)
+        }}
+      />
+      
       <HighlightCreatorModal
-        isOpen={showHighlightModal}
-        onClose={() => setShowHighlightModal(false)}
+        isOpen={showHighlightCreatorModal}
+        onClose={() => setShowHighlightCreatorModal(false)}
         onCreated={handleHighlightCreated}
+        preSelectedStoryIds={selectedIds}
       />
     </div>
   )

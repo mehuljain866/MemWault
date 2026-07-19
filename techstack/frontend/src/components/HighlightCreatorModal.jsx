@@ -19,7 +19,7 @@ const SegmentButton = ({ active, onClick, icon: Icon, label }) => (
   </button>
 );
 
-export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
+export default function HighlightCreatorModal({ isOpen, onClose, onCreated, preSelectedStoryIds = [], editMode = false, onSave }) {
   const [stories, setStories] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [title, setTitle] = useState('');
@@ -58,8 +58,11 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
   useEffect(() => {
     if (isOpen) {
       loadStories();
+      if (preSelectedStoryIds.length > 0) {
+        setSelectedIds(preSelectedStoryIds);
+      }
     }
-  }, [isOpen, loadStories]);
+  }, [isOpen, loadStories, preSelectedStoryIds]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -78,8 +81,16 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return alert('Please enter a title');
     if (selectedIds.length === 0) return alert('Please select at least one story');
+    
+    if (editMode) {
+      onSave?.(selectedIds);
+      onClose();
+      return;
+    }
+
+    if (!title.trim()) return alert('Please enter a title');
+    
     try {
       setSaving(true);
       await createHighlight(title.trim(), selectedIds);
@@ -124,7 +135,7 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
           padding: '18px 20px', borderBottom: '1px solid var(--ios-border)',
         }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
-            Create Highlight
+            {editMode ? 'Add Stories' : 'Create Highlight'}
           </h2>
           <button
             onClick={onClose}
@@ -138,28 +149,28 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
           </button>
         </div>
 
-        {/* ── Title input ───────────────────── */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ios-border)' }}>
-          <input
-            type="text"
-            placeholder="Highlight name…"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            style={{
-              width: '100%', padding: '12px 16px', borderRadius: '12px',
-              border: '1.5px solid var(--ios-border)',
-              backgroundColor: 'var(--ios-bg-app)',
-              color: 'var(--ios-text-primary)', fontSize: '15px',
-              outline: 'none', boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
-            onFocus={e => { e.target.style.borderColor = 'var(--ios-accent)' }}
-            onBlur={e => { e.target.style.borderColor = 'var(--ios-border)' }}
-          />
-        </div>
+        {/* ── Title input (Create Mode Only) ───────────────────── */}
+        {!editMode && (
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ios-border)' }}>
+            <input
+              type="text"
+              placeholder="Highlight name…"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              style={{
+                width: '100%', padding: '14px', borderRadius: '12px',
+                border: '1px solid var(--ios-border)', background: 'var(--ios-bg-app)',
+                fontSize: '15px', color: 'var(--ios-text-primary)',
+                boxSizing: 'border-box', transition: 'border-color 0.2s',
+              }}
+              onFocus={e => { e.target.style.borderColor = 'var(--ios-accent)' }}
+              onBlur={e => { e.target.style.borderColor = 'var(--ios-border)' }}
+            />
+          </div>
+        )}
 
-        {/* ── Tabs & Search ─────────────────────── */}
-        <div style={{ padding: '0 20px 16px 20px', borderBottom: '1px solid var(--ios-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* ── Filters ────────────────────────── */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ios-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{
             display: 'flex', background: 'var(--ios-border)', padding: '2px',
             borderRadius: '9px', width: '100%'
@@ -239,16 +250,16 @@ export default function HighlightCreatorModal({ isOpen, onClose, onCreated }) {
             {selectedIds.length} selected
           </span>
           <button
-            className="ios-btn"
             onClick={handleSave}
-            disabled={saving || selectedIds.length === 0 || !title.trim()}
+            disabled={saving || (selectedIds.length === 0)}
             style={{
-              padding: '10px 28px', borderRadius: '20px', fontWeight: 600, fontSize: '14px',
-              opacity: (saving || selectedIds.length === 0 || !title.trim()) ? 0.4 : 1,
-              transition: 'opacity 0.2s',
+              padding: '12px 24px', borderRadius: '24px', border: 'none',
+              background: (saving || selectedIds.length === 0) ? 'var(--ios-border)' : 'var(--ios-accent)',
+              color: (saving || selectedIds.length === 0) ? 'var(--ios-text-secondary)' : '#fff',
+              fontSize: '15px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            {saving ? 'Creating…' : 'Create Album'}
+            {saving ? 'Saving...' : (editMode ? 'Add Stories' : 'Create')}
           </button>
         </div>
       </div>

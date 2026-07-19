@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.4
+> **Project Status:** v2.3
 
 ## What is MemWault?
 
@@ -30,15 +30,13 @@ Over the last decade, Instagram Stories have become the default medium for docum
 
 ## Version Updates
 
-### Version 2.4 (The Dynamic Covers Update)
-* **Dynamic Highlight Grid:** Your Highlight Albums now automatically adapt to their contents. Covers dynamically render as stunning 4-Image Grids, Apple-style 3-Image layouts, or full vertical dual-views depending on the stories inside them.
+### Version 2.3 (The Highlights & Journaling Update)
+* **Dynamic Highlight Grid:** Your Highlight Albums now automatically adapt to their contents. Covers dynamically render as stunning 4-Image Grids, 3-Image layouts, or full vertical dual-views depending on the stories inside them.
 * **Intelligent Media Previews:** Full support for video thumbnails inside Album Covers — video stories automatically loop quietly inside their grid cells.
 * **Custom Cover Uploads:** Complete freedom to select the Official Cover, your Latest Story, or upload your own completely custom image from your local file system to serve as an album cover.
-
-### Version 2.3 (The Meaning-Making Update)
 * **Contextual Journaling:** Core feature addition allowing you to attach rich Markdown notes to any story. The editor runs side-by-side with your media for effortless journaling.
 * **Native Sidecar Files:** Journal notes aren't just locked in the database; they are automatically written as `.md` files directly next to your media files on your local drive (or S3) for ultimate data portability.
-* **Hyper-Customizable UI:** The editor interface can be toggled between "Modern (Docs)" and "Apple Notes (Invisible)" design philosophies, with fully customizable ribbon tools via the Settings dashboard.
+* **Hyper-Customizable UI:** The editor interface can be toggled between "Modern (Docs)" and "Invisible" design philosophies, with fully customizable ribbon tools via the Settings dashboard.
 
 ### Version 2.2 (The Archive & Search Update)
 * **Robust Archives (Trash):** Soft-delete/archive individual or bulk-selected stories from the main timeline. Archived stories are hidden from Memories and Reels but can be viewed and fully restored back to the timeline from the Archives page.

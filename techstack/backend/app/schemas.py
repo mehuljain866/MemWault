@@ -206,6 +206,7 @@ class StoryRead(BaseModel):
 
     # Engagement
     viewer_count: Optional[int] = None
+    like_count: Optional[int] = None
 
     # Related entities
     music: Optional[StoryMusicRead] = None

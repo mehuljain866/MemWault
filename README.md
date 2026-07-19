@@ -1,6 +1,6 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.3
+> **Project Status:** v2.4
 
 ## What is MemWault?
 
@@ -29,6 +29,11 @@ Over the last decade, Instagram Stories have become the default medium for docum
 ---
 
 ## Version Updates
+
+### Version 2.4 (The Engagement & Privacy Update)
+* **Perpetual Engagement Metrics:** Safely and indefinitely archives your Story Viewer Count and Story Like Count into the database and embeds them directly into your file's EXIF metadata.
+* **Privacy-First Design:** Implemented strict guardrails to avoid Instagram's 48-hour hard-deletion constraints and anti-bot systems by intentionally opting out of fetching individual viewer identity lists, guaranteeing zero account bans.
+* **Likers Metadata Preservation:** Story likes are permanently captured directly from Instagram's archive servers, even for expired stories that are years old.
 
 ### Version 2.3 (The Highlights & Journaling Update)
 * **Dynamic Highlight Grid:** Your Highlight Albums now automatically adapt to their contents. Covers dynamically render as stunning 4-Image Grids, 3-Image layouts, or full vertical dual-views depending on the stories inside them.
@@ -108,6 +113,15 @@ To secure the MemWault dashboard itself (ensuring nobody else on your network ca
 3. Backend logs into Instagram (IG Auth) -> Retrieves and encrypts session cookies in the DB.
 4. Background Celery tasks use the stored IG cookies to periodically fetch new stories.
 5. The React UI requests stories from FastAPI, authenticated via JWT.
+
+---
+
+## Design Choices & Privacy Trade-offs
+
+**Why doesn't MemWault extract the list of people who viewed my stories?**
+While older versions or other scrapers might attempt to fetch a literal list of story viewers, MemWault intentionally omits this feature to prioritize your account's safety. Instagram's modern anti-bot algorithms aggressively penalize automated fetching of viewer lists, leading to instant account shadowbans or permanent locks. Furthermore, Instagram permanently deletes viewer lists from their servers after 48 hours, making it impossible to retrieve them for older stories anyway.
+
+As a design philosophy, MemWault extracts only the perpetual engagement metrics (Viewer Count and Story Likes) and omits the individual viewer identities to ensure your long-term archiving runs silently, safely, and indefinitely.
 
 ---
 

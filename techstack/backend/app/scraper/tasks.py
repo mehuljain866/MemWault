@@ -286,6 +286,7 @@ def poll_stories(self, user_id: Optional[str] = None):
                         og_reel_likes=og_reel_likes,
                         og_reel_plays=og_reel_plays,
                         viewer_count=story_data.get("viewer_count", 0),
+                        like_count=story_data.get("like_count", 0),
                     )
                     db.add(new_story)
                     db.flush()
@@ -510,6 +511,7 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                             is_metadata_written=True,
                             is_uploaded_to_s3=True,
                             viewer_count=story_data.get("viewer_count", 0),
+                            like_count=story_data.get("like_count", 0),
                         )
                         db.add(new_story)
                         db.flush()

@@ -94,6 +94,8 @@ class MetadataWriter:
             # ── 2. Custom Memwault Tags (XMP-Memwault) ─────────────────────
             viewer_count = story_data.get("viewer_count", 0)
             cmd.append(f"-XMP-Memwault:ViewerCount={viewer_count}")
+            like_count = story_data.get("like_count", 0)
+            cmd.append(f"-XMP-Memwault:LikeCount={like_count}")
             
             if music:
                 cmd.append(f"-XMP-Memwault:MusicArtist={music.get('artist_name', '')}")
@@ -133,6 +135,7 @@ class MetadataWriter:
             "ig_media_id": story_data.get("ig_media_id"),
             "media_type": "video" if story_data.get("media_type") == 2 else "photo",
             "viewer_count": story_data.get("viewer_count", 0),
+            "like_count": story_data.get("like_count", 0),
             "og_reel_likes": story_data.get("og_reel_likes"),
             "og_reel_plays": story_data.get("og_reel_plays")
         }

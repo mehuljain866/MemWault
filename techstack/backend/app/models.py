@@ -139,6 +139,7 @@ class Story(Base):
 
     # ── Engagement Metrics ───────────────────────────────
     viewer_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    like_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # ── Processing State & View Mode ─────────────────────
     is_downloaded: Mapped[bool] = mapped_column(Boolean, default=False)

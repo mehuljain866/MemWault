@@ -1010,7 +1010,7 @@ from pydantic import BaseModel
 class LocateRequest(BaseModel):
     story_id: uuid.UUID
 
-@router.post("/media/locate")
+@router.post("/stories/locate")
 async def locate_local_media(
     body: LocateRequest,
     user: User = Depends(get_current_user),

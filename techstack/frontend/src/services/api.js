@@ -265,7 +265,7 @@ export async function getDashboardStats() {
 }
 
 export async function locateStoryMedia(storyId) {
-  const res = await apiFetch(`/media/locate`, {
+  const res = await apiFetch(`/stories/locate`, {
     method: 'POST',
     body: JSON.stringify({ story_id: storyId })
   })

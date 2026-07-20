@@ -50,20 +50,29 @@ class MetadataWriter:
             description_parts = []
             caption = story_data.get("caption_text")
             if caption:
-                description_parts.append(caption)
+                description_parts.append(f"📝 Caption: {caption}")
+
+            journal = story_data.get("journal_note")
+            if journal:
+                description_parts.append(f"📔 Journal:\n{journal}\n")
 
             music = story_data.get("music")
             if music:
-                description_parts.append(f"🎵 {music.get('track_title', '')} — {music.get('artist_name', '')}")
+                description_parts.append(f"🎵 Music: {music.get('track_title', '')} — {music.get('artist_name', '')}")
 
             location_name = story_data.get("location_name")
             if location_name:
-                description_parts.append(f"📍 {location_name}")
+                description_parts.append(f"📍 Location: {location_name}")
 
             mentions = story_data.get("mentions", [])
             if mentions:
                 mention_str = " ".join(f"@{m.get('username', '')}" for m in mentions)
-                description_parts.append(f"👥 {mention_str}")
+                description_parts.append(f"👥 Tags: {mention_str}")
+                
+            viewer_count = story_data.get("viewer_count", 0)
+            like_count = story_data.get("like_count", 0)
+            if viewer_count > 0 or like_count > 0:
+                description_parts.append(f"📊 Engagement: {viewer_count} Views, {like_count} Likes")
 
             if description_parts:
                 desc = "\n".join(description_parts)

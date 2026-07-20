@@ -4,19 +4,22 @@
 
 ## What is MemWault?
 
-MemWault is a private, local-first archive designed to permanently preserve, organize, and replay your Instagram stories outside of Meta's walled garden, while simultaneously serving as a self-hosted social media dashboard combining memories from multiple platforms into one unified timeline.
+MemWault is a private, local-first archive designed to permanently preserve, organize, and replay your Instagram stories. It ensures personal data portability by acting as a self-hosted social media dashboard that combines memories into one unified timeline.
 
-Over the last decade, Instagram Stories have become the default medium for documenting our daily lives, yet they remain vulnerable. MemWault was built to solve these specific problems:
-* **Independence from Walled Gardens:** Meta locks your data in their ecosystem. If you lose your account (hacked or banned), you lose a decade of personal history. MemWault ensures you physically own it.
-* **Preservation of Rich Context:** Instagram's native archive doesn't let you easily search by tagged friends, locations, or music. MemWault parses and indexes this rich metadata locally for powerful searching and geographic mapping.
-* **Data Portability & Extensibility:** By having all stories and metadata in a local SQLite/Postgres database, it opens the door to personal analytics, journaling, and custom integrations.
-* **Privacy & Security:** A self-hosted, private archive means you don't have to rely on third-party backup services sniffing your personal data.
+![UI Demo Placeholder](assets/demo.gif)
+*(UI Demo Placeholder - Add a GIF of the timeline and map view here)*
+
+Over the last decade, Instagram Stories have become the default medium for documenting our daily lives. MemWault was built to solve specific archiving challenges:
+* **Personal Data Portability:** If you lose access to an account, you lose your personal history. MemWault ensures you physically own a local copy of your data.
+* **Preservation of Rich Context:** Native exports don't let you easily search by tagged friends, locations, or music. MemWault parses and indexes this rich metadata locally for powerful searching and geographic mapping.
+* **Extensibility:** By storing all stories and metadata in a local SQLite/Postgres database, it opens the door to personal analytics, journaling, and custom integrations.
+* **Privacy & Security:** A self-hosted archive means your personal memories remain entirely on your own hardware.
 
 ---
 
 ## Core Platform Features
 
-* **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), entirely bypassing Meta's API restrictions.
+* **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), providing an independent backup of your accounts.
 * **Interactive Map View:** Geographic plotting, clustering, and bounding-box filtering of your memories on an immersive interactive map.
 * **Custom Highlight Albums:** Curate and group your downloaded local stories into custom albums independently of Instagram.
 * **Robust Full-Text Database Search:** A lightning-fast, backend SQL search engine. Instantly query your entire archive by location, caption, music title, or artist name.

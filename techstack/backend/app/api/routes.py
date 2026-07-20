@@ -557,6 +557,33 @@ async def update_story(
             s3_key=md_key,
             content_type="text/markdown"
         )
+        
+        # Also inject into the EXIF metadata of the local file so it is natively viewable in iOS/Android galleries
+        from app.config import get_settings
+        from app.scraper.metadata import MetadataWriter
+        from pathlib import Path
+        settings = get_settings()
+        
+        if settings.storage_type == "local":
+            file_path = Path(settings.storage_local_dir).resolve() / story.s3_key_compressed
+            if file_path.exists():
+                story_data = {
+                    "ig_media_id": story.ig_media_id,
+                    "media_type": story.media_type,
+                    "taken_at": story.taken_at,
+                    "caption_text": story.caption_text,
+                    "journal_note": story.journal_note,
+                    "location_name": story.location_name,
+                    "location_lat": story.location_lat,
+                    "location_lng": story.location_lng,
+                    "viewer_count": story.viewer_count,
+                    "like_count": story.like_count,
+                    "music": {"track_title": story.music.track_title, "artist_name": story.music.artist_name} if story.music else None,
+                    "mentions": [{"username": m.username} for m in story.mentions] if story.mentions else []
+                }
+                # Run exiftool in the background so we don't block the API response too long
+                import asyncio
+                asyncio.create_task(asyncio.to_thread(MetadataWriter.write_metadata, file_path, story_data))
     
     sr = StoryRead.model_validate(story)
     if story.s3_key_compressed:
@@ -979,24 +1006,6 @@ async def get_dashboard_stats(
     )
 
 
-# ── Media serving for Local Storage fallback ─────────────
-from fastapi.responses import FileResponse
-from pathlib import Path
-
-@router.get("/media/{rest_of_path:path}")
-async def serve_local_media(rest_of_path: str):
-    """Serve media files locally if storage_type is set to 'local'."""
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.storage_type != "local":
-        raise HTTPException(status_code=403, detail="Local storage is not enabled")
-    
-    file_path = Path(settings.storage_local_dir) / rest_of_path
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-        
-    return FileResponse(file_path)
-
 from pydantic import BaseModel
 class LocateRequest(BaseModel):
     story_id: uuid.UUID
@@ -1029,14 +1038,34 @@ async def locate_local_media(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File not found on disk: {file_path}")
         
-    if sys.platform == "win32":
-        subprocess.Popen(f'explorer /select,"{file_path}"')
-        return {"status": "success", "message": "File opened in Windows Explorer"}
-    elif sys.platform == "darwin":
-        subprocess.Popen(["open", "-R", str(file_path)])
-        return {"status": "success", "message": "File opened in Finder"}
-    else:
-        raise HTTPException(status_code=400, detail="Locate feature not supported on this OS")
+    try:
+        if sys.platform == "win32":
+            subprocess.Popen(['explorer', f'/select,{str(file_path)}'])
+            return {"status": "success", "message": "File opened in Windows Explorer"}
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", "-R", str(file_path)])
+            return {"status": "success", "message": "File opened in Finder"}
+        else:
+            raise HTTPException(status_code=400, detail="Locate feature not supported on this OS")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open file explorer: {str(e)}")
+
+# ── Media serving for Local Storage fallback ─────────────
+from fastapi.responses import FileResponse
+
+@router.get("/media/{rest_of_path:path}")
+async def serve_local_media(rest_of_path: str):
+    """Serve media files locally if storage_type is set to 'local'."""
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.storage_type != "local":
+        raise HTTPException(status_code=403, detail="Local storage is not enabled")
+    
+    file_path = Path(settings.storage_local_dir) / rest_of_path
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    return FileResponse(file_path)
 
 
 class LocationUpdateRequest(BaseModel):

@@ -1040,7 +1040,7 @@ async def locate_local_media(
         
     try:
         if sys.platform == "win32":
-            subprocess.Popen(['explorer', f'/select,{str(file_path)}'])
+            subprocess.Popen(f'explorer /select,"{file_path}"')
             return {"status": "success", "message": "File opened in Windows Explorer"}
         elif sys.platform == "darwin":
             subprocess.Popen(["open", "-R", str(file_path)])

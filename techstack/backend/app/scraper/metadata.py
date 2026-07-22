@@ -99,6 +99,10 @@ class MetadataWriter:
                     f"-GPSLongitude={abs(lng)}",
                     f"-GPSLongitudeRef={'E' if lng >= 0 else 'W'}"
                 ])
+                
+            is_ai = story_data.get("is_ai_generated", False)
+            if is_ai:
+                cmd.append("-Iptc4xmpExt:DigitalSourceType=trainedAlgorithmicMedia")
 
             # ── 2. Custom Memwault Tags (XMP-Memwault) ─────────────────────
             viewer_count = story_data.get("viewer_count", 0)

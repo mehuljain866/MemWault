@@ -143,6 +143,7 @@ class Story(Base):
 
     # ── Processing State & View Mode ─────────────────────
     is_downloaded: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
     is_metadata_written: Mapped[bool] = mapped_column(Boolean, default=False)
     is_uploaded_to_s3: Mapped[bool] = mapped_column(Boolean, default=False)
     is_reel: Mapped[bool] = mapped_column(Boolean, default=False)

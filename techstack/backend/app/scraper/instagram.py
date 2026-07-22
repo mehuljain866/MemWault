@@ -398,6 +398,9 @@ class InstagramScraper:
         # Media type: 1=photo, 2=video
         media_type = 2 if story.video_url else 1
 
+        # AI flags
+        is_ai_generated = getattr(story, "is_ai_generated", False) or story.dict().get("is_ai_generated", False)
+
         parsed = {
             "ig_media_id": story.id,
             "ig_media_pk": str(story.pk),
@@ -424,6 +427,7 @@ class InstagramScraper:
             "manifest": {},  # Will be populated from sticker coordinates
             "is_reel": False,
             "og_reel_media_id": None,
+            "is_ai_generated": is_ai_generated,
         }
 
         # ── Location ────────────────────────────────────

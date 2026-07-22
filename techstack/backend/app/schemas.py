@@ -193,6 +193,7 @@ class StoryRead(BaseModel):
     is_downloaded: bool
     is_metadata_written: bool
     is_uploaded_to_s3: bool
+    is_ai_generated: bool
     
     # Reel/Memory Dual Mode
     is_reel: bool

@@ -279,6 +279,7 @@ def poll_stories(self, user_id: Optional[str] = None):
                         is_downloaded=True,
                         is_metadata_written=True,
                         is_uploaded_to_s3=True,
+                        is_ai_generated=story_data.get("is_ai_generated", False),
                         is_memory=True,
                         is_reel=story_data.get("is_reel", False),
                         og_reel_media_id=og_reel_media_id,
@@ -510,6 +511,7 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                             is_downloaded=True,
                             is_metadata_written=True,
                             is_uploaded_to_s3=True,
+                            is_ai_generated=story_data.get("is_ai_generated", False),
                             viewer_count=story_data.get("viewer_count", 0),
                             like_count=story_data.get("like_count", 0),
                         )
@@ -827,7 +829,8 @@ def sync_highlights(self, user_id: str):
                         ig_media_id=ig_media_id,
                         media_url=s.get("media_url"),
                         media_type=s.get("media_type"),
-                        taken_at=s.get("taken_at")
+                        taken_at=s.get("taken_at"),
+                        is_ai_generated=s.get("is_ai_generated", False),
                     )
                     db.add(story)
                     db.flush()

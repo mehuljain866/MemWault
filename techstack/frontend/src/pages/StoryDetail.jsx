@@ -4,7 +4,7 @@ import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updat
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
 
@@ -209,6 +209,17 @@ export default function StoryDetail() {
             borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--ios-shadow-lg)',
             backgroundColor: '#000', position: 'relative'
           }}>
+            {story.is_ai_generated && settings.showAITags && (
+              <div style={{
+                position: 'absolute', top: '16px', right: '16px', zIndex: 50,
+                background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+                color: '#fff', fontSize: '12px', fontWeight: 600, padding: '4px 10px',
+                borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px',
+                border: '1px solid rgba(255,255,255,0.2)', pointerEvents: 'none'
+              }}>
+                ✨ AI
+              </div>
+            )}
             {story.primary_view === 'reel' && story.og_reel_url ? (
                <StoryPlayer story={{ ...story, media_url: story.og_reel_url, media_type: 2 }} isMusicPlaying={isMusicPlaying} />
             ) : (
@@ -307,6 +318,7 @@ export default function StoryDetail() {
               </InfoRow>
 
               {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
+              {story.is_ai_generated != null && <InfoRow icon={Sparkles} label="AI Generation" value={story.is_ai_generated ? "True" : "False"} />}
               {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
               <InfoRow icon={FileType} label="Visibility" value="">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>

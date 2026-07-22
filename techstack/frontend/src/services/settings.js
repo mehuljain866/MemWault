@@ -12,6 +12,9 @@ const DEFAULT_SETTINGS = {
   editorStyle: 'docs', // 'docs' or 'invisible'
   editorRibbonMode: 'simple', // 'simple' or 'advanced'
   editorCustomTools: [], // array of command names like ['image', 'code']
+  
+  // Tag visibility
+  showAITags: true,
 };
 
 export function getSettings() {

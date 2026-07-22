@@ -421,6 +421,33 @@ export default function Settings() {
         )}
       </IosListGroup>
 
+      {/* ── Media Tagging ────────────── */}
+      <div style={{ paddingLeft: '16px', marginTop: '24px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
+        Media Tagging
+      </div>
+      <IosListGroup>
+        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '16px' }}>
+            <div>Show AI Labels on Media</div>
+            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', marginTop: '4px' }}>Displays a visual badge over AI-generated or assisted content.</div>
+          </div>
+          <div 
+            onClick={() => handleSettingChange('showAITags', !playbackSettings.showAITags)}
+            style={{
+              width: '50px', height: '30px', borderRadius: '15px',
+              backgroundColor: playbackSettings.showAITags ? '#34c759' : 'var(--ios-border)',
+              position: 'relative', cursor: 'pointer', transition: 'background-color 0.2s'
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: '2px', left: playbackSettings.showAITags ? '22px' : '2px',
+              width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#fff',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s'
+            }} />
+          </div>
+        </div>
+      </IosListGroup>
+
       {/* ── Scrape History ────────────── */}
       <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
         Scrape History

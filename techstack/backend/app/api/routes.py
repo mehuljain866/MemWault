@@ -1019,6 +1019,7 @@ async def locate_local_media(
     """Locate the media file in the native OS File Explorer."""
     import subprocess
     import sys
+    from pathlib import Path
     from app.config import get_settings
     
     result = await db.execute(

@@ -50,4 +50,5 @@ techstack/backend/celerybeat-schedule.*
 techstack/backend/latest_story_raw.json
 techstack/backend/profile.html
 techstack/backend/timeline_draft.md
-techstack/backend/TIMELINE.md
+TIMELINE.md
+timeline.md

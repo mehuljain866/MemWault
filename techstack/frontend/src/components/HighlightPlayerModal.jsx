@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon } from 'lucide-react'
+import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin } from 'lucide-react'
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
 
@@ -16,6 +16,7 @@ export default function HighlightPlayerModal({
   const [isPaused, setIsPaused] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showMusicWidget, setShowMusicWidget] = useState(false)
+  const [contextDisplayMode, setContextDisplayMode] = useState('music')
   const videoRef = useRef(null)
   
   // Reset state when modal opens or index changes
@@ -32,6 +33,22 @@ export default function HighlightPlayerModal({
     setIsPaused(false)
     setShowMenu(false)
   }, [currentIndex])
+
+  // Contextual Sub-header (Music / Location) cycling timer
+  useEffect(() => {
+    const validIdx = currentIndex >= 0 && currentIndex < stories.length ? currentIndex : 0
+    const story = stories[validIdx]
+    if (story && story.music && story.location_name) {
+      const timer = setInterval(() => {
+        setContextDisplayMode(prev => prev === 'music' ? 'location' : 'music')
+      }, 3500)
+      return () => clearInterval(timer)
+    } else if (story && story.location_name) {
+      setContextDisplayMode('location')
+    } else {
+      setContextDisplayMode('music')
+    }
+  }, [currentIndex, stories])
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -234,7 +251,7 @@ export default function HighlightPlayerModal({
             {/* AI Tag Overlay if applicable */}
             {currentStory.is_ai_generated && (
                <div style={{
-                 position: 'absolute', top: '70px', right: '16px', zIndex: 40,
+                 position: 'absolute', top: '80px', right: '16px', zIndex: 40,
                  background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
                  color: '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px',
                  borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)'
@@ -247,11 +264,11 @@ export default function HighlightPlayerModal({
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0,
               padding: '12px', zIndex: 60,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)',
               pointerEvents: 'none'
             }}>
               {/* Progress Bars */}
-              <div style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
                 {stories.map((s, idx) => {
                   let fill = 0;
                   if (idx < currentIndex) fill = 100;
@@ -271,20 +288,57 @@ export default function HighlightPlayerModal({
                 })}
               </div>
 
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', padding: '2px' }}>
-                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px' }}>
+              {/* ── 2-Row Header Layout ── */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', pointerEvents: 'auto' }}>
+                {/* Avatar */}
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', padding: '2px', flexShrink: 0 }}>
+                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 700 }}>
                      {highlightTitle.charAt(0).toUpperCase()}
                    </div>
                 </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
-                  <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>
-                    {highlightTitle}
-                  </span>
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                    {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                  </span>
+
+                {/* 2-Row Info Block */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
+                  {/* Row 1: Identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {highlightTitle}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '12px', flexShrink: 0 }}>
+                      {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                    </span>
+                  </div>
+
+                  {/* Row 2: Contextual Metadata (Music / Location) */}
+                  {(currentStory.music || currentStory.location_name) && (
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (currentStory.music) setShowMusicWidget(prev => !prev);
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                        color: '#fff', fontSize: '12px', fontWeight: 500,
+                        cursor: currentStory.music ? 'pointer' : 'default',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                      }}
+                      title={currentStory.music ? "Click to toggle Apple Music widget" : ""}
+                    >
+                      {contextDisplayMode === 'location' || (!currentStory.music && currentStory.location_name) ? (
+                        <>
+                          <MapPin size={12} color="#ff3b30" />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ letterSpacing: '-1px', fontSize: '10px', fontWeight: 900, color: '#fff' }}>▮▮▮</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Controls */}
@@ -342,6 +396,22 @@ export default function HighlightPlayerModal({
                         <MusicIcon size={16} color="#ff375f" /> {showMusicWidget ? 'Hide Music Widget' : 'Show Music Widget'}
                       </button>
 
+                      {currentStory.location_name && (
+                        <button 
+                          onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
+                          style={{
+                            background: 'transparent', border: 'none', color: '#fff',
+                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                            cursor: 'pointer', textAlign: 'left'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
+                        </button>
+                      )}
+
                       <button 
                         onClick={handleLocateFile}
                         style={{
@@ -362,9 +432,22 @@ export default function HighlightPlayerModal({
             </div>
           </div>
 
-          {/* Optional Apple Music Side Widget */}
-          {(showMusicWidget || currentStory.music) && (
-            <div style={{ width: '320px', zIndex: 60, flexShrink: 0 }}>
+          {/* Optional Apple Music Side Widget (with Close button) */}
+          {showMusicWidget && (
+            <div style={{ width: '320px', zIndex: 60, flexShrink: 0, position: 'relative' }}>
+              <button 
+                onClick={() => setShowMusicWidget(false)}
+                style={{
+                  position: 'absolute', top: '-10px', right: '-10px', zIndex: 70,
+                  background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
+                  width: '24px', height: '24px', color: '#fff', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}
+                title="Hide Music Widget"
+              >
+                <X size={14} />
+              </button>
               <MusicPlayer 
                 music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
               />

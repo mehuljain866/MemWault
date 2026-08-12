@@ -132,46 +132,68 @@ export default function StoryDetail() {
     <div style={{
       display: 'flex',
       backgroundColor: 'var(--ios-border)',
-      borderRadius: '8px',
-      padding: '2px',
-      marginBottom: '16px',
+      borderRadius: '12px',
+      padding: '3px',
+      marginBottom: '20px',
+      position: 'relative'
     }}>
-      {tabs.map(tab => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          style={{
-            flex: 1,
-            padding: '6px 12px',
-            border: 'none',
-            backgroundColor: activeTab === tab.id ? 'var(--ios-bg-card)' : 'transparent',
-            color: activeTab === tab.id ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-            borderRadius: '6px',
-            fontWeight: 600,
-            opacity: activeTab === tab.id ? 1 : 0.7,
-            fontSize: '13px',
-            cursor: 'pointer',
-            boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            transition: 'background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease',
-          }}
-        >
-          {tab.label}
-        </button>
-      ))}
+      {tabs.map(tab => {
+        const isActive = activeTab === tab.id
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: isActive ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+              borderRadius: '9px',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              position: 'relative',
+              zIndex: 1,
+              transition: 'color 0.2s ease'
+            }}
+          >
+            {isActive && (
+              <motion.div
+                layoutId="activeTabPill"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: 'var(--ios-bg-card)',
+                  borderRadius: '9px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  zIndex: -1
+                }}
+                transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              />
+            )}
+            {tab.label}
+          </button>
+        )
+      })}
     </div>
   )
 
   const InfoRow = ({ icon: Icon, label, value, children }) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid var(--ios-border)' }}>
-      <div style={{ color: 'var(--ios-text-secondary)', marginRight: '16px', marginTop: '2px' }}>
-        <Icon size={20} />
+    <motion.div 
+      whileHover={{ x: 2 }}
+      transition={{ duration: 0.15 }}
+      style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid var(--ios-border)' }}
+    >
+      <div style={{ color: 'var(--ios-accent)', marginRight: '16px', marginTop: '2px', background: 'rgba(10, 132, 255, 0.1)', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={18} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ios-text-secondary)', fontWeight: 600, marginBottom: '4px' }}>{label}</div>
-        <div style={{ fontSize: '16px', color: 'var(--ios-text-primary)' }}>{value}</div>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ios-text-secondary)', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
+        <div style={{ fontSize: '15px', color: 'var(--ios-text-primary)', fontWeight: 500 }}>{value}</div>
         {children && <div style={{ marginTop: '8px' }}>{children}</div>}
       </div>
-    </div>
+    </motion.div>
   )
 
   const ToggleSwitch = ({ checked, onChange, label }) => (
@@ -193,22 +215,32 @@ export default function StoryDetail() {
   )
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '-20px auto 0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}>
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25 }}
+      style={{ maxWidth: '1000px', margin: '-20px auto 0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}
+    >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05, x: -3 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => navigate(-1)}
-          style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '17px', cursor: 'pointer', padding: 0 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '17px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
         >
           <ChevronLeft size={24} /> Back
-        </button>
+        </motion.button>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', alignItems: 'flex-start' }}>
         {/* ── Media Player ──────────────────── */}
         <div style={{ flex: '1 1 350px', maxWidth: '400px', margin: '0 auto', position: 'relative' }}>
           <div style={{
-            borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--ios-shadow-lg)',
+            borderRadius: '24px', overflow: 'hidden',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.4), 0 0 20px rgba(10, 132, 255, 0.1)',
+            border: '1px solid rgba(255,255,255,0.1)',
             backgroundColor: '#000', position: 'relative'
           }}>
             {story.is_ai_generated && settings.showAITags && (
@@ -266,21 +298,25 @@ export default function StoryDetail() {
           
           {/* Navigation Arrows */}
           {adjacent.prev_id && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.15, x: -2 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => navigate(`/story/${adjacent.prev_id}`, { replace: true })}
-              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10 }}
+              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 10 }}
             >
               <ChevronLeft size={24} />
-            </button>
+            </motion.button>
           )}
           
           {adjacent.next_id && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.15, x: 2 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => navigate(`/story/${adjacent.next_id}`, { replace: true })}
-              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'var(--ios-glass)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10 }}
+              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 10 }}
             >
               <ChevronRight size={24} />
-            </button>
+            </motion.button>
           )}
         </div>
 
@@ -586,6 +622,6 @@ export default function StoryDetail() {
         onSave={handleSaveLocation}
         initialLocation={story.location_name ? { name: story.location_name, lat: story.location_lat, lng: story.location_lng } : null}
       />
-    </div>
+    </motion.div>
   )
 }

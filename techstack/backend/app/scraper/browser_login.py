@@ -40,24 +40,41 @@ async def browser_login(timeout_ms: int = LOGIN_TIMEOUT_MS) -> dict:
 
     async with async_playwright() as p:
         # Launch a VISIBLE browser (not headless) so the user can interact
-        browser = await p.chromium.launch(
-            headless=False,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-first-run",
-                "--no-default-browser-check",
-            ],
-        )
+        launch_args = [
+            "--disable-blink-features=AutomationControlled",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--start-maximized",
+        ]
+        
+        try:
+            # Try launching system Google Chrome first for maximum compatibility
+            browser = await p.chromium.launch(
+                channel="chrome",
+                headless=False,
+                args=launch_args,
+            )
+        except Exception:
+            # Fall back to Playwright bundled Chromium
+            browser = await p.chromium.launch(
+                headless=False,
+                args=launch_args,
+            )
 
         # Create a context that looks like a real browser
         context = await browser.new_context(
-            viewport={"width": 420, "height": 760},
+            viewport=None,  # Use full window size
             user_agent=None,  # Use Chromium's default real UA
             locale="en-US",
         )
 
         # Get the real user agent from the browser
         page = await context.new_page()
+        try:
+            await page.bring_to_front()
+        except Exception:
+            pass
+
         user_agent = await page.evaluate("navigator.userAgent")
         result["user_agent"] = user_agent
 
@@ -65,6 +82,10 @@ async def browser_login(timeout_ms: int = LOGIN_TIMEOUT_MS) -> dict:
 
         # Navigate to Instagram login page
         await page.goto(LOGIN_URL, wait_until="domcontentloaded")
+        try:
+            await page.bring_to_front()
+        except Exception:
+            pass
 
         # Handle cookie consent dialog if it appears
         try:

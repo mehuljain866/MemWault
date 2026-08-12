@@ -47,7 +47,9 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
   return (
     <motion.div
       layout
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      whileHover={{ scale: isSelectMode ? 0.98 : zoomLevel === 'year' ? 1.02 : 1.04, y: zoomLevel === 'day' ? -4 : 0 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', damping: 22, stiffness: 280 }}
       className="ios-story-card"
       onClick={handleClick}
       role={isSelectMode ? 'checkbox' : 'button'}
@@ -56,12 +58,9 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
       onKeyDown={handleKeyDown}
       style={{
         borderRadius: zoomLevel === 'year' ? '2px' : zoomLevel === 'month' ? '6px' : 'var(--ios-radius-lg)',
-        // Blue border highlight when selected
         outline: isSelected ? '2.5px solid var(--ios-accent)' : 'none',
         outlineOffset: '-2px',
-        // Slight scale-down feedback in select mode
-        transform: isSelected ? 'scale(0.97)' : 'scale(1)',
-        cursor: isSelectMode ? 'pointer' : undefined,
+        cursor: 'pointer',
       }}
     >
       {/* Media Thumbnail */}

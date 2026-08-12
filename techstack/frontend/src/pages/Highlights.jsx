@@ -394,7 +394,9 @@ export default function Highlights() {
             return (
               <motion.div
                 layout
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                whileHover={{ scale: isSelectMode ? 0.98 : 1.04, y: -4 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 280 }}
                 key={hl.id}
                 onClick={() => {
                   if (isSelectMode) {
@@ -411,8 +413,6 @@ export default function Highlights() {
                   cursor: 'pointer',
                   backgroundColor: 'var(--ios-border)',
                   boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  transform: isSelectMode && selectedIds.includes(hl.id) ? 'scale(0.95)' : 'scale(1)',
                   opacity: isSelectMode && !selectedIds.includes(hl.id) ? 0.7 : 1,
                   border: isSelectMode && selectedIds.includes(hl.id) ? '3px solid var(--ios-accent)' : 'none',
                 }}

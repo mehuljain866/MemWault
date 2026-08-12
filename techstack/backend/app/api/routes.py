@@ -1047,19 +1047,28 @@ async def locate_local_media(
             if alt_path.exists():
                 file_path = alt_path
         
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File not found on disk: {file_path.name}")
-        
     try:
         if sys.platform == "win32":
-            subprocess.Popen(["explorer", "/select,", str(file_path.resolve())])
+            if file_path.exists():
+                subprocess.Popen(["explorer", f'/select,{str(file_path.resolve())}'])
+            else:
+                folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
+                folder.mkdir(parents=True, exist_ok=True)
+                subprocess.Popen(["explorer", str(folder.resolve())])
             return {"status": "success", "message": "File opened in Windows Explorer"}
         elif sys.platform == "darwin":
-            subprocess.Popen(["open", "-R", str(file_path.resolve())])
+            if file_path.exists():
+                subprocess.Popen(["open", "-R", str(file_path.resolve())])
+            else:
+                folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
+                subprocess.Popen(["open", str(folder.resolve())])
             return {"status": "success", "message": "File opened in Finder"}
         else:
             try:
-                subprocess.Popen(["nautilus", "--select", str(file_path.resolve())])
+                if file_path.exists():
+                    subprocess.Popen(["nautilus", "--select", str(file_path.resolve())])
+                else:
+                    subprocess.Popen(["xdg-open", str(file_path.parent.resolve())])
             except Exception:
                 subprocess.Popen(["xdg-open", str(file_path.parent.resolve())])
             return {"status": "success", "message": "File opened in File Manager"}

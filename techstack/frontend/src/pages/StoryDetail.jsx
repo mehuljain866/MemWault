@@ -147,31 +147,16 @@ export default function StoryDetail() {
               flex: 1,
               padding: '8px 12px',
               border: 'none',
-              backgroundColor: 'transparent',
+              backgroundColor: isActive ? 'var(--ios-bg-card)' : 'transparent',
               color: isActive ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
               borderRadius: '9px',
               fontWeight: 600,
               fontSize: '13px',
               cursor: 'pointer',
-              position: 'relative',
-              zIndex: 1,
-              transition: 'color 0.2s ease'
+              boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+              transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease'
             }}
           >
-            {isActive && (
-              <motion.div
-                layoutId="activeTabPill"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundColor: 'var(--ios-bg-card)',
-                  borderRadius: '9px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  zIndex: -1
-                }}
-                transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-              />
-            )}
             {tab.label}
           </button>
         )
@@ -180,9 +165,7 @@ export default function StoryDetail() {
   )
 
   const InfoRow = ({ icon: Icon, label, value, children }) => (
-    <motion.div 
-      whileHover={{ x: 2 }}
-      transition={{ duration: 0.15 }}
+    <div 
       style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid var(--ios-border)' }}
     >
       <div style={{ color: 'var(--ios-accent)', marginRight: '16px', marginTop: '2px', background: 'rgba(10, 132, 255, 0.1)', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -193,7 +176,7 @@ export default function StoryDetail() {
         <div style={{ fontSize: '15px', color: 'var(--ios-text-primary)', fontWeight: 500 }}>{value}</div>
         {children && <div style={{ marginTop: '8px' }}>{children}</div>}
       </div>
-    </motion.div>
+    </div>
   )
 
   const ToggleSwitch = ({ checked, onChange, label }) => (
@@ -324,7 +307,6 @@ export default function StoryDetail() {
         <div style={{
           flex: '1 1 400px',
           minWidth: 0,
-          minHeight: '520px',
           backgroundColor: 'var(--ios-bg-card)',
           borderRadius: '24px',
           padding: '24px',
@@ -344,14 +326,15 @@ export default function StoryDetail() {
             onChange={setActiveTab}
           />
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
-            >
+          <div style={{ position: 'relative' }}>
+            <AnimatePresence>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+              >
               {/* ── Metadata Tab ──────────────── */}
               {activeTab === 'metadata' && (
                 <div>

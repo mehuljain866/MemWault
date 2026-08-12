@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import {
   getInstagramSession,
   browserLoginInstagram,
@@ -155,7 +156,9 @@ export default function Settings() {
   )
 
   const IosListItem = ({ icon: Icon, iconBg, title, value, onClick, last, children }) => (
-    <div 
+    <motion.div 
+      whileHover={onClick ? { x: 3 } : undefined}
+      transition={{ duration: 0.15 }}
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center',
@@ -178,11 +181,17 @@ export default function Settings() {
       <div style={{ flex: 1, fontSize: '16px', fontWeight: 400 }}>{title}</div>
       {value && <div style={{ color: 'var(--ios-text-secondary)', fontSize: '16px' }}>{value}</div>}
       {children && <div>{children}</div>}
-    </div>
+    </motion.div>
   )
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '40px' }}>
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25 }}
+      style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '40px' }}
+    >
       <h2 className="ios-title">Settings</h2>
 
       {/* ── Instagram Connection ────────────── */}
@@ -499,7 +508,6 @@ export default function Settings() {
           last
         />
       </IosListGroup>
-
-    </div>
+    </motion.div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../services/api'
 import { useOutletContext } from 'react-router-dom'
 import { Images, Video, Music, MapPin, Users, Database, Server, HardDrive, RefreshCcw, DownloadCloud, Menu } from 'lucide-react'
@@ -65,7 +66,13 @@ export default function Dashboard() {
 
   // Helper for Bento Stats
   const BentoStat = ({ icon: Icon, color, label, value }) => (
-    <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <motion.div 
+      whileHover={{ scale: 1.03, y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className="ios-card" 
+      style={{ display: 'flex', flexDirection: 'column', gap: '16px', cursor: 'pointer' }}
+    >
       <div style={{ 
         width: '48px', height: '48px', borderRadius: '50%', 
         backgroundColor: `${color}20`, color: color, 
@@ -81,11 +88,17 @@ export default function Dashboard() {
           {label}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 
   return (
-    <div style={{ paddingTop: '20px' }}>
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25 }}
+      style={{ paddingTop: '20px' }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
         <button
           className="ios-btn-secondary"
@@ -104,10 +117,15 @@ export default function Dashboard() {
         gap: '24px', 
         marginBottom: '40px' 
       }}>
-        <div className="ios-card" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(135deg, #007aff 0%, #5856d6 100%)', color: 'white' }}>
+        <motion.div 
+          whileHover={{ scale: 1.01, y: -2 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          className="ios-card" 
+          style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(135deg, #007aff 0%, #5856d6 100%)', color: 'white', cursor: 'pointer' }}
+        >
           <div style={{ fontSize: '20px', fontWeight: 600, opacity: 0.9 }}>Total Stories Archived</div>
           <div style={{ fontSize: '64px', fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 }}>{stats.total_stories}</div>
-        </div>
+        </motion.div>
         
         <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
         <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
@@ -120,12 +138,23 @@ export default function Dashboard() {
         {/* ── Quick Actions ───────────────────── */}
         <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3 style={{ fontSize: '22px', fontWeight: 700 }}>Quick Actions</h3>
-          <button className="ios-btn" onClick={() => triggerScrape(true).then(loadStats)}>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="ios-btn" 
+            onClick={() => triggerScrape(true).then(loadStats)}
+          >
             <RefreshCcw size={18} /> Sync Active Stories
-          </button>
-          <button className="ios-btn-secondary ios-btn" onClick={handleArchiveImport} disabled={importing}>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="ios-btn-secondary ios-btn" 
+            onClick={handleArchiveImport} 
+            disabled={importing}
+          >
             {importing ? <><RefreshCcw size={18} className="spin-anim" /> Importing...</> : <><DownloadCloud size={18} /> Import Full Archive</>}
-          </button>
+          </motion.button>
         </div>
 
         {/* ── System & Storage ───────────────────── */}
@@ -164,17 +193,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {toast && (
-        <div className="ios-glass" style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
-          padding: '12px 20px', borderRadius: 'var(--ios-radius-md)',
-          boxShadow: 'var(--ios-shadow-lg)', color: 'var(--ios-text-primary)',
-          fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px',
-          border: '1px solid var(--ios-border)'
-        }}>
-          {toast}
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="ios-glass" 
+            style={{
+              position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+              padding: '12px 20px', borderRadius: 'var(--ios-radius-md)',
+              boxShadow: 'var(--ios-shadow-lg)', color: 'var(--ios-text-primary)',
+              fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px',
+              border: '1px solid var(--ios-border)'
+            }}
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }

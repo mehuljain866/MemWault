@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Image as ImageIcon, Play, RefreshCcw, Layers, Edit2, Plus, X as XIcon, Check } from 'lucide-react'
 import { getHighlightStories, getHighlights, updateHighlight, removeStoriesFromHighlight } from '../services/api'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
+import HighlightPlayerModal from '../components/HighlightPlayerModal'
 
 // ── Skeleton tile ────────────────────────────────────────────
 function SkeletonTile() {
@@ -30,6 +31,8 @@ export default function HighlightViewer() {
   const [editedTitle, setEditedTitle] = useState('')
   const [savingTitle, setSavingTitle] = useState(false)
   const [showAddStoriesModal, setShowAddStoriesModal] = useState(false)
+  const [playerIndex, setPlayerIndex] = useState(-1)
+  const [showPlayer, setShowPlayer] = useState(false)
 
   useEffect(() => {
     loadStories()
@@ -308,7 +311,13 @@ export default function HighlightViewer() {
                 return (
                   <div
                     key={story.id}
-                    onClick={() => !isEditing && navigate(`/story/${story.id}`)}
+                    onClick={() => {
+                      if (!isEditing) {
+                        const idx = stories.findIndex(s => s.id === story.id)
+                        setPlayerIndex(idx >= 0 ? idx : 0)
+                        setShowPlayer(true)
+                      }
+                    }}
                     style={{
                       aspectRatio: '9/16',
                       borderRadius: '12px',
@@ -427,6 +436,14 @@ export default function HighlightViewer() {
           }
         }}
         preSelectedStoryIds={stories.map(s => s.id)}
+      />
+
+      <HighlightPlayerModal
+        isOpen={showPlayer}
+        onClose={() => setShowPlayer(false)}
+        stories={stories}
+        initialIndex={playerIndex}
+        highlightTitle={highlightTitle}
       />
     </div>
   )

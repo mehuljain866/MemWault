@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
@@ -146,11 +147,12 @@ export default function StoryDetail() {
             backgroundColor: activeTab === tab.id ? 'var(--ios-bg-card)' : 'transparent',
             color: activeTab === tab.id ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
             borderRadius: '6px',
-            fontWeight: activeTab === tab.id ? 600 : 500,
+            fontWeight: 600,
+            opacity: activeTab === tab.id ? 1 : 0.7,
             fontSize: '13px',
             cursor: 'pointer',
             boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all var(--ios-spring-fast)',
+            transition: 'background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease',
           }}
         >
           {tab.label}
@@ -286,6 +288,7 @@ export default function StoryDetail() {
         <div style={{
           flex: '1 1 400px',
           minWidth: 0,
+          minHeight: '520px',
           backgroundColor: 'var(--ios-bg-card)',
           borderRadius: '24px',
           padding: '24px',
@@ -305,265 +308,275 @@ export default function StoryDetail() {
             onChange={setActiveTab}
           />
 
-          {/* ── Metadata Tab ──────────────── */}
-          {activeTab === 'metadata' && (
-            <div style={{ animation: 'fade-in 0.3s ease' }}>
-              <InfoRow icon={Calendar} label="Date" value={`${date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${date.toLocaleTimeString()}`} />
-              <InfoRow icon={FileType} label="Type" value={`${isVideo ? 'Video' : 'Photo'}${story.width && story.height ? ` · ${story.width}×${story.height}` : ''}${story.duration_ms ? ` · ${(story.duration_ms / 1000).toFixed(1)}s` : ''}`} />
-              
-              <InfoRow icon={MapPin} label="Location" value={story.location_name || <span style={{ color: 'var(--ios-text-muted)' }}>No location</span>}>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                  <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer' }}>Edit Location</button>
-                </div>
-              </InfoRow>
-
-              {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
-              {story.is_ai_generated != null && <InfoRow icon={Sparkles} label="AI Generation" value={story.is_ai_generated ? "True" : "False"} />}
-              {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
-              <InfoRow icon={FileType} label="Visibility" value="">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
-                  <ToggleSwitch 
-                    label="Show in Memories Tab"
-                    checked={story.is_memory}
-                    onChange={async (e) => {
-                      const val = e.target.checked;
-                      try {
-                        await updateStory(id, { is_memory: val });
-                        setStory(prev => ({ ...prev, is_memory: val }));
-                      } catch (err) { alert('Update failed'); e.target.checked = !val; }
-                    }}
-                  />
-                  <ToggleSwitch 
-                    label="Show in Reels Tab"
-                    checked={story.is_reel}
-                    onChange={async (e) => {
-                      const val = e.target.checked;
-                      try {
-                        await updateStory(id, { is_reel: val });
-                        setStory(prev => ({ ...prev, is_reel: val }));
-                      } catch (err) { alert('Update failed'); e.target.checked = !val; }
-                    }}
-                  />
-                </div>
-              </InfoRow>
-
-              {story.og_reel_media_id && (
-                <InfoRow icon={BarChart2} label="Original Reel Stats" value="">
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
-                    <div><span style={{ fontWeight: 600 }}>{story.og_reel_likes?.toLocaleString() || 0}</span> Likes</div>
-                    <div><span style={{ fontWeight: 600 }}>{story.og_reel_plays?.toLocaleString() || 0}</span> Plays</div>
-                  </div>
-                  <button className="ios-btn ios-btn-secondary" onClick={() => alert("Manual refresh not fully wired yet but it will call an endpoint")} style={{ padding: '6px 12px', fontSize: '13px', marginTop: '12px' }}>
-                    Manual Refresh
-                  </button>
-                  {story.og_reel_url && (
-                    <a href={story.og_reel_url} download={`reel_${story.og_reel_media_id}.mp4`} target="_blank" rel="noopener noreferrer" className="ios-btn ios-btn-secondary" style={{ padding: '6px 12px', fontSize: '13px', marginTop: '8px', textDecoration: 'none', display: 'inline-block' }}>
-                      Download OG Reel
-                    </a>
-                  )}
-                </InfoRow>
-              )}
-
-              {/* Music Quick Link */}
-              {story.music && (
-                <div 
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px', marginTop: '16px', cursor: 'pointer' }}
-                  onClick={() => setActiveTab('music')}
-                >
-                  <Music size={24} color="var(--ios-accent)" />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{story.music.track_title}</div>
-                    <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{story.music.artist_name}</div>
-                  </div>
-                  <ChevronRight size={20} color="var(--ios-text-secondary)" />
-                </div>
-              )}
-
-              {story.mentions?.length > 0 && (
-                <InfoRow icon={Users} label="Mentions" value={
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {story.mentions.map((m) => (
-                      <span key={m.id} style={{ background: 'var(--ios-bg)', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>@{m.username}</span>
-                    ))}
-                  </div>
-                } />
-              )}
-
-              {story.links?.length > 0 && (
-                <InfoRow icon={Link2} label="Links" value={
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {story.links.map((l) => (
-                      <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ios-accent)', textDecoration: 'none', fontWeight: 600 }}>
-                        {l.link_title || l.display_url || l.url}
-                      </a>
-                    ))}
-                  </div>
-                } />
-              )}
-
-              {story.polls?.length > 0 && (
-                <InfoRow icon={BarChart2} label="Polls" value={
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {story.polls.map((p) => (
-                      <div key={p.id} style={{ background: 'var(--ios-bg)', padding: '12px', borderRadius: '8px' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{p.question_text || 'Poll'}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{p.total_votes} votes · {p.poll_type}</div>
-                      </div>
-                    ))}
-                  </div>
-                } />
-              )}
-
-              <div style={{ marginTop: '24px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--ios-text-secondary)', marginBottom: '12px' }}>Management</div>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  {story.is_downloaded && (
-                    <button className="ios-btn ios-btn-secondary" onClick={handleLocate} style={{ padding: '6px 12px', fontSize: '13px' }}>
-                      Show File
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: 600 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_downloaded ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
-                    {story.is_downloaded ? <Check size={14}/> : <Clock size={14}/>} Downloaded
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_metadata_written ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
-                    {story.is_metadata_written ? <Check size={14}/> : <Clock size={14}/>} Metadata
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Music Tab ─────────────────── */}
-          {activeTab === 'music' && (
-            <div style={{ animation: 'fade-in 0.3s ease' }}>
-              {story.music ? (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* ── Metadata Tab ──────────────── */}
+              {activeTab === 'metadata' && (
                 <div>
-                  <MusicPlayer music={story.music} onPlayStateChange={setIsMusicPlaying} />
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
-                  <Music size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                  <div>No music attached to this story.</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Viewers Tab ───────────────── */}
-          {activeTab === 'viewers' && (
-            <div style={{ animation: 'fade-in 0.3s ease' }}>
-              {viewers.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {viewers.map((v) => (
-                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
-                      {v.profile_pic_url ? (
-                        <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} color="var(--ios-text-secondary)" /></div>
-                      )}
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{v.username}</div>
-                        {v.full_name && <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
-                      </div>
+                  <InfoRow icon={Calendar} label="Date" value={`${date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${date.toLocaleTimeString()}`} />
+                  <InfoRow icon={FileType} label="Type" value={`${isVideo ? 'Video' : 'Photo'}${story.width && story.height ? ` · ${story.width}×${story.height}` : ''}${story.duration_ms ? ` · ${(story.duration_ms / 1000).toFixed(1)}s` : ''}`} />
+                  
+                  <InfoRow icon={MapPin} label="Location" value={story.location_name || <span style={{ color: 'var(--ios-text-muted)' }}>No location</span>}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer' }}>Edit Location</button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
-                  <Eye size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                  <div>No viewer data available.</div>
+                  </InfoRow>
+
+                  {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
+                  {story.is_ai_generated != null && <InfoRow icon={Sparkles} label="AI Generation" value={story.is_ai_generated ? "True" : "False"} />}
+                  {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
+                  <InfoRow icon={FileType} label="Visibility" value="">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                      <ToggleSwitch 
+                        label="Show in Memories Tab"
+                        checked={story.is_memory}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          try {
+                            await updateStory(id, { is_memory: val });
+                            setStory(prev => ({ ...prev, is_memory: val }));
+                          } catch (err) { alert('Update failed'); e.target.checked = !val; }
+                        }}
+                      />
+                      <ToggleSwitch 
+                        label="Show in Reels Tab"
+                        checked={story.is_reel}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          try {
+                            await updateStory(id, { is_reel: val });
+                            setStory(prev => ({ ...prev, is_reel: val }));
+                          } catch (err) { alert('Update failed'); e.target.checked = !val; }
+                        }}
+                      />
+                    </div>
+                  </InfoRow>
+
+                  {story.og_reel_media_id && (
+                    <InfoRow icon={BarChart2} label="Original Reel Stats" value="">
+                      <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+                        <div><span style={{ fontWeight: 600 }}>{story.og_reel_likes?.toLocaleString() || 0}</span> Likes</div>
+                        <div><span style={{ fontWeight: 600 }}>{story.og_reel_plays?.toLocaleString() || 0}</span> Plays</div>
+                      </div>
+                      <button className="ios-btn ios-btn-secondary" onClick={() => alert("Manual refresh not fully wired yet but it will call an endpoint")} style={{ padding: '6px 12px', fontSize: '13px', marginTop: '12px' }}>
+                        Manual Refresh
+                      </button>
+                      {story.og_reel_url && (
+                        <a href={story.og_reel_url} download={`reel_${story.og_reel_media_id}.mp4`} target="_blank" rel="noopener noreferrer" className="ios-btn ios-btn-secondary" style={{ padding: '6px 12px', fontSize: '13px', marginTop: '8px', textDecoration: 'none', display: 'inline-block' }}>
+                          Download OG Reel
+                        </a>
+                      )}
+                    </InfoRow>
+                  )}
+
+                  {/* Music Quick Link */}
+                  {story.music && (
+                    <div 
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px', marginTop: '16px', cursor: 'pointer' }}
+                      onClick={() => setActiveTab('music')}
+                    >
+                      <Music size={24} color="var(--ios-accent)" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{story.music.track_title}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{story.music.artist_name}</div>
+                      </div>
+                      <ChevronRight size={20} color="var(--ios-text-secondary)" />
+                    </div>
+                  )}
+
+                  {story.mentions?.length > 0 && (
+                    <InfoRow icon={Users} label="Mentions" value={
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {story.mentions.map((m) => (
+                          <span key={m.id} style={{ background: 'var(--ios-bg)', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>@{m.username}</span>
+                        ))}
+                      </div>
+                    } />
+                  )}
+
+                  {story.links?.length > 0 && (
+                    <InfoRow icon={Link2} label="Links" value={
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {story.links.map((l) => (
+                          <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ios-accent)', textDecoration: 'none', fontWeight: 600 }}>
+                            {l.link_title || l.display_url || l.url}
+                          </a>
+                        ))}
+                      </div>
+                    } />
+                  )}
+
+                  {story.polls?.length > 0 && (
+                    <InfoRow icon={BarChart2} label="Polls" value={
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {story.polls.map((p) => (
+                          <div key={p.id} style={{ background: 'var(--ios-bg)', padding: '12px', borderRadius: '8px' }}>
+                            <div style={{ fontWeight: 600, marginBottom: '4px' }}>{p.question_text || 'Poll'}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{p.total_votes} votes · {p.poll_type}</div>
+                          </div>
+                        ))}
+                      </div>
+                    } />
+                  )}
+
+                  <div style={{ marginTop: '24px', padding: '16px', background: 'var(--ios-bg)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--ios-text-secondary)', marginBottom: '12px' }}>Management</div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                      {story.is_downloaded && (
+                        <button className="ios-btn ios-btn-secondary" onClick={handleLocate} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                          Show File
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: 600 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_downloaded ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
+                        {story.is_downloaded ? <Check size={14}/> : <Clock size={14}/>} Downloaded
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: story.is_metadata_written ? 'var(--ios-success)' : 'var(--ios-warning)' }}>
+                        {story.is_metadata_written ? <Check size={14}/> : <Clock size={14}/>} Metadata
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* ── Manifest Tab ──────────────── */}
-          {activeTab === 'manifest' && (
-            <div style={{ animation: 'fade-in 0.3s ease', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-              <pre style={{
-                background: '#1e1e1e', color: '#d4d4d4', padding: '16px', borderRadius: '12px',
-                overflow: 'auto', flex: 1, maxHeight: '500px', fontSize: '12px', fontFamily: 'monospace',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word'
-              }}>
-                {JSON.stringify(story, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* ── Journal Tab ───────────────── */}
-          {activeTab === 'journal' && (
-            <div style={{ animation: 'fade-in 0.3s ease', display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
-                  Meaning-Making Editor
+              {/* ── Music Tab ─────────────────── */}
+              {activeTab === 'music' && (
+                <div>
+                  {story.music ? (
+                    <div>
+                      <MusicPlayer music={story.music} onPlayStateChange={setIsMusicPlaying} />
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
+                      <Music size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                      <div>No music attached to this story.</div>
+                    </div>
+                  )}
                 </div>
-                <button 
-                  onClick={handleSaveJournal}
-                  disabled={savingJournal || journalNote === story.journal_note}
-                  style={{
-                    background: (journalNote === story.journal_note) ? 'var(--ios-bg)' : 'var(--ios-accent)',
-                    color: (journalNote === story.journal_note) ? 'var(--ios-text-muted)' : '#fff',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '16px',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: (journalNote === story.journal_note) ? 'default' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Save size={16} />
-                  {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
-                </button>
-              </div>
-              
-              <div 
-                data-color-mode="dark" 
-                style={{ 
-                  flex: 1, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  minHeight: '400px', 
-                  borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
-                  overflow: 'hidden', 
-                  border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
-                  backgroundColor: 'transparent'
-                }}
-              >
-                <MDEditor
-                  value={journalNote}
-                  onChange={setJournalNote}
-                  height="100%"
-                  visibleDragbar={false}
-                  preview={settings.editorSplitPane ? 'live' : 'edit'}
-                  commands={
-                    settings.editorRibbonMode === 'advanced' 
-                      ? undefined 
-                      : [
-                          commands.bold,
-                          commands.italic,
-                          commands.strikethrough,
-                          commands.divider,
-                          ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
-                          ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
-                          ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
-                          ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
-                          ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
-                        ]
-                  }
-                  style={{ 
-                    backgroundColor: 'transparent',
-                    boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
-                  }}
-                />
-              </div>
-            </div>
-          )}
+              )}
+
+              {/* ── Viewers Tab ───────────────── */}
+              {activeTab === 'viewers' && (
+                <div>
+                  {viewers.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {viewers.map((v) => (
+                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
+                          {v.profile_pic_url ? (
+                            <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} color="var(--ios-text-secondary)" /></div>
+                          )}
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{v.username}</div>
+                            {v.full_name && <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
+                      <Eye size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                      <div>No viewer data available.</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Manifest Tab ──────────────── */}
+              {activeTab === 'manifest' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+                  <pre style={{
+                    background: '#1e1e1e', color: '#d4d4d4', padding: '16px', borderRadius: '12px',
+                    overflow: 'auto', flex: 1, maxHeight: '500px', fontSize: '12px', fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                  }}>
+                    {JSON.stringify(story, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* ── Journal Tab ───────────────── */}
+              {activeTab === 'journal' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
+                      Meaning-Making Editor
+                    </div>
+                    <button 
+                      onClick={handleSaveJournal}
+                      disabled={savingJournal || journalNote === story.journal_note}
+                      style={{
+                        background: (journalNote === story.journal_note) ? 'var(--ios-bg)' : 'var(--ios-accent)',
+                        color: (journalNote === story.journal_note) ? 'var(--ios-text-muted)' : '#fff',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '16px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: (journalNote === story.journal_note) ? 'default' : 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <Save size={16} />
+                      {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
+                    </button>
+                  </div>
+                  
+                  <div 
+                    data-color-mode="dark" 
+                    style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      minHeight: '400px', 
+                      borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
+                      overflow: 'hidden', 
+                      border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    <MDEditor
+                      value={journalNote}
+                      onChange={setJournalNote}
+                      height="100%"
+                      visibleDragbar={false}
+                      preview={settings.editorSplitPane ? 'live' : 'edit'}
+                      commands={
+                        settings.editorRibbonMode === 'advanced' 
+                          ? undefined 
+                          : [
+                              commands.bold,
+                              commands.italic,
+                              commands.strikethrough,
+                              commands.divider,
+                              ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
+                              ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
+                              ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
+                              ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
+                              ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
+                            ]
+                      }
+                      style={{ 
+                        backgroundColor: 'transparent',
+                        boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
       

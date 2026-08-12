@@ -279,7 +279,7 @@ export default function HighlightPlayerModal({
       {/* ── Bottom Filmstrip (Thumbnail Scrubber) ── */}
       <div style={{
         height: '100px', background: '#0a0a0a', borderTop: '1px solid #222',
-        display: 'flex', alignItems: 'center', padding: '0 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
         overflowX: 'auto', gap: '8px'
       }} className="hide-scrollbar">
         {stories.map((story, idx) => {

@@ -87,6 +87,46 @@ async def browser_login(timeout_ms: int = LOGIN_TIMEOUT_MS) -> dict:
         except Exception:
             pass
 
+        # On Windows, force the browser window to the foreground using Win32 API.
+        # Playwright's bring_to_front() only works inside the browser context;
+        # for OS-level focus when launched from a background service we need ctypes.
+        import sys as _sys
+        if _sys.platform == "win32":
+            import asyncio as _asyncio
+            await _asyncio.sleep(0.8)  # brief pause for window to render
+            try:
+                import ctypes
+                import ctypes.wintypes
+
+                user32 = ctypes.windll.user32
+
+                # Find the Chromium window — it will have "Instagram" in the title
+                # after navigation completes. Enumerate all top-level windows.
+                def _force_foreground():
+                    hwnd_target = [None]
+
+                    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+                    def enum_cb(hwnd, lparam):
+                        length = user32.GetWindowTextLengthW(hwnd)
+                        if length > 0:
+                            buf = ctypes.create_unicode_buffer(length + 1)
+                            user32.GetWindowTextW(hwnd, buf, length + 1)
+                            title = buf.value.lower()
+                            if "instagram" in title or "chrome" in title or "chromium" in title:
+                                hwnd_target[0] = hwnd
+                                return False  # stop enum once found
+                        return True
+
+                    user32.EnumWindows(enum_cb, 0)
+                    if hwnd_target[0]:
+                        user32.ShowWindow(hwnd_target[0], 9)   # SW_RESTORE=9
+                        user32.SetForegroundWindow(hwnd_target[0])
+                        user32.BringWindowToTop(hwnd_target[0])
+
+                _force_foreground()
+            except Exception as _e:
+                logger.debug("Could not force foreground window: %s", _e)
+
         # Handle cookie consent dialog if it appears
         try:
             accept_btn = page.locator("button:has-text('Allow all cookies'), button:has-text('Accept All'), button:has-text('Allow essential and optional cookies')")

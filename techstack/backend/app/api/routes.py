@@ -1049,12 +1049,19 @@ async def locate_local_media(
         
     try:
         if sys.platform == "win32":
+            import ctypes
             if file_path.exists():
-                subprocess.Popen(["explorer", f'/select,{str(file_path.resolve())}'])
+                # ShellExecuteW with "explore" and /select properly selects the file
+                # and brings the Explorer window to the foreground from a background service.
+                win_path = str(file_path.resolve())
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, "open", "explorer.exe", f'/select,"{win_path}"', None, 1  # SW_SHOWNORMAL=1
+                )
             else:
                 folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
                 folder.mkdir(parents=True, exist_ok=True)
-                subprocess.Popen(["explorer", str(folder.resolve())])
+                import os
+                os.startfile(str(folder.resolve()))
             return {"status": "success", "message": "File opened in Windows Explorer"}
         elif sys.platform == "darwin":
             if file_path.exists():
@@ -1095,7 +1102,9 @@ async def open_storage_folder(
 
     try:
         if sys.platform == "win32":
-            subprocess.Popen(["explorer", str(folder_path)])
+            import os
+            # os.startfile uses ShellExecute which works correctly from background services
+            os.startfile(str(folder_path))
         elif sys.platform == "darwin":
             subprocess.Popen(["open", str(folder_path)])
         else:

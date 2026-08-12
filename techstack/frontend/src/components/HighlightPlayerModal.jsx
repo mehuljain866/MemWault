@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin } from 'lucide-react'
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
@@ -208,11 +209,19 @@ export default function HighlightPlayerModal({
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: '#111', display: 'flex', flexDirection: 'column',
-      userSelect: 'none'
-    }}>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: '#111', display: 'flex', flexDirection: 'column',
+            userSelect: 'none'
+          }}
+        >
       {/* ── Main Viewing Area ── */}
       <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
         
@@ -271,20 +280,28 @@ export default function HighlightPlayerModal({
             )}
 
             {/* Paused Indicator Overlay */}
-            {isPaused && (
-              <div style={{
-                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                zIndex: 45, pointerEvents: 'none'
-              }}>
-                <div style={{
-                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
-                  borderRadius: '50%', padding: '16px', color: '#fff'
-                }}>
-                  <Pause size={32} fill="#fff" />
-                </div>
-              </div>
-            )}
+            <AnimatePresence>
+              {isPaused && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  style={{
+                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 45, pointerEvents: 'none'
+                  }}
+                >
+                  <div style={{
+                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+                    borderRadius: '50%', padding: '16px', color: '#fff'
+                  }}>
+                    <Pause size={32} fill="#fff" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* AI Tag Overlay if applicable */}
             {currentStory.is_ai_generated && (
@@ -349,33 +366,40 @@ export default function HighlightPlayerModal({
 
                   {/* Row 2: Contextual Metadata (Music / Location) */}
                   {(currentStory.music || currentStory.location_name) && (
-                    <div 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (currentStory.music) setShowMusicWidget(prev => !prev);
-                      }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '5px',
-                        color: '#fff', fontSize: '12px', fontWeight: 500,
-                        cursor: currentStory.music ? 'pointer' : 'default',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                      }}
-                      title={currentStory.music ? "Click to toggle Apple Music widget" : ""}
-                    >
-                      {contextDisplayMode === 'location' || (!currentStory.music && currentStory.location_name) ? (
-                        <>
-                          <MapPin size={12} color="#ff3b30" />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
-                        </>
-                      ) : (
-                        <>
-                          <AnimatedWaveform isPlaying={!isPaused} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
-                          </span>
-                        </>
-                      )}
-                    </div>
+                    <AnimatePresence mode="wait">
+                      <motion.div 
+                        key={contextDisplayMode}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (currentStory.music) setShowMusicWidget(prev => !prev);
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                          color: '#fff', fontSize: '12px', fontWeight: 500,
+                          cursor: currentStory.music ? 'pointer' : 'default',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                        }}
+                        title={currentStory.music ? "Click to toggle Apple Music widget" : ""}
+                      >
+                        {contextDisplayMode === 'location' || (!currentStory.music && currentStory.location_name) ? (
+                          <>
+                            <MapPin size={12} color="#ff3b30" />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <AnimatedWaveform isPlaying={!isPaused} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
+                            </span>
+                          </>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
                   )}
                 </div>
                 
@@ -395,48 +419,24 @@ export default function HighlightPlayerModal({
                   </button>
 
                   {/* ── Popover Menu ── */}
-                  {showMenu && (
-                    <div 
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: 'absolute', top: '40px', right: 0, zIndex: 100,
-                        background: 'rgba(28,28,30,0.95)', backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px',
-                        width: '220px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                        display: 'flex', flexDirection: 'column', gap: '4px'
-                      }}
-                    >
-                      <button 
-                        onClick={handleOpenInstagram}
+                  <AnimatePresence>
+                    {showMenu && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.85, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                        transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                        onClick={(e) => e.stopPropagation()}
                         style={{
-                          background: 'transparent', border: 'none', color: '#fff',
-                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                          cursor: 'pointer', textAlign: 'left'
+                          position: 'absolute', top: '40px', right: 0, zIndex: 100,
+                          background: 'rgba(28,28,30,0.95)', backdropFilter: 'blur(20px)',
+                          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px',
+                          width: '220px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                          display: 'flex', flexDirection: 'column', gap: '4px', transformOrigin: 'top right'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <ExternalLink size={16} color="#0a84ff" /> Open on Instagram
-                      </button>
-
-                      <button 
-                        onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
-                        style={{
-                          background: 'transparent', border: 'none', color: '#fff',
-                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                          cursor: 'pointer', textAlign: 'left'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <MusicIcon size={16} color="#ff375f" /> {showMusicWidget ? 'Hide Music Widget' : 'Show Music Widget'}
-                      </button>
-
-                      {currentStory.location_name && (
                         <button 
-                          onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
+                          onClick={handleOpenInstagram}
                           style={{
                             background: 'transparent', border: 'none', color: '#fff',
                             padding: '10px 12px', borderRadius: '8px', display: 'flex',
@@ -446,51 +446,89 @@ export default function HighlightPlayerModal({
                           onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
+                          <ExternalLink size={16} color="#0a84ff" /> Open on Instagram
                         </button>
-                      )}
 
-                      <button 
-                        onClick={handleLocateFile}
-                        style={{
-                          background: 'transparent', border: 'none', color: '#fff',
-                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                          cursor: 'pointer', textAlign: 'left'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <Folder size={16} color="#ffd60a" /> Show Local File
-                      </button>
-                    </div>
-                  )}
+                        <button 
+                          onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
+                          style={{
+                            background: 'transparent', border: 'none', color: '#fff',
+                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                            cursor: 'pointer', textAlign: 'left'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <MusicIcon size={16} color="#ff375f" /> {showMusicWidget ? 'Hide Music Widget' : 'Show Music Widget'}
+                        </button>
+
+                        {currentStory.location_name && (
+                          <button 
+                            onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
+                            style={{
+                              background: 'transparent', border: 'none', color: '#fff',
+                              padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                              alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                              cursor: 'pointer', textAlign: 'left'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
+                          </button>
+                        )}
+
+                        <button 
+                          onClick={handleLocateFile}
+                          style={{
+                            background: 'transparent', border: 'none', color: '#fff',
+                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                            cursor: 'pointer', textAlign: 'left'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Folder size={16} color="#ffd60a" /> Show Local File
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Optional Apple Music Side Widget (with Close button) */}
-          {showMusicWidget && (
-            <div style={{ width: '320px', zIndex: 60, flexShrink: 0, position: 'relative' }}>
-              <button 
-                onClick={() => setShowMusicWidget(false)}
-                style={{
-                  position: 'absolute', top: '-10px', right: '-10px', zIndex: 70,
-                  background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
-                  width: '24px', height: '24px', color: '#fff', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                }}
-                title="Hide Music Widget"
+          {/* Optional Apple Music Side Widget (Sliding animation) */}
+          <AnimatePresence>
+            {showMusicWidget && (
+              <motion.div 
+                initial={{ opacity: 0, x: -50, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, x: 0, scale: 1, y: 0 }}
+                exit={{ opacity: 0, x: -50, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                style={{ width: '320px', zIndex: 60, flexShrink: 0, position: 'relative' }}
               >
-                <X size={14} />
-              </button>
-              <MusicPlayer 
-                music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
-              />
-            </div>
-          )}
+                <button 
+                  onClick={() => setShowMusicWidget(false)}
+                  style={{
+                    position: 'absolute', top: '-10px', right: '-10px', zIndex: 70,
+                    background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
+                    width: '24px', height: '24px', color: '#fff', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  }}
+                  title="Hide Music Widget"
+                >
+                  <X size={14} />
+                </button>
+                <MusicPlayer 
+                  music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Right Nav Zone */}
@@ -525,15 +563,17 @@ export default function HighlightPlayerModal({
           const isVid = story.media_type === 2
           const thumbUrl = story.media_url || (story.s3_key_compressed ? `/media/${story.s3_key_compressed}` : null)
           return (
-            <div 
+            <motion.div 
               key={story.id} 
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setCurrentIndex(idx)}
               style={{
                 height: '70px', minWidth: '40px', aspectRatio: '9/16',
                 borderRadius: '6px', overflow: 'hidden',
                 border: isActive ? '2px solid #fff' : '2px solid transparent',
                 opacity: isActive ? 1 : 0.4,
-                transition: 'all 0.2s', cursor: 'pointer',
+                transition: 'border 0.2s, opacity 0.2s', cursor: 'pointer',
                 position: 'relative', background: '#222',
                 flexShrink: 0
               }}
@@ -545,7 +585,7 @@ export default function HighlightPlayerModal({
                   <img src={thumbUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
                 )
               ) : null}
-            </div>
+            </motion.div>
           )
         })}
       </div>
@@ -571,6 +611,8 @@ export default function HighlightPlayerModal({
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

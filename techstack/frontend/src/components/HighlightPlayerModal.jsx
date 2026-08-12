@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play } from 'lucide-react'
+import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon } from 'lucide-react'
+import { locateStoryMedia } from '../services/api'
+import MusicPlayer from './MusicPlayer'
 
 // Main Player Modal
 export default function HighlightPlayerModal({
@@ -12,6 +14,8 @@ export default function HighlightPlayerModal({
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [progress, setProgress] = useState(0) // 0 to 1 for current story
   const [isPaused, setIsPaused] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showMusicWidget, setShowMusicWidget] = useState(false)
   const videoRef = useRef(null)
   
   // Reset state when modal opens or index changes
@@ -19,19 +23,24 @@ export default function HighlightPlayerModal({
     if (isOpen && Array.isArray(stories) && stories.length > 0) {
       const validIdx = initialIndex >= 0 && initialIndex < stories.length ? initialIndex : 0
       setCurrentIndex(validIdx)
+      setShowMenu(false)
     }
   }, [isOpen, initialIndex, stories])
 
   useEffect(() => {
     setProgress(0)
     setIsPaused(false)
+    setShowMenu(false)
   }, [currentIndex])
 
   // Handle keyboard navigation
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (showMenu) setShowMenu(false)
+        else onClose()
+      }
       else if (e.key === 'ArrowLeft') handlePrev()
       else if (e.key === 'ArrowRight') handleNext()
       else if (e.key === ' ') {
@@ -41,7 +50,7 @@ export default function HighlightPlayerModal({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, currentIndex, stories])
+  }, [isOpen, currentIndex, stories, showMenu])
 
   // Auto-advance for images (5 seconds)
   useEffect(() => {
@@ -108,6 +117,26 @@ export default function HighlightPlayerModal({
     }
   }
 
+  const handleOpenInstagram = () => {
+    if (currentStory && currentStory.ig_media_id) {
+      window.open(`https://www.instagram.com/p/${currentStory.ig_media_id}`, '_blank')
+    } else {
+      window.open(`https://www.instagram.com`, '_blank')
+    }
+    setShowMenu(false)
+  }
+
+  const handleLocateFile = async () => {
+    if (currentStory && currentStory.id) {
+      try {
+        await locateStoryMedia(currentStory.id)
+      } catch (err) {
+        alert('Failed to locate file: ' + err.message)
+      }
+    }
+    setShowMenu(false)
+  }
+
   if (!isOpen || !stories || !Array.isArray(stories) || stories.length === 0) return null
 
   const validIndex = currentIndex >= 0 && currentIndex < stories.length ? currentIndex : 0
@@ -117,9 +146,11 @@ export default function HighlightPlayerModal({
   const isVideo = currentStory.media_type === 2
   const mediaUrl = currentStory.media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
   
-  // Handle click-hold to pause
-  const handleMouseDown = () => setIsPaused(true)
-  const handleMouseUp = () => setIsPaused(false)
+  // Single click on story canvas toggles pause
+  const handleCanvasClick = (e) => {
+    e.stopPropagation()
+    setIsPaused(prev => !prev)
+  }
 
   return (
     <div style={{
@@ -132,9 +163,9 @@ export default function HighlightPlayerModal({
         
         {/* Left Nav Zone */}
         <div 
-          onClick={handlePrev}
+          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
           style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', zIndex: 50,
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '25%', zIndex: 50,
             cursor: 'w-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
             paddingLeft: '20px'
           }}
@@ -150,19 +181,18 @@ export default function HighlightPlayerModal({
           </div>
         </div>
 
-        {/* Center Stage (Story Canvas) */}
+        {/* Center Stage (Story Canvas + optional Music Widget on Side) */}
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px 0', position: 'relative'
+          gap: '24px', padding: '20px 0', position: 'relative'
         }}>
+          {/* Story Canvas */}
           <div 
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onClick={handleCanvasClick}
             style={{
               height: '100%', aspectRatio: '9/16',
               background: '#000', borderRadius: '16px', overflow: 'hidden',
-              position: 'relative',
+              position: 'relative', cursor: 'pointer',
               boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
             }}
           >
@@ -183,6 +213,22 @@ export default function HighlightPlayerModal({
                 alt="Story"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
+            )}
+
+            {/* Paused Indicator Overlay */}
+            {isPaused && (
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 45, pointerEvents: 'none'
+              }}>
+                <div style={{
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+                  borderRadius: '50%', padding: '16px', color: '#fff'
+                }}>
+                  <Pause size={32} fill="#fff" />
+                </div>
+              </div>
             )}
 
             {/* AI Tag Overlay if applicable */}
@@ -237,29 +283,100 @@ export default function HighlightPlayerModal({
                     {highlightTitle}
                   </span>
                   <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                    {new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                   </span>
                 </div>
                 
                 {/* Controls */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowMenu(prev => !prev); }} 
+                    style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+                  >
                     <MoreHorizontal size={24} />
                   </button>
-                  <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onClose(); }} 
+                    style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+                  >
                     <X size={28} />
                   </button>
+
+                  {/* ── Popover Menu ── */}
+                  {showMenu && (
+                    <div 
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute', top: '40px', right: 0, zIndex: 100,
+                        background: 'rgba(28,28,30,0.95)', backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px',
+                        width: '220px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                        display: 'flex', flexDirection: 'column', gap: '4px'
+                      }}
+                    >
+                      <button 
+                        onClick={handleOpenInstagram}
+                        style={{
+                          background: 'transparent', border: 'none', color: '#fff',
+                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                          cursor: 'pointer', textAlign: 'left'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <ExternalLink size={16} color="#0a84ff" /> Open on Instagram
+                      </button>
+
+                      <button 
+                        onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
+                        style={{
+                          background: 'transparent', border: 'none', color: '#fff',
+                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                          cursor: 'pointer', textAlign: 'left'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <MusicIcon size={16} color="#ff375f" /> {showMusicWidget ? 'Hide Music Widget' : 'Show Music Widget'}
+                      </button>
+
+                      <button 
+                        onClick={handleLocateFile}
+                        style={{
+                          background: 'transparent', border: 'none', color: '#fff',
+                          padding: '10px 12px', borderRadius: '8px', display: 'flex',
+                          alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
+                          cursor: 'pointer', textAlign: 'left'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <Folder size={16} color="#ffd60a" /> Show Local File
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Optional Apple Music Side Widget */}
+          {(showMusicWidget || currentStory.music) && (
+            <div style={{ width: '320px', zIndex: 60, flexShrink: 0 }}>
+              <MusicPlayer 
+                music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
+              />
+            </div>
+          )}
         </div>
 
         {/* Right Nav Zone */}
         <div 
-          onClick={handleNext}
+          onClick={(e) => { e.stopPropagation(); handleNext(); }}
           style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: '30%', zIndex: 50,
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: '25%', zIndex: 50,
             cursor: 'e-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
             paddingRight: '20px'
           }}

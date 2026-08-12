@@ -281,25 +281,29 @@ export default function StoryDetail() {
           
           {/* Navigation Arrows */}
           {adjacent.prev_id && (
-            <motion.button
-              whileHover={{ scale: 1.15, x: -2 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate(`/story/${adjacent.prev_id}`, { replace: true })}
-              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 10 }}
-            >
-              <ChevronLeft size={24} />
-            </motion.button>
+            <div style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+              <motion.button
+                whileHover={{ scale: 1.15, x: -2 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate(`/story/${adjacent.prev_id}`, { replace: true })}
+                style={{ background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
+              >
+                <ChevronLeft size={24} />
+              </motion.button>
+            </div>
           )}
           
           {adjacent.next_id && (
-            <motion.button
-              whileHover={{ scale: 1.15, x: 2 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate(`/story/${adjacent.next_id}`, { replace: true })}
-              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 10 }}
-            >
-              <ChevronRight size={24} />
-            </motion.button>
+            <div style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+              <motion.button
+                whileHover={{ scale: 1.15, x: 2 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate(`/story/${adjacent.next_id}`, { replace: true })}
+                style={{ background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
+              >
+                <ChevronRight size={24} />
+              </motion.button>
+            </div>
           )}
         </div>
 

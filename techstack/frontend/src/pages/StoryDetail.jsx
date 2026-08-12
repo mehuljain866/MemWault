@@ -598,6 +598,7 @@ export default function StoryDetail() {
           </AnimatePresence>
         </div>
       </div>
+    </div>
       
       <LocationModal 
         isOpen={isLocationModalOpen} 

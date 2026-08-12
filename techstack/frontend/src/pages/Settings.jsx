@@ -7,10 +7,11 @@ import {
   getScrapeLogs,
   clearToken,
   rescanMetadata,
+  openStorageFolder,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff } from 'lucide-react'
+import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder } from 'lucide-react'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -115,6 +116,14 @@ export default function Settings() {
       alert('Rescan failed: ' + err.message)
     } finally {
       setRescanning(false)
+    }
+  }
+
+  async function handleOpenFolder() {
+    try {
+      await openStorageFolder()
+    } catch (err) {
+      alert('Failed to open storage folder: ' + err.message)
     }
   }
 
@@ -473,6 +482,11 @@ export default function Settings() {
         Maintenance
       </div>
       <IosListGroup>
+        <IosListItem
+          icon={Folder} iconBg="#007aff"
+          title="Open Local Media Folder"
+          onClick={handleOpenFolder}
+        />
         <IosListItem
           icon={RefreshCcw} iconBg="#ff9500"
           title={rescanning ? "Scanning..." : "Rescan Local Metadata"}

@@ -272,6 +272,13 @@ export async function locateStoryMedia(storyId) {
   return res
 }
 
+export async function openStorageFolder() {
+  const res = await apiFetch(`/storage/open-folder`, {
+    method: 'POST'
+  })
+  return res
+}
+
 export async function updateStoryLocation(storyId, locationData) {
   const res = await apiFetch(`/media/${storyId}/location`, {
     method: 'PUT',

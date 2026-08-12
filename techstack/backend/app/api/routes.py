@@ -1027,29 +1027,73 @@ async def locate_local_media(
     )
     story = result.scalar_one_or_none()
     
-    if not story or not story.s3_key_compressed:
-        raise HTTPException(status_code=404, detail="Story media not found")
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    s3_key = story.s3_key_compressed or story.s3_key_original or story.og_reel_s3_key
+    if not s3_key:
+        raise HTTPException(status_code=404, detail="Story media key not found")
         
     settings = get_settings()
     if settings.storage_type != "local":
         raise HTTPException(status_code=400, detail="Locate only works with local storage")
         
-    file_path = Path(settings.storage_local_dir).resolve() / story.s3_key_compressed
+    file_path = Path(settings.storage_local_dir).resolve() / s3_key
     
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File not found on disk: {file_path}")
+        alt_key = story.s3_key_original or story.s3_key_compressed
+        if alt_key:
+            alt_path = Path(settings.storage_local_dir).resolve() / alt_key
+            if alt_path.exists():
+                file_path = alt_path
+        
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found on disk: {file_path.name}")
         
     try:
         if sys.platform == "win32":
-            subprocess.Popen(f'explorer /select,"{file_path}"')
+            subprocess.Popen(["explorer", "/select,", str(file_path.resolve())])
             return {"status": "success", "message": "File opened in Windows Explorer"}
         elif sys.platform == "darwin":
-            subprocess.Popen(["open", "-R", str(file_path)])
+            subprocess.Popen(["open", "-R", str(file_path.resolve())])
             return {"status": "success", "message": "File opened in Finder"}
         else:
-            raise HTTPException(status_code=400, detail="Locate feature not supported on this OS")
+            try:
+                subprocess.Popen(["nautilus", "--select", str(file_path.resolve())])
+            except Exception:
+                subprocess.Popen(["xdg-open", str(file_path.parent.resolve())])
+            return {"status": "success", "message": "File opened in File Manager"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to open file explorer: {str(e)}")
+
+
+@router.post("/storage/open-folder")
+async def open_storage_folder(
+    user: User = Depends(get_current_user),
+):
+    """Open the main local storage media folder in native File Explorer."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    from app.config import get_settings
+
+    settings = get_settings()
+    if settings.storage_type != "local":
+        raise HTTPException(status_code=400, detail="Only supported for local storage")
+
+    folder_path = Path(settings.storage_local_dir).resolve()
+    folder_path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        if sys.platform == "win32":
+            subprocess.Popen(["explorer", str(folder_path)])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(folder_path)])
+        else:
+            subprocess.Popen(["xdg-open", str(folder_path)])
+        return {"status": "success", "message": "Storage folder opened"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open storage folder: {str(e)}")
 
 # ── Media serving for Local Storage fallback ─────────────
 from fastapi.responses import FileResponse

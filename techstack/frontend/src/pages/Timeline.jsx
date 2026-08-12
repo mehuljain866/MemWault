@@ -56,20 +56,10 @@ export default function Timeline({ isReelView = false }) {
   const [searchQuery, setSearchQuery] = useState('')
   const { onMenuClick } = useOutletContext() || {}
   
-  // Continuous Zoom Scale: 0 (Years) -> 1 (Detailed Photos)
-  // Preset semantic levels: 'year' (0), 'month' (0.33), 'day' (0.66), 'photo' (1.0)
-  const [zoomScale, setZoomScale] = useState(0.66) // Default to Day view
-  const timelineRef = useRef(null)
+  // Clean zoom levels: 'year' | 'month' | 'day'
+  const [zoomLevel, setZoomLevel] = useState('day')
 
-  // Derive semantic level name from continuous zoomScale
-  const zoomLevel = useMemo(() => {
-    if (zoomScale < 0.25) return 'year'
-    if (zoomScale < 0.5) return 'month'
-    if (zoomScale < 0.8) return 'day'
-    return 'photo'
-  }, [zoomScale])
-
-  // ── Multi-select state (Persists across zoom levels by story ID) ──────
+  // ── Multi-select state ──────────────────────────────────
   const [selectedIds, setSelectedIds] = useState([])
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -123,24 +113,6 @@ export default function Timeline({ isReelView = false }) {
     loadStories(1)
   }, [loadStories])
 
-  // Trackpad Pinch / Ctrl+MouseWheel Continuous Zoom Listener
-  useEffect(() => {
-    const container = timelineRef.current
-    if (!container) return
-
-    function handleWheel(e) {
-      if (e.ctrlKey) {
-        e.preventDefault()
-        const delta = e.deltaY < 0 ? 0.08 : -0.08
-        setZoomScale(prev => Math.min(1.0, Math.max(0.0, prev + delta)))
-      }
-    }
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    return () => container.removeEventListener('wheel', handleWheel)
-  }, [])
-
-  // Dynamic Grouping according to semantic zoom level
   const groupedStories = useMemo(() => {
     return stories.reduce((acc, story) => {
       const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
@@ -161,16 +133,16 @@ export default function Timeline({ isReelView = false }) {
     }, {})
   }, [stories, zoomLevel])
 
-  // Dynamic Grid sizing continuously bound to zoomScale (from 50px up to 260px)
   const getGridColumns = () => {
-    const minWidth = Math.round(50 + zoomScale * 210) // 50px at 0.0 -> 260px at 1.0
-    return `repeat(auto-fill, minmax(${minWidth}px, 1fr))`
+    if (zoomLevel === 'year') return 'repeat(auto-fill, minmax(100px, 1fr))'
+    if (zoomLevel === 'month') return 'repeat(auto-fill, minmax(140px, 1fr))'
+    return 'repeat(auto-fill, minmax(200px, 1fr))'
   }
 
   const getGridGap = () => {
-    if (zoomScale < 0.25) return '4px'
-    if (zoomScale < 0.5) return '8px'
-    return '14px'
+    if (zoomLevel === 'year') return '6px'
+    if (zoomLevel === 'month') return '10px'
+    return '16px'
   }
 
   // ── Multi-select handlers ────────────────────────────────
@@ -245,7 +217,6 @@ export default function Timeline({ isReelView = false }) {
 
   return (
     <motion.div 
-      ref={timelineRef}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -254,14 +225,15 @@ export default function Timeline({ isReelView = false }) {
     >
       <FastScrollbar items={stories} getDate={(s) => new Date(s.taken_at)} scrollContainerSelector=".ios-main-content" />
 
-      {/* ── Fixed Top Control Bar ─────────────────────────── */}
+      {/* ── Fixed Clean Top Header Bar ─────────────────────────── */}
       <div style={{ 
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', 
-        marginBottom: '20px', gap: '16px', zIndex: 60, 
+        marginBottom: '24px', gap: '16px', zIndex: 60, 
         paddingTop: '16px', paddingBottom: '16px',
         borderBottom: '1px solid var(--ios-border)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Left Section: Title & Clean Zoom Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <button
             className="ios-btn-secondary"
             onClick={onMenuClick}
@@ -270,86 +242,49 @@ export default function Timeline({ isReelView = false }) {
             <Menu size={20} />
           </button>
           <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Memories"}</h2>
+          <span style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>
+            {total} items
+          </span>
 
-          {/* Continuous Zoom Level Pills */}
+          {/* Clean 3-Pill Zoom Selector */}
           {!isSelectMode && (
-            <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', alignItems: 'center', gap: '2px' }}>
+            <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
               <button 
-                onClick={() => setZoomScale(0.0)} 
-                style={{ border: 'none', background: zoomLevel === 'year' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'year' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 12px', borderRadius: '16px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                onClick={() => setZoomLevel('year')} 
+                style={{ border: 'none', background: zoomLevel === 'year' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'year' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
               >
                 Years
               </button>
               <button 
-                onClick={() => setZoomScale(0.35)} 
-                style={{ border: 'none', background: zoomLevel === 'month' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'month' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 12px', borderRadius: '16px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                onClick={() => setZoomLevel('month')} 
+                style={{ border: 'none', background: zoomLevel === 'month' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'month' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
               >
                 Months
               </button>
               <button 
-                onClick={() => setZoomScale(0.66)} 
-                style={{ border: 'none', background: zoomLevel === 'day' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'day' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 12px', borderRadius: '16px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                onClick={() => setZoomLevel('day')} 
+                style={{ border: 'none', background: zoomLevel === 'day' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'day' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
               >
                 Days
               </button>
-              <button 
-                onClick={() => setZoomScale(1.0)} 
-                style={{ border: 'none', background: zoomLevel === 'photo' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'photo' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 12px', borderRadius: '16px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
-              >
-                Photos
-              </button>
-
-              {/* Continuous Zoom Range Slider */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', gap: '6px', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
-                <ZoomOut size={13} color="var(--ios-text-secondary)" />
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.01" 
-                  value={zoomScale} 
-                  onChange={(e) => setZoomScale(parseFloat(e.target.value))} 
-                  style={{ width: '70px', accentColor: 'var(--ios-accent)', cursor: 'pointer' }}
-                  title="Pinch trackpad or Ctrl+Scroll to zoom continuously"
-                />
-                <ZoomIn size={13} color="var(--ios-text-secondary)" />
-              </div>
             </div>
           )}
 
-          {/* Select mode state */}
           {isSelectMode && (
-            <span style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 500 }}>
-              {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'Tap photos to select'}
+            <span style={{ fontSize: '14px', color: 'var(--ios-accent)', fontWeight: 600 }}>
+              {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'Select items'}
             </span>
           )}
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Right Section: Filters & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {!isSelectMode && (
             <>
-              <div style={{ color: 'var(--ios-text-secondary)', fontWeight: 600, fontSize: '14px', display: window.innerWidth <= 768 ? 'none' : 'block' }}>
-                {total} items
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.96 }}
-                className="ios-btn"
-                style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '16px' }}
-                onClick={() => {
-                  import('../services/api').then(api => {
-                    api.triggerScrape(true).catch(console.error)
-                  })
-                }}
-              >
-                <RefreshCcw size={15} />
-                Sync Now
-              </motion.button>
-
-              {/* Media Type Filter */}
+              {/* Media Filter */}
               <div style={{
                 display: 'flex', background: 'var(--ios-border)', padding: '2px',
-                borderRadius: '9px', width: '240px'
+                borderRadius: '9px', width: '220px'
               }}>
                 <SegmentButton active={!filters.mediaType} onClick={() => setFilters({ mediaType: null })} icon={BoxSelect} label="All" />
                 <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
@@ -358,17 +293,32 @@ export default function Timeline({ isReelView = false }) {
 
               <input
                 type="text"
-                placeholder="Search memories..."
+                placeholder="Search..."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 style={{
                   padding: '8px 16px', borderRadius: '16px', border: '1px solid var(--ios-border)',
                   backgroundColor: 'var(--ios-glass)', color: 'var(--ios-text-primary)',
-                  fontSize: '13px', outline: 'none', width: '180px', transition: 'all 0.2s'
+                  fontSize: '13px', outline: 'none', width: '160px', transition: 'all 0.2s'
                 }}
                 onFocus={e => e.target.style.borderColor = 'var(--ios-accent)'}
                 onBlur={e => e.target.style.borderColor = 'var(--ios-border)'}
               />
+
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                className="ios-btn-secondary ios-btn"
+                style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '16px' }}
+                onClick={() => {
+                  import('../services/api').then(api => {
+                    api.triggerScrape(true).catch(console.error)
+                  })
+                }}
+              >
+                <RefreshCcw size={14} />
+                Sync
+              </motion.button>
             </>
           )}
 
@@ -412,7 +362,7 @@ export default function Timeline({ isReelView = false }) {
       ) : (
         <div>
           {Object.entries(groupedStories).map(([dateStr, dateStories]) => (
-            <div key={dateStr} style={{ position: 'relative', marginBottom: zoomScale < 0.5 ? '24px' : '40px' }}>
+            <div key={dateStr} style={{ position: 'relative', marginBottom: zoomLevel === 'year' ? '20px' : '40px' }}>
               
               {/* Hierarchical Sticky Temporal Header */}
               <div style={{ position: 'sticky', top: '74px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '6px 0' }}>
@@ -475,7 +425,7 @@ export default function Timeline({ isReelView = false }) {
                     <StoryCard
                       key={story.id}
                       story={story}
-                      hideTitle={zoomLevel !== 'photo'}
+                      hideTitle={zoomLevel !== 'day'}
                       zoomLevel={zoomLevel}
                       isSelectMode={isSelectMode}
                       isSelected={selectedIds.includes(story.id)}

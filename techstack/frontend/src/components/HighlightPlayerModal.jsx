@@ -3,6 +3,44 @@ import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
 
+// Animated Waveform Icon component
+function AnimatedWaveform({ isPlaying }) {
+  return (
+    <div style={{
+      display: 'inline-flex',
+      alignItems: 'flex-end',
+      gap: '2px',
+      height: '12px',
+      marginRight: '4px',
+      flexShrink: 0
+    }}>
+      <span style={{
+        width: '2px',
+        background: '#fff',
+        borderRadius: '1px',
+        animation: isPlaying ? 'waveformPulse 0.8s ease-in-out infinite alternate' : 'none',
+        height: isPlaying ? '12px' : '4px'
+      }} />
+      <span style={{
+        width: '2px',
+        background: '#fff',
+        borderRadius: '1px',
+        animation: isPlaying ? 'waveformPulse 0.5s ease-in-out infinite alternate' : 'none',
+        height: isPlaying ? '10px' : '6px',
+        animationDelay: '0.15s'
+      }} />
+      <span style={{
+        width: '2px',
+        background: '#fff',
+        borderRadius: '1px',
+        animation: isPlaying ? 'waveformPulse 0.7s ease-in-out infinite alternate' : 'none',
+        height: isPlaying ? '14px' : '3px',
+        animationDelay: '0.3s'
+      }} />
+    </div>
+  )
+}
+
 // Main Player Modal
 export default function HighlightPlayerModal({
   isOpen,
@@ -331,7 +369,7 @@ export default function HighlightPlayerModal({
                         </>
                       ) : (
                         <>
-                          <span style={{ letterSpacing: '-1px', fontSize: '10px', fontWeight: 900, color: '#fff' }}>▮▮▮</span>
+                          <AnimatedWaveform isPlaying={!isPaused} />
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
                           </span>
@@ -514,6 +552,14 @@ export default function HighlightPlayerModal({
       
       {/* Add global styles for nav-zone hover and hiding scrollbar */}
       <style>{`
+        @keyframes waveformPulse {
+          0% {
+            height: 3px;
+          }
+          100% {
+            height: 12px;
+          }
+        }
         .nav-zone:hover .nav-icon {
           opacity: 1 !important;
         }

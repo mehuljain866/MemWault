@@ -250,14 +250,17 @@ export default function HighlightPlayerModal({
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: '24px', padding: '20px 0', position: 'relative'
         }}>
-          {/* Story Canvas */}
-          <div 
+          {/* Story Canvas (FLIP layout animation smoothly glides when music widget opens) */}
+          <motion.div 
+            layout
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             onClick={handleCanvasClick}
             style={{
               height: '100%', aspectRatio: '9/16',
               background: '#000', borderRadius: '16px', overflow: 'hidden',
               position: 'relative', cursor: 'pointer',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              flexShrink: 0
             }}
           >
             {/* Story Media */}
@@ -278,30 +281,6 @@ export default function HighlightPlayerModal({
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             )}
-
-            {/* Paused Indicator Overlay */}
-            <AnimatePresence>
-              {isPaused && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.6 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  style={{
-                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    zIndex: 45, pointerEvents: 'none'
-                  }}
-                >
-                  <div style={{
-                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
-                    borderRadius: '50%', padding: '16px', color: '#fff'
-                  }}>
-                    <Pause size={32} fill="#fff" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* AI Tag Overlay if applicable */}
             {currentStory.is_ai_generated && (
@@ -498,34 +477,37 @@ export default function HighlightPlayerModal({
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Optional Apple Music Side Widget (Sliding animation) */}
+          {/* Optional Apple Music Side Widget (Sliding width expansion animation) */}
           <AnimatePresence>
             {showMusicWidget && (
               <motion.div 
-                initial={{ opacity: 0, x: -50, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, x: 0, scale: 1, y: 0 }}
-                exit={{ opacity: 0, x: -50, scale: 0.9, y: 20 }}
-                transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-                style={{ width: '320px', zIndex: 60, flexShrink: 0, position: 'relative' }}
+                layout
+                initial={{ opacity: 0, width: 0, scale: 0.95 }}
+                animate={{ opacity: 1, width: 320, scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                style={{ zIndex: 60, flexShrink: 0, position: 'relative', overflow: 'hidden' }}
               >
-                <button 
-                  onClick={() => setShowMusicWidget(false)}
-                  style={{
-                    position: 'absolute', top: '-10px', right: '-10px', zIndex: 70,
-                    background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
-                    width: '24px', height: '24px', color: '#fff', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                  }}
-                  title="Hide Music Widget"
-                >
-                  <X size={14} />
-                </button>
-                <MusicPlayer 
-                  music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
-                />
+                <div style={{ width: '320px', position: 'relative' }}>
+                  <button 
+                    onClick={() => setShowMusicWidget(false)}
+                    style={{
+                      position: 'absolute', top: '10px', right: '10px', zIndex: 70,
+                      background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
+                      width: '24px', height: '24px', color: '#fff', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}
+                    title="Hide Music Widget"
+                  >
+                    <X size={14} />
+                  </button>
+                  <MusicPlayer 
+                    music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

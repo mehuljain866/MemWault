@@ -202,8 +202,11 @@ export default function HighlightPlayerModal({
   const isVideo = currentStory.media_type === 2
   const mediaUrl = currentStory.media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
   
-  // Single click on story canvas toggles pause
+  // Single click on story canvas toggles pause (unless clicking header area)
   const handleCanvasClick = (e) => {
+    if (e.target.closest('.story-header-overlay')) {
+      return
+    }
     e.stopPropagation()
     setIsPaused(prev => !prev)
   }
@@ -295,12 +298,16 @@ export default function HighlightPlayerModal({
             )}
 
             {/* Overlays (Progress Bars & Header) */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0,
-              padding: '12px', zIndex: 60,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)',
-              pointerEvents: 'none'
-            }}>
+            <div 
+              className="story-header-overlay"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                padding: '12px', zIndex: 60,
+                background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                pointerEvents: 'auto'
+              }}
+            >
               {/* Progress Bars */}
               <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
                 {stories.map((s, idx) => {
@@ -491,19 +498,6 @@ export default function HighlightPlayerModal({
                 style={{ zIndex: 60, flexShrink: 0, position: 'relative', overflow: 'hidden' }}
               >
                 <div style={{ width: '320px', position: 'relative' }}>
-                  <button 
-                    onClick={() => setShowMusicWidget(false)}
-                    style={{
-                      position: 'absolute', top: '10px', right: '10px', zIndex: 70,
-                      background: 'rgba(255,59,48,0.9)', border: 'none', borderRadius: '50%',
-                      width: '24px', height: '24px', color: '#fff', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                    }}
-                    title="Hide Music Widget"
-                  >
-                    <X size={14} />
-                  </button>
                   <MusicPlayer 
                     music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
                   />

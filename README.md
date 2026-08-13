@@ -15,27 +15,31 @@
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
 </p>
 
----
-
-## 📌 Table of Contents
-
-- [Why MemWault?](#-why-memwault)
-- [Key Features](#-key-features)
-- [What MemWault Preserves](#-what-memwault-preserves)
-- [Visual Tour](#-visual-tour)
-- [Changelog & Evolution](#-changelog--evolution)
-- [--- Developer Documentation ---](#---developer-documentation---)
-- [Architecture & Flow](#-architecture--flow)
-- [Authentication & Security](#-authentication--security)
-- [Storage & Media Model](#-storage--media-model)
-- [Repository Structure](#-repository-structure)
-- [Quickstart & Development](#-quickstart--development)
-- [Configuration](#-configuration)
-- [License](#-license)
+<p align="center">
+  <b>Self-Hosted • Local-First • Progressive Web App (PWA)</b>
+</p>
 
 ---
 
-## 💡 Why MemWault?
+## Table of Contents
+
+- [Why MemWault?](#why-memwault)
+- [Key Features](#key-features)
+- [What MemWault Preserves](#what-memwault-preserves)
+- [Visual Tour](#visual-tour)
+- [Changelog & Evolution](#changelog--evolution)
+- [Developer Documentation](#-developer-documentation)
+  - [Architecture & System Flow](#architecture--system-flow)
+  - [Authentication & Security](#authentication--security)
+  - [Storage & Media Model](#storage--media-model)
+  - [Repository Structure](#repository-structure)
+  - [Quickstart & Development](#quickstart--development)
+  - [Configuration](#configuration)
+  - [License](#license)
+
+---
+
+## Why MemWault?
 
 > **Social media is ephemeral. Your memories shouldn't be.**
 
@@ -48,7 +52,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories and Reels reposted to Stories as a distinct archival classification problem.
 - 📊 **Perpetual Engagement Metrics:** Permanently preserve Story viewer counts and like counts alongside the archived media and metadata.
@@ -61,7 +65,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 
 ---
 
-## 📦 What MemWault Preserves
+## What MemWault Preserves
 
 MemWault doesn't just download a media file—it preserves the **entire context around the file**:
 
@@ -80,9 +84,10 @@ Single Archived Memory
 
 ---
 
-## 📸 Visual Tour
+## Visual Tour
 
-> MemWault is designed around the idea that an archive should be explored spatially and temporally—not simply browsed as a folder of files.
+> **MemWault is designed around the idea that an archive should be explored spatially and temporally—not simply browsed as a folder of files.**  
+> **Zoom from years to months to days, jump through time with FastScrollbar, open a memory, inspect its metadata, journal it, view its location, or replay it as originally experienced.**
 
 ### 1. Dashboard & Continuous Timeline
 
@@ -215,14 +220,14 @@ Single Archived Memory
 
 ---
 
-## 🚀 Changelog & Evolution
+## Changelog & Evolution
 
 ### Version 2.4 — Engagement, Privacy & UI
 - **Perpetual Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.
 - **Account Safety Architecture:** Documented the decision to avoid scraping individual viewer lists to reduce account restriction risks.
 - **EXIF/XMP Context Embedding:** Embedded captions, music, locations, and engagement directly into media metadata.
 - **Unified Liquid Spring Controls:** Segmented controls and filter toggles across Timeline, Story Detail, Highlights, and Settings feature Framer Motion spring physics.
-- **Foreground File Explorer & Browser Launch:** Windows Explorer and interactive browser sessions pop up smoothly in the foreground.
+- **Foreground Desktop Windows:** Windows Explorer and interactive browser sessions pop up smoothly in the foreground.
 
 ### Version 2.3 — Sidecar Journal & Dynamic Highlights
 - **Dynamic Highlight Grid:** Covers dynamically render as 4-Image Grids, 3-Image layouts, or vertical dual-views.
@@ -234,6 +239,7 @@ Single Archived Memory
 
 ### Version 2.1 — Highlights & Albums
 - **Highlights & Albums Integration:** Curate downloaded stories into custom Highlight Albums locally.
+- **Media Sync & Pre-Signed URLs:** Dynamic S3 pre-signed URLs for decoupled storage environments.
 
 ### Version 2.0 — Timeline, Maps & Navigation
 - **Smooth Page Transitions & FastScrollbar:** Drag through years of memories in milliseconds.
@@ -241,13 +247,11 @@ Single Archived Memory
 
 ---
 
-# ────────────────────────────────────────
 # 🛠️ Developer Documentation
-# ────────────────────────────────────────
 
-## 🏗️ Architecture & Flow
+## Architecture & System Flow
 
-MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite persistence, configurable local/S3 media storage, and background task processing via Celery/Redis.
+MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite persistence, configurable local/S3 media storage, and background processing through Celery/Redis.
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -284,33 +288,23 @@ MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite per
 
 ---
 
-## 🔒 Authentication & Security
+## Authentication & Security
 
 MemWault separates dashboard user access from Instagram session credentials:
 
 ```text
-Local Machine
-┌────────────────────────────────────────────────────────┐
-│ 1. Local Browser Login (Playwright / Chrome)           │
-│    Establishes real user session locally               │
-└───────────────────────────┬────────────────────────────┘
-                            │ Extracted Session Cookies
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│ 2. Local Database (Encrypted Session Store)            │
-│    Stores encrypted cookies & device parameters        │
-└───────────────────────────┬────────────────────────────┘
-                            │ Injected into Scraper
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│ 3. Celery Scraper Engine (instagrapi)                  │
-│    Fetches active stories & perpetual metrics           │
-└───────────────────────────┬────────────────────────────┘
-                            │ Scoped JWT Bearer Tokens
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│ 4. FastAPI REST API & React Dashboard                  │
-└────────────────────────────────────────────────────────┘
+MemWault Application
+├── 1. Local Browser Login (Playwright / Chrome)
+│   └── Instagram session established locally
+│   └── Encrypted session cookies persisted in DB
+└──────► 2. Celery Scraper Engine (instagrapi)
+         └── Fetches active stories & perpetual metrics
+                 │
+                 ▼
+         3. FastAPI REST API (Bearer JWT Auth)
+                 │
+                 ▼
+         4. React 18 Dashboard UI
 ```
 
 - **Dashboard Auth:** FastAPI issues signed JSON Web Tokens (JWT) stored in `localStorage`. Passwords are salt-hashed using `bcrypt`.
@@ -320,19 +314,20 @@ Local Machine
 
 ---
 
-## 💾 Storage & Media Model
+## Storage & Media Model
 
-MemWault supports flexible storage backends:
+MemWault keeps your archive under your control, using local storage or a storage provider you configure yourself:
 
-- **Local Storage:** SQLite/PostgreSQL database + local drive folder structure (`media/<user_id>/<year>/<month>/<story_id>.jpg`) with `.md` sidecars.
-- **Self-Controlled Object Storage:** MinIO or private AWS S3 buckets.
+- **Local / Self-Hosted:** SQLite / PostgreSQL database + local drive filesystem (`media/<user_id>/<year>/<month>/<story_id>.jpg`) and `.md` sidecars.
+- **Self-Controlled Object Storage:** MinIO container.
+- **Remote Object Storage:** Private AWS S3 bucket.
 
 📖 **Detailed Storage Guide:** [`docs/storage.md`](docs/storage.md)  
 📖 **Detailed Metadata Guide:** [`docs/metadata.md`](docs/metadata.md)
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 MemWault/
@@ -362,7 +357,7 @@ MemWault/
 
 ---
 
-## 🚀 Quickstart & Development
+## Quickstart & Development
 
 ### 1. Prerequisites
 - Python 3.10+
@@ -400,7 +395,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 MemWault is configured via environment variables.
 
@@ -416,7 +411,7 @@ MemWault is configured via environment variables.
 
 ---
 
-## 📄 License
+## License
 
 Licensed under the **PolyForm Noncommercial License 1.0.0**.
 

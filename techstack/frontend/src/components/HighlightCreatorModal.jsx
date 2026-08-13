@@ -3,18 +3,28 @@ import { X, Check, Image as ImageIcon, Play, Film } from 'lucide-react';
 import { getStories, createHighlight } from '../services/api';
 import StoryCard from './StoryCard';
 import FastScrollbar from './FastScrollbar';
+import { motion } from 'framer-motion';
 
-const SegmentButton = ({ active, onClick, icon: Icon, label }) => (
+const SegmentButton = ({ active, onClick, icon: Icon, label, layoutId }) => (
   <button
     onClick={onClick}
     style={{
-      flex: 1, padding: '8px', border: 'none', background: active ? 'var(--ios-bg-app)' : 'transparent',
+      flex: 1, padding: '8px', border: 'none', background: 'transparent',
       borderRadius: '7px', color: active ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-      fontWeight: active ? 600 : 500, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      gap: '6px', cursor: 'pointer', transition: 'all var(--ios-spring-fast)',
-      boxShadow: active ? '0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04)' : 'none'
+      fontWeight: active ? 700 : 500, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: '6px', cursor: 'pointer', position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
     }}
   >
+    {active && (
+      <motion.span
+        layoutId={layoutId || 'modal-tab-pill'}
+        style={{
+          position: 'absolute', inset: 0, borderRadius: '7px',
+          background: 'var(--ios-bg-card)', boxShadow: '0 2px 6px rgba(0,0,0,0.14)', zIndex: -1,
+        }}
+        transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+      />
+    )}
     <Icon size={16} /> {label}
   </button>
 );

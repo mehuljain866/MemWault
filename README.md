@@ -1,7 +1,7 @@
 # MemWault — Digital Memory Preservation & Archiving
 
 <p align="center">
-  <img src="screenshots/The dashboard home screen.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+  <img src="screenshots/dashboard_home.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
 </p>
 
 <p align="center">
@@ -48,24 +48,24 @@
   <tr>
     <td width="50%" align="center">
       <b>Dashboard & Analytics Overview</b><br/>
-      <img src="screenshots/The dashboard home screen.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/dashboard_home.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Live stats, total story counts, storage consumption, and system status</sub>
     </td>
     <td width="50%" align="center">
       <b>Dedicated Reels Gallery</b><br/>
-      <img src="screenshots/The reels tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/reels_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Automatically segregated reels view with date headers and duration badges</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>Memories Timeline (Months Zoom)</b><br/>
-      <img src="screenshots/The memories tab in the month selector is on.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memories_month_view.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Clean grid layout morphing with liquid spring 3-pill zoom control</sub>
     </td>
     <td width="50%" align="center">
       <b>Memories Timeline (Days Zoom)</b><br/>
-      <img src="screenshots/The memory have when particular days zoom is on.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memories_days_view.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Granular day-by-day view with high-res aspect ratio media cards</sub>
     </td>
   </tr>
@@ -79,24 +79,24 @@
   <tr>
     <td width="50%" align="center">
       <b>Sidecar Markdown Journal Editor</b><br/>
-      <img src="screenshots/Journal of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memory_journal_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Write rich markdown notes auto-synced as .md sidecar files next to media on disk</sub>
     </td>
     <td width="50%" align="center">
       <b>Memory Info & EXIF Metadata</b><br/>
-      <img src="screenshots/Info tab of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memory_info_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Detailed EXIF metadata, capture timestamp, duration, and local file paths</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>iTunes Music Preview Player</b><br/>
-      <img src="screenshots/Music tab of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memory_music_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Stream 30-second audio previews for soundtrack attached to your memory</sub>
     </td>
     <td width="50%" align="center">
       <b>Data Manifest & JSON Export</b><br/>
-      <img src="screenshots/Data page of the memories of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/memory_data_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Inspect raw JSON payload, story ID, and system data properties</sub>
     </td>
   </tr>
@@ -110,36 +110,36 @@
   <tr>
     <td width="50%" align="center">
       <b>Highlight Albums Gallery</b><br/>
-      <img src="screenshots/The highlights tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/highlights_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Curated collections with dynamic 4-image grid covers and album titles</sub>
     </td>
     <td width="50%" align="center">
       <b>Highlight Player & Audio Stream</b><br/>
-      <img src="screenshots/A particular highlight with the music and enabled.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/highlight_music_stream.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Full-screen story playback inside custom highlight albums with music</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>Opened Highlight Collection</b><br/>
-      <img src="screenshots/After opening up a highlight.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/highlight_open_player.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Explore stories inside a specific highlight album</sub>
     </td>
     <td width="50%" align="center">
       <b>Album Options & Controls</b><br/>
-      <img src="screenshots/Three dots menu of a highlight.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/highlight_options_menu.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Quick management actions, cover edits, and story additions</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>Spatial Map (Split Grid View)</b><br/>
-      <img src="screenshots/Map in the bento grid.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/map_bento_grid.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Interactive spatial map with location pins and bento place cards</sub>
     </td>
     <td width="50%" align="center">
       <b>Spatial Map (Fullscreen View)</b><br/>
-      <img src="screenshots/Map full screen.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/map_fullscreen.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Immersive full-screen geographic map view</sub>
     </td>
   </tr>
@@ -153,19 +153,19 @@
   <tr>
     <td width="50%" align="center">
       <b>Settings & Instagram Connection</b><br/>
-      <img src="screenshots/Settings page first as we open the settings page.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/settings_overview.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Instagram session management, theme controls, and map style toggles</sub>
     </td>
     <td width="50%" align="center">
       <b>Scrape Logs & Maintenance</b><br/>
-      <img src="screenshots/Data scrape history in the settings tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/settings_scrape_history.jpg" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Scrape execution history, local folder opener, and metadata rescanning</sub>
     </td>
   </tr>
   <tr>
     <td colspan="2" align="center">
       <b>Archives & Trash Recovery</b><br/>
-      <img src="screenshots/Archives tab.jpg" width="80%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/archives_tab.jpg" width="80%" style="border-radius: 8px;" /><br/>
       <sub>Soft-delete trash manager for restoring or permanently deleting archived stories</sub>
     </td>
   </tr>

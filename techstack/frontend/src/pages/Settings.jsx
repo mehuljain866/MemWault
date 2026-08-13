@@ -276,15 +276,33 @@ export default function Settings() {
             </div>
             Appearance
           </div>
-          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px' }}>
-            <button 
-              onClick={() => handleSettingChange('theme', 'light')}
-              style={{ border: 'none', background: playbackSettings.theme === 'light' ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.theme === 'light' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.theme === 'light' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
-            >Light</button>
-            <button 
-              onClick={() => handleSettingChange('theme', 'dark')}
-              style={{ border: 'none', background: playbackSettings.theme === 'dark' ? '#333' : 'transparent', color: playbackSettings.theme === 'dark' ? '#fff' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
-            >Dark</button>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
+            {[['light','Light'],['dark','Dark']].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => handleSettingChange('theme', val)}
+                style={{
+                  border: 'none', background: 'transparent',
+                  color: playbackSettings.theme === val ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+                  padding: '6px 14px', borderRadius: '18px',
+                  fontWeight: playbackSettings.theme === val ? 700 : 500,
+                  fontSize: '13px', cursor: 'pointer',
+                  position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
+                }}
+              >
+                {playbackSettings.theme === val && (
+                  <motion.span
+                    layoutId="settings-theme-pill"
+                    style={{
+                      position: 'absolute', inset: 0, borderRadius: '18px',
+                      background: 'var(--ios-bg-card)', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: -1,
+                    }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                  />
+                )}
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -296,15 +314,33 @@ export default function Settings() {
             </div>
             Map Style
           </div>
-          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px' }}>
-            <button 
-              onClick={() => handleSettingChange('mapMode', 'split')}
-              style={{ border: 'none', background: playbackSettings.mapMode === 'split' ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.mapMode === 'split' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.mapMode === 'split' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
-            >Split Screen</button>
-            <button 
-              onClick={() => handleSettingChange('mapMode', 'immersive')}
-              style={{ border: 'none', background: playbackSettings.mapMode === 'immersive' ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.mapMode === 'immersive' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.mapMode === 'immersive' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
-            >Immersive</button>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
+            {[['split','Split Screen'],['immersive','Immersive']].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => handleSettingChange('mapMode', val)}
+                style={{
+                  border: 'none', background: 'transparent',
+                  color: playbackSettings.mapMode === val ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+                  padding: '6px 14px', borderRadius: '18px',
+                  fontWeight: playbackSettings.mapMode === val ? 700 : 500,
+                  fontSize: '13px', cursor: 'pointer',
+                  position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
+                }}
+              >
+                {playbackSettings.mapMode === val && (
+                  <motion.span
+                    layoutId="settings-map-pill"
+                    style={{
+                      position: 'absolute', inset: 0, borderRadius: '18px',
+                      background: 'var(--ios-bg-card)', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: -1,
+                    }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                  />
+                )}
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </IosListGroup>

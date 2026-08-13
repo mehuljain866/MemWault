@@ -24,7 +24,7 @@ Local Host Machine
 │ 3. Celery Scraper Engine (instagrapi)                  │
 │    Polls active stories & archived engagement          │
 └───────────────────────────┬────────────────────────────┘
-                            │ Raw Media & Context
+                            │ Original Media & Context
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │ 4. Media Storage & Sidecar Generation                  │

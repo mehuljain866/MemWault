@@ -86,7 +86,7 @@ MemWault treats a Story as a **structured memory object** rather than a simple m
 
 ```text
 Single Archived Memory Object
-├── 📷 Raw Media Asset      (Original .jpg photo or .mp4 video)
+├── 📷 Original Media Asset (Original .jpg photo or .mp4 video)
 ├── ⏱️ Story Timestamp      (UTC creation timestamp)
 ├── 💬 Story Text & Caption (Text stickers & overlay captions)
 ├── 🎵 Music Track         (Song title, artist name, and 30s preview URL)

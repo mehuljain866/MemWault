@@ -1,6 +1,6 @@
 # MemWault — Metadata & Sidecar Architecture
 
-MemWault treats the raw media file and its surrounding contextual metadata as an indivisible archival unit.
+MemWault treats the original media file and its surrounding contextual metadata as an indivisible archival unit.
 
 ---
 

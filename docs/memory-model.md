@@ -10,7 +10,7 @@ A single archived memory preserves the file alongside its temporal, spatial, com
 
 ```text
 Memory Object Model (MOM)
-├── Media Asset            (Original .jpg photo or .mp4 video)
+├── Original Media Asset    (Original .jpg photo or .mp4 video)
 ├── Temporal Context       (Story taken_at timestamp in UTC)
 ├── Spatial Context        (Venue name, latitude, longitude coordinates)
 ├── Compositional Context  (Caption text, stickers, poll choices, layout manifest)

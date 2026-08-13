@@ -76,7 +76,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 - 🔄 **Distributed Ingestion Pipeline:** Redis + Celery worker queue for periodic background polling.
 - 💾 **Hybrid Media Abstraction:** Local filesystem storage with `.md` sidecars or S3-compatible object storage (MinIO / AWS S3).
 - 🔑 **Dual-Layer Security Architecture:** Application JWT bearer tokens combined with local browser session persistence.
-- 📱 **React 19 PWA Interface:** React Router 7 memory-preserved outlets (`useOutlet()`) preventing page unmount glitches.
+- 📱 **Persistent UI Navigation:** React Router 7 outlet composition preserves page state across route transitions.
 
 ---
 

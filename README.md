@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-v2.4-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.4" />
+  <img src="https://img.shields.io/badge/Version-v2.5-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.5" />
   <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React 19" />
   <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
@@ -236,6 +236,12 @@ Single Archived Memory Object
 ---
 
 ## Changelog & Evolution
+
+### Version 2.5 — Architecture, Data Model & Documentation Update
+- **Memory Object Model (MOM):** Standardized domain entity modeling for Stories, modeling them as rich multi-context memory objects.
+- **Sub-Documentation Infrastructure (`/docs`):** Introduced dedicated in-depth documentation for system architecture, authentication flows, database models, S3/local storage, Instagram ingestion pipelines, REST APIs, and Docker deployments.
+- **Code & Tech Stack Synchronization:** Synchronized documentation with codebase reality (React 19, React Router 7, `MEMWAULT_` environment variable prefix, Python 3.10+).
+- **Containerized Infrastructure & Security:** Documented Docker Compose multi-container deployment (Postgres, Redis, MinIO, FastAPI, Celery) and local application security flow.
 
 ### Version 2.4 — Engagement, Privacy & UI
 - **Archived Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.

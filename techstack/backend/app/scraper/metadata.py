@@ -144,7 +144,7 @@ class MetadataWriter:
     @staticmethod
     def _build_mom_json(story_data: dict) -> dict:
         result = {
-            "memwault_version": "0.1.0",
+            "memwault_version": "2.5.0",
             "ig_media_id": story_data.get("ig_media_id"),
             "media_type": "video" if story_data.get("media_type") == 2 else "photo",
             "viewer_count": story_data.get("viewer_count", 0),

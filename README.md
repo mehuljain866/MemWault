@@ -32,7 +32,7 @@
 - [Developer Documentation](#-developer-documentation)
   - [Architecture & System Flow](#architecture--system-flow)
   - [Memory Object Model](#memory-object-model)
-  - [Authentication & Security](#authentication--security)
+  - [Authentication & Session Isolation](#authentication--session-isolation)
   - [Storage & Media Model](#storage--media-model)
   - [Repository Structure](#repository-structure)
   - [Quickstart & Development](#quickstart--development)
@@ -242,7 +242,7 @@ Single Archived Memory Object
 - **Memory Object Model (MOM):** Standardized domain entity modeling for Stories, modeling them as rich multi-context memory objects.
 - **Sub-Documentation Infrastructure (`/docs`):** Introduced dedicated in-depth documentation for system architecture, authentication flows, database models, S3/local storage, Instagram ingestion pipelines, REST APIs, and Docker deployments.
 - **Code & Tech Stack Synchronization:** Synchronized documentation with codebase reality (React 19, React Router 7, `MEMWAULT_` environment variable prefix, Python 3.10+).
-- **Containerized Infrastructure & Security:** Documented Docker Compose multi-container deployment (Postgres, Redis, MinIO, FastAPI, Celery) and local application security flow.
+- **Containerized Infrastructure & Authentication:** Documented Docker Compose multi-container deployment (Postgres, Redis, MinIO, FastAPI, Celery) and local application authentication flow.
 
 ### Version 2.4 — Engagement, Privacy & UI
 - **Archived Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.
@@ -317,7 +317,7 @@ The `Story` entity is the core archival object. Rather than treating media as a 
 
 ---
 
-## Authentication & Security
+## Authentication & Session Isolation
 
 MemWault separates dashboard user access from Instagram session credentials:
 

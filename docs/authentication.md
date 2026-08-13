@@ -1,4 +1,4 @@
-# MemWault — Authentication & Security Architecture
+# MemWault — Authentication & Session Architecture
 
 MemWault utilizes separated authentication domains to isolate local dashboard user access from Instagram session credentials.
 

@@ -23,6 +23,25 @@ Memory Object Model (MOM)
 
 ---
 
+## 🔍 Data Provenance & Source Authority
+
+Every attribute in a MemWault memory object is mapped to its exact origination source and authority model:
+
+| Data Attribute | Origination Source | Capture & Processing Method | Authority Model |
+| :--- | :--- | :--- | :--- |
+| **Original Media Asset** | Instagram CDN | Direct binary download (`.jpg` / `.mp4`) | Source Immutable |
+| **Story Timestamp** | Instagram API | Extracted from story creation `taken_at` timestamp | Source Authoritative |
+| **Caption & Text Content** | Story Sticker Payload | Extracted from raw text sticker JSON manifest | Source Authoritative |
+| **Composition Manifest** | Story Sticker Payload | Parsed sticker dimensions, coordinates, & angles | Source Authoritative |
+| **Spatial Geolocation** | Instagram Venue API | Extracted location sticker name & GPS coordinates | Source Authoritative |
+| **Music Track Metadata** | Instagram / iTunes API | Extracted track details + iTunes 30s preview URL | Hybrid / Enriched |
+| **Engagement Metrics** | Instagram API | Snapshot of `viewer_count` & `like_count` captured at archival time | Temporal Snapshot |
+| **Sidecar Journal Notes** | Local User | Authored in MemWault & saved as `.md` sidecar on disk | User Authoritative |
+| **EXIF / XMP Tags** | Local Metadata Engine | Embedded into media header by MemWault ExifTool engine | Derived Archival Unit |
+| **Highlight Memberships** | Local Database | User-curated local album groupings | User Authoritative |
+
+---
+
 ## 📊 Relational Database Schema (`Story`)
 
 ```sql

@@ -313,7 +313,9 @@ MemWault uses a React 19 PWA frontend backed by FastAPI, with PostgreSQL/SQLite 
 
 The `Story` entity is the core archival object. Rather than treating media as a standalone file, MemWault models the Story as a media asset plus its temporal, spatial, compositional, social, engagement, and archival context.
 
-📖 **Detailed Memory Model Guide:** [`docs/memory-model.md`](docs/memory-model.md)
+Every attribute in a MemWault memory object is mapped to its exact origination source and authority model (Instagram CDN binary, raw API metadata, iTunes audio enrichment, or user-authored sidecar notes).
+
+📖 **Detailed Memory Model & Provenance Guide:** [`docs/memory-model.md`](docs/memory-model.md)
 
 ---
 

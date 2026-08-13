@@ -466,6 +466,8 @@ MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 | `MEMWAULT_STORAGE_LOCAL_DIR` | `./data/media` | Host filesystem path for media storage |
 | `MEMWAULT_SECRET_KEY` | *[Change in Prod]* | Secret key for JWT signing |
 
+> *Note: Only the variables required by your selected database engine and storage provider need to be configured (e.g., PostgreSQL credentials are ignored when `MEMWAULT_DATABASE_TYPE=sqlite`).*
+
 📖 **Detailed Configuration Guide:** [`docs/configuration.md`](docs/configuration.md)  
 📖 **REST API Reference:** [`docs/api.md`](docs/api.md)
 

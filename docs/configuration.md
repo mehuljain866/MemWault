@@ -19,4 +19,5 @@ MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 | `MEMWAULT_STORAGE_LOCAL_DIR` | `./data/media` | Local filesystem media directory |
 | `MEMWAULT_SECRET_KEY` | *[Change in Prod]* | Secret key for JWT signing |
 
+> **Configuration Scope:** Only the variables required by your selected storage and database mode need to be configured (e.g., PostgreSQL variables are ignored when `MEMWAULT_DATABASE_TYPE=sqlite`).  
 > **Security Note:** Replace the default development `MEMWAULT_SECRET_KEY` with a strong random secret before deploying outside local development environments.

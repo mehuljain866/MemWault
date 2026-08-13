@@ -7,6 +7,8 @@
 <p align="center">
   <a href="#key-features"><b>Key Features</b></a> •
   <a href="#visual-tour"><b>Visual Tour</b></a> •
+  <a href="#what-is-new"><b>What's New</b></a> •
+  <a href="#authentication-architecture"><b>Authentication</b></a> •
   <a href="#quickstart"><b>Quickstart</b></a> •
   <a href="#architecture"><b>Architecture</b></a> •
   <a href="#license"><b>License</b></a>
@@ -17,6 +19,7 @@
   <img src="https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React" />
   <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.12-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
   <img src="https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="Database" />
+  <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge&logo=open-source-initiative&logoColor=white" alt="PolyForm License" />
   <img src="https://img.shields.io/badge/Privacy-100%25%20Local--First-34C759?style=for-the-badge&logo=lock&logoColor=white" alt="Local First" />
 </p>
 
@@ -37,6 +40,26 @@
 - 🎵 **iTunes Music Integration:** Built-in mini-player that streams 30-second high-fidelity previews for songs attached to your stories.
 - ⚡ **FastScrollbar Chronological Scrubbing:** Drag through years of historical memories in milliseconds with high-frequency timeline scrubbing.
 - 🔒 **100% Private & Self-Hosted:** All database records, media assets, and metadata reside exclusively on your local storage drive or personal S3 bucket.
+
+---
+
+## 🚀 What's New & Changelog
+
+### Version 2.4 (The Unified UI & Showcase Update)
+* **Unified Liquid Spring Controls:** Segmented controls and filter toggles across Timeline, Story Detail, Highlights, and Settings feature Framer Motion spring physics.
+* **Foreground File Explorer & Browser Launch:** Windows Explorer and interactive browser sessions pop up smoothly in the foreground.
+* **Full Application Screenshot Suite:** Real authenticated HD screenshot showcase across all application pages.
+
+### Version 2.3 (The Sidecar Journal & Dynamic Highlights Update)
+* **Dynamic Highlight Grid:** Highlight Albums automatically adapt to their contents with 4-Image Grids, 3-Image layouts, or full vertical dual-views.
+* **Intelligent Media Previews:** Video thumbnails inside Album Covers loop quietly inside grid cells.
+* **Custom Cover Uploads:** Upload custom cover images directly from your local filesystem.
+* **Contextual Sidecar Journaling:** Attach rich Markdown notes to any story, written as `.md` files directly next to your media files on your local drive (or S3).
+
+### Version 2.2 (The Archive & Search Update)
+* **Robust Archives (Trash):** Soft-delete and restore individual or bulk-selected stories.
+* **Timeline Bulk Actions:** Enter multi-select mode from the Timeline to archive multiple memories at once.
+* **Full-Text Backend Search Engine:** Instantaneous SQL search engine across historical stories.
 
 ---
 
@@ -173,6 +196,30 @@
 
 ---
 
+## 🔒 Authentication Architecture
+
+MemWault utilizes a dual-layer authentication architecture:
+
+### 1. Instagram Session Management (Scraper Auth)
+MemWault uses `instagrapi` and Playwright to emulate client sessions.
+- **Secure Login:** Credentials or session cookies are sent securely to Instagram's official servers.
+- **Anti-Ban Architecture:** The backend stores sessions securely in the local database (`InstagramSession` model), rotating requests and adhering to strict delay parameters.
+- **100% Local Processing:** Credentials and session tokens live exclusively on your local machine and are never transmitted to third parties.
+
+### 2. App-Level Authentication (FastAPI & React)
+- **JWT Access Tokens:** FastAPI issues signed JSON Web Tokens (JWT) stored in `localStorage` for dashboard REST endpoints.
+- **Bcrypt Password Hashing:** App passwords are salt-hashed using `bcrypt`.
+- **User Isolation:** Multi-tenant architecture enforced at the ORM layer, scoping queries by `user_id`.
+
+---
+
+## 🛡️ Design Choices & Privacy Trade-offs
+
+**Why does MemWault focus on perpetual engagement metrics over story viewer lists?**
+Instagram's anti-bot algorithms strictly limit automated fetching of viewer lists for active web sessions. To guarantee 100% safety for user accounts, MemWault extracts perpetual engagement metadata (Viewer Count and Story Likes) and omits real-time viewer tracking to ensure long-term, risk-free local archiving.
+
+---
+
 ## 🛠️ Architecture & Tech Stack
 
 ```text
@@ -224,4 +271,9 @@ Open **`http://localhost:5173`** in your web browser.
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for details.
+Licensed under the **PolyForm Noncommercial License 1.0.0**.
+
+Copyright (c) 2026 **Mehul Jain (mehuljain866)**. All rights reserved.
+
+> You may obtain a copy of the License at [https://polyformproject.org/licenses/noncommercial/1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).  
+> Personal use, research, and noncommercial educational use are permitted under the PolyForm Noncommercial License.

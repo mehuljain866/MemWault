@@ -393,10 +393,16 @@ MemWault/
 
 ## Quickstart & Development
 
-### 1. Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Redis (For Celery background worker tasks)
+### 1. Environment Requirements
+
+- **Core Prerequisites (Minimal API & UI Development):**
+  - Python 3.10+
+  - Node.js 18+
+  - *Database Note:* SQLite is used by default for local development (`MEMWAULT_DATABASE_TYPE=sqlite`). PostgreSQL is optional.
+
+- **Ingestion Prerequisites (Full Scraping & Session Ingestion):**
+  - Redis (Required for Celery background task queue execution)
+  - Playwright Chromium (`playwright install chromium` required for local Instagram browser authentication)
 
 ### 2. Backend Setup
 ```bash
@@ -406,15 +412,20 @@ python -m venv venv
 # Activate Virtual Environment (Windows)
 .\venv\Scripts\activate
 
-# Install Dependencies & Start FastAPI Server
+# Install Dependencies & Playwright Browsers
 pip install -r requirements.txt
+playwright install chromium
+
+# Start FastAPI Server
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Background Worker Setup (In a separate terminal)
+### 3. Background Worker Setup (Required for Scraper Pipeline)
 ```bash
 cd techstack/backend
 .\venv\Scripts\activate
+
+# Start Celery Worker Execution
 celery -A app.worker worker --loglevel=info
 ```
 

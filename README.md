@@ -1,17 +1,17 @@
-# MemWault — Digital Memory Preservation & Archiving
+# MemWault — Personal Memory Preservation & Archiving
 
 <p align="center">
   <img src="screenshots/dashboard_home.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
 </p>
 
 <p align="center">
-  <b>MemWault is a private, local-first digital archive for permanently preserving, organizing, and replaying your personal social-media memories. It turns ephemeral Instagram Stories, Reels, and their surrounding context—music, locations, tags, engagement, and journals—into a searchable, self-hosted personal memory archive.</b>
+  <b>MemWault is a private, self-hosted digital archive for preserving, organizing, and replaying personal social-media memories. It turns ephemeral Instagram Stories, Reels, and their surrounding context—music, locations, tags, engagement, and journals—into a searchable, self-hosted personal memory archive.</b>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-v2.4-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.4" />
-  <img src="https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React" />
-  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.12-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
+  <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React 19" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
 </p>
 
@@ -25,19 +25,20 @@
 
 - [Why MemWault?](#why-memwault)
 - [Key Features](#key-features)
+- [Engineering Highlights](#engineering-highlights)
 - [What MemWault Preserves](#what-memwault-preserves)
 - [Visual Tour](#visual-tour)
 - [Changelog & Evolution](#changelog--evolution)
 - [Developer Documentation](#-developer-documentation)
   - [Architecture & System Flow](#architecture--system-flow)
-  - [Data Model & Schemas](#data-model--schemas)
+  - [Memory Object Model](#memory-object-model)
   - [Authentication & Security](#authentication--security)
   - [Storage & Media Model](#storage--media-model)
   - [Repository Structure](#repository-structure)
   - [Quickstart & Development](#quickstart--development)
   - [Docker Setup](#docker-setup)
   - [Configuration](#configuration)
-  - [Troubleshooting](#troubleshooting)
+  - [Current Limitations](#current-limitations)
   - [Design Decisions](#design-decisions)
   - [License](#license)
 
@@ -49,8 +50,8 @@
 
 Instagram stores the temporary interface around your memories, but it doesn't give you a permanent, independent memory archive with its full context preserved. MemWault exists to make that archive yours.
 
-- 🔒 **Data Ownership & Portability:** Move away from cloud lock-in by maintaining an independent local copy of your memory history.
-- 📜 **Context Preservation:** Capture not just the raw photo or video, but the surrounding narrative—music, locations, tags, engagement, and personal journal notes.
+- 🔒 **Data Ownership & Portability:** Maintain an independent local copy of your memory history free from cloud lock-in.
+- 📜 **Context Preservation:** Capture not just the photo or video, but the surrounding narrative—music, locations, tags, engagement, and personal journal notes.
 - 🛡️ **Account Safety & Privacy:** Scraper workflows operate locally under strict rate limits, explicitly avoiding volatile endpoints to protect your account.
 - 🏛️ **Preservation Over Reinterpretation:** Media is stored in its authentic raw format, with metadata layered around it rather than altering the archived Story itself.
 
@@ -59,25 +60,35 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 ## Key Features
 
 - 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories and Reels reposted to Stories as a distinct archival classification problem.
-- 📊 **Perpetual Engagement Metrics:** Permanently preserve Story viewer counts and like counts alongside the archived media and metadata.
+- 📊 **Archived Engagement Metrics:** Preserve Story viewer counts and like counts captured at archival time alongside media and metadata.
 - 📝 **Sidecar Markdown Journaling:** Write rich notes auto-synced as human-readable `.md` files right next to `photo.jpg` on disk so your thoughts are never trapped inside a database.
 - 🎒 **Portable Metadata & EXIF:** Option to embed archival context directly into media files so memories remain meaningful even outside MemWault.
-- 📅 **Continuous Semantic Zoom Timeline:** Transition smoothly between **Years**, **Months**, and **Days** views with Framer Motion liquid spring physics.
+- 📅 **Continuous Semantic Zoom Timeline:** Transition smoothly between **Years**, **Months**, and **Days** views using Framer Motion spring-based animations.
 - 🗺️ **Spatial Story Map:** Explore your memories geographically on an interactive Leaflet map featuring spatial clustering and bounding-box search.
 - 🎨 **Custom Highlight Albums:** Group your local stories into custom albums with dynamic 4-image grid covers, video thumbnails, and local cover uploads.
-- 🎵 **iTunes Music Integration:** Embedded mini-player that streams 30-second high-fidelity previews for songs attached to your stories.
+- 🎵 **iTunes Music Integration:** Embedded mini-player that streams 30-second audio previews for songs attached to your stories.
+
+---
+
+## Engineering Highlights
+
+- ⚡ **Asynchronous FastAPI Backend:** SQLAlchemy 2.0 ORM with async connection pooling (`aiosqlite` / `asyncpg`).
+- 🔄 **Distributed Ingestion Pipeline:** Redis + Celery worker queue for periodic background polling.
+- 💾 **Hybrid Media Abstraction:** Local filesystem storage with `.md` sidecars or S3-compatible object storage (MinIO / AWS S3).
+- 🔑 **Dual-Layer Security Architecture:** Application JWT bearer tokens combined with local browser session persistence.
+- 📱 **React 19 PWA Interface:** React Router 7 memory-preserved outlets (`useOutlet()`) preventing page unmount glitches.
 
 ---
 
 ## What MemWault Preserves
 
-MemWault doesn't just download a media file—it preserves the **entire context around the file**:
+MemWault treats a Story as a **structured memory object** rather than a simple media file:
 
 ```text
-Single Archived Memory
+Single Archived Memory Object
 ├── 📷 Raw Media Asset      (Original .jpg photo or .mp4 video)
-├── ⏱️ Capture Timestamp    (UTC creation timestamp)
-├── 💬 Story Caption       (Text stickers & overlay captions)
+├── ⏱️ Story Timestamp      (UTC creation timestamp)
+├── 💬 Story Text & Caption (Text stickers & overlay captions)
 ├── 🎵 Music Track         (Song title, artist name, and 30s preview URL)
 ├── 📍 Geolocation         (Named location venue & GPS coordinates)
 ├── 🏷️ User Mentions       (Tagged usernames)
@@ -112,7 +123,7 @@ Single Archived Memory
     <td width="50%" align="center">
       <b>Memories Timeline (Months Zoom)</b><br/>
       <img src="screenshots/memories_month_view.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Clean grid layout morphing with liquid spring 3-pill zoom control</sub>
+      <sub>Clean grid layout morphing with spring-based 3-pill zoom control</sub>
     </td>
     <td width="50%" align="center">
       <b>Memories Timeline (Days Zoom)</b><br/>
@@ -227,11 +238,11 @@ Single Archived Memory
 ## Changelog & Evolution
 
 ### Version 2.4 — Engagement, Privacy & UI
-- **Perpetual Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.
+- **Archived Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.
 - **Account Safety Architecture:** Documented the decision to avoid scraping individual viewer lists to reduce account restriction risks.
 - **EXIF/XMP Context Embedding:** Embedded captions, music, locations, and engagement directly into media metadata.
-- **Unified Liquid Spring Controls:** Segmented controls and filter toggles across Timeline, Story Detail, Highlights, and Settings feature Framer Motion spring physics.
-- **Foreground Desktop Windows:** Windows Explorer and interactive browser sessions pop up smoothly in the foreground.
+- **Unified Spring-Based Controls:** Standardized segmented controls and filter toggles across Timeline, Story Detail, Highlights, and Settings using Framer Motion.
+- **Native Desktop Integration:** Windows Explorer and interactive Playwright browser sessions launch directly in native desktop windows when running on host OS.
 
 ### Version 2.3 — Sidecar Journal & Dynamic Highlights
 - **Dynamic Highlight Grid:** Covers dynamically render as 4-Image Grids, 3-Image layouts, or vertical dual-views.
@@ -239,7 +250,7 @@ Single Archived Memory
 
 ### Version 2.2 — Archives & Search Update
 - **Robust Archives (Trash):** Soft-delete and restore individual or bulk-selected stories.
-- **Full-Text Backend Search Engine:** Instantaneous SQL search engine across historical stories.
+- **Full-Text Backend Search:** Full-text SQL search engine across historical stories.
 
 ### Version 2.1 — Highlights & Albums
 - **Highlights & Albums Integration:** Curate downloaded stories into custom Highlight Albums locally.
@@ -255,12 +266,12 @@ Single Archived Memory
 
 ## Architecture & System Flow
 
-MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite persistence, configurable local/S3 media storage, and background processing through Celery/Redis.
+MemWault uses a React 19 PWA frontend backed by FastAPI, with PostgreSQL/SQLite persistence, configurable local/S3 media storage, and background processing through Celery/Redis.
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │                   MemWault UI (PWA)                    │
-│            React 18 + Vite + Framer Motion             │
+│            React 19 + Vite + Framer Motion             │
 └───────────────────────────┬────────────────────────────┘
                             │ REST API / HTTP
                             ▼
@@ -292,19 +303,11 @@ MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite per
 
 ---
 
-## Data Model & Schemas
+## Memory Object Model
 
-MemWault relies on SQLAlchemy 2.0 ORM schemas designed for high-performance timeline queries and multi-tenant data isolation:
+The `Story` entity is the core archival object. Rather than treating media as a standalone file, MemWault models the Story as a media asset plus its temporal, spatial, compositional, social, engagement, and archival context.
 
-```text
-Database Relational Schemas
-├── User                 (id, username, password_hash, created_at)
-├── Story                (id, user_id, media_url, media_type, captured_at, caption, location, latitude, longitude, music_title, music_artist, viewer_count, like_count, is_archived)
-├── Highlight            (id, user_id, title, cover_url, cover_type, created_at)
-├── HighlightItem        (id, highlight_id, story_id, position)
-├── InstagramSession     (id, user_id, session_data_encrypted, updated_at)
-└── ScrapeLog            (id, user_id, status, items_count, executed_at)
-```
+📖 **Detailed Memory Model Guide:** [`docs/memory-model.md`](docs/memory-model.md)
 
 ---
 
@@ -316,27 +319,28 @@ MemWault separates dashboard user access from Instagram session credentials:
 MemWault Application
 ├── 1. Local Browser Login (Playwright / Chrome)
 │   └── Instagram session established locally
-│   └── Encrypted session cookies persisted in DB
+│   └── Session cookies persisted in DB
 └──────► 2. Celery Scraper Engine (instagrapi)
-         └── Fetches active stories & perpetual metrics
+         └── Fetches active stories & archived engagement
                  │
                  ▼
          3. FastAPI REST API (Bearer JWT Auth)
                  │
                  ▼
-         4. React 18 Dashboard UI
+         4. React 19 Dashboard UI
 ```
 
 - **Dashboard Auth:** FastAPI issues signed JSON Web Tokens (JWT) stored in `localStorage`. Passwords are salt-hashed using `bcrypt`.
-- **Scraper Safety:** MemWault deliberately avoids automated individual viewer-list retrieval to reduce account risk and limit interaction with volatile Instagram endpoints.
+- **Scraper Safety:** MemWault deliberately avoids automated individual viewer-list retrieval to reduce account risk. Legacy `StoryViewer` schemas and endpoints remain solely for compatibility with older historical archives.
 
-📖 **Detailed Security Guide:** [`docs/authentication.md`](docs/authentication.md)
+📖 **Detailed Security Guide:** [`docs/authentication.md`](docs/authentication.md)  
+📖 **Detailed Instagram Ingestion Guide:** [`docs/instagram.md`](docs/instagram.md)
 
 ---
 
 ## Storage & Media Model
 
-MemWault keeps your archive under your control, using local storage or a storage provider you configure yourself:
+MemWault keeps your archive under your control, supporting local and self-controlled storage configurations:
 
 - **Local / Self-Hosted:** SQLite / PostgreSQL database + local drive filesystem (`media/<user_id>/<year>/<month>/<story_id>.jpg`) and `.md` sidecars.
 - **Self-Controlled Object Storage:** MinIO container.
@@ -358,7 +362,7 @@ MemWault/
 │   │   │   ├── scraper/   # Instagram browser login & scraper engine
 │   │   │   └── models.py  # SQLAlchemy database schemas
 │   │   └── requirements.txt
-│   └── frontend/          # React 18 + Vite PWA frontend
+│   └── frontend/          # React 19 + Vite PWA frontend
 │       ├── src/
 │       │   ├── components/# Framer Motion UI components (FastScrollbar, StoryCard)
 │       │   ├── pages/     # Timeline, StoryDetail, MapView, Settings, Archives
@@ -367,6 +371,10 @@ MemWault/
 ├── docs/                  # In-depth technical & architectural documentation
 │   ├── architecture.md
 │   ├── authentication.md
+│   ├── memory-model.md
+│   ├── instagram.md
+│   ├── api.md
+│   ├── deployment.md
 │   ├── storage.md
 │   ├── metadata.md
 │   └── configuration.md
@@ -417,43 +425,39 @@ Open **`http://localhost:5173`** in your browser.
 
 ## Docker Setup
 
-To run MemWault using Docker Compose (PostgreSQL, Redis, MinIO, FastAPI, Celery, and React frontend):
+Launch the complete containerized stack (PostgreSQL, Redis, MinIO, FastAPI, Celery Workers, Celery Beat, and Nginx React 19 PWA):
 
 ```bash
-# Clone repository & navigate to directory
 cd techstack
-
-# Launch full containerized environment
-docker compose up --build -d
+docker compose up -d --build
 ```
+
+📖 **Detailed Deployment Guide:** [`docs/deployment.md`](docs/deployment.md)
 
 ---
 
 ## Configuration
 
-MemWault is configured via environment variables.
+MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./memwault.db` | SQLAlchemy database URI |
-| `STORAGE_TYPE` | `local` | Storage mode (`local` or `s3`) |
-| `STORAGE_LOCAL_DIR` | `./media` | Host filesystem path for media storage |
-| `SECRET_KEY` | `your_secret_key_here` | Secret key for JWT signing |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis broker URI for Celery tasks |
+| `MEMWAULT_DATABASE_TYPE` | `sqlite` | Database engine (`sqlite` or `postgres`) |
+| `MEMWAULT_POSTGRES_HOST` | `localhost` | PostgreSQL host address |
+| `MEMWAULT_REDIS_URL` | `redis://localhost:6379/0` | Redis broker URI for Celery tasks |
+| `MEMWAULT_STORAGE_TYPE` | `local` | Storage mode (`local` or `s3`) |
+| `MEMWAULT_STORAGE_LOCAL_DIR` | `./data/media` | Host filesystem path for media storage |
+| `MEMWAULT_SECRET_KEY` | *[Change in Prod]* | Secret key for JWT signing |
 
-📖 **Detailed Configuration Guide:** [`docs/configuration.md`](docs/configuration.md)
+📖 **Detailed Configuration Guide:** [`docs/configuration.md`](docs/configuration.md)  
+📖 **REST API Reference:** [`docs/api.md`](docs/api.md)
 
 ---
 
-## Troubleshooting
+## Current Limitations
 
-### 1. Windows Explorer / Browser Login Doesn't Pop Up
-- **Symptom:** Clicking "Show in Folder" or "Connect Instagram" doesn't bring Explorer or Chromium to the foreground.
-- **Solution:** Ensure uvicorn is running in an interactive user shell (not as an isolated background service). The backend uses `cmd.exe /c start ""` to force foreground desktop window creation.
-
-### 2. Celery Worker Redis Connection Refused
-- **Symptom:** `Error 111 connecting to localhost:6379. Connection refused.`
-- **Solution:** Verify Redis is installed and running on default port `6379` (`redis-server` or via Docker).
+- **Volatile Endpoints:** Instagram integration depends on private endpoints and rate limits; changes by Instagram may require session updates.
+- **Desktop Integration:** Native file manager ("Show in Folder") and Playwright browser popups require the backend to run on the host OS; containerized environments (Docker) cannot directly launch host desktop applications.
 
 ---
 

@@ -1,44 +1,22 @@
 # MemWault — Configuration Reference
 
-MemWault is configured using environment variables.
+MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 
 ---
 
-## ⚙️ Environment Variables
+## ⚙️ Environment Variables Reference
 
-### Core Server Settings
-```env
-APP_NAME=MemWault
-DEBUG=False
-SECRET_KEY=your_super_secret_jwt_key_here
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
-```
+| Variable | Default Value | Purpose |
+| :--- | :--- | :--- |
+| `MEMWAULT_DATABASE_TYPE` | `sqlite` | Database engine (`sqlite` or `postgres`) |
+| `MEMWAULT_POSTGRES_HOST` | `localhost` | PostgreSQL server host |
+| `MEMWAULT_POSTGRES_PORT` | `5432` | PostgreSQL server port |
+| `MEMWAULT_POSTGRES_USER` | `memwault` | PostgreSQL database user |
+| `MEMWAULT_POSTGRES_PASSWORD` | — | PostgreSQL database password |
+| `MEMWAULT_POSTGRES_DB` | `memwault` | PostgreSQL database name |
+| `MEMWAULT_REDIS_URL` | `redis://localhost:6379/0` | Redis broker URI for Celery tasks |
+| `MEMWAULT_STORAGE_TYPE` | `local` | Storage mode (`local` or `s3`) |
+| `MEMWAULT_STORAGE_LOCAL_DIR` | `./data/media` | Local filesystem media directory |
+| `MEMWAULT_SECRET_KEY` | *[Change in Prod]* | Secret key for JWT signing |
 
-### Database Settings
-```env
-# SQLite (Default local setup)
-DATABASE_URL=sqlite+aiosqlite:///./memwault.db
-
-# PostgreSQL (Production setup)
-# DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/memwault
-```
-
-### Media Storage Settings
-```env
-STORAGE_TYPE=local  # Options: 'local', 's3'
-STORAGE_LOCAL_DIR=./media
-
-# S3 Configuration (Optional)
-# S3_BUCKET_NAME=my-memwault-bucket
-# S3_ENDPOINT_URL=https://s3.amazonaws.com
-# S3_ACCESS_KEY_ID=your_access_key
-# S3_SECRET_ACCESS_KEY=your_secret_key
-```
-
-### Celery & Redis Settings
-```env
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
-```
+> **Security Note:** Replace the default development `MEMWAULT_SECRET_KEY` with a strong random secret before deploying outside local development environments.

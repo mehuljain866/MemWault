@@ -291,19 +291,18 @@ MemWault uses a React 19 PWA frontend backed by FastAPI, with PostgreSQL/SQLite 
 ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
 │  Database   │     │ Media Storage│     │ Redis Queue  │
 │ SQLite / PG │     │ Local / S3   │     │ Task Broker  │
-└─────────────┘     └──────────────┘     └──────┬───────┘
-                                                │
-                                                ▼
-                                         ┌──────────────┐
-                                         │Celery Workers│
-                                         │Scraper Engine│
-                                         └──────┬───────┘
-                                                │
-                                                ▼
-                                         ┌──────────────┐
-                                         │  Instagram   │
-                                         │ Mobile / Web │
-                                         └──────────────┘
+└──────▲──────┘     └──────────────┘     └──────┬───────┘
+       │ Session                                │
+       │ Cookies                                ▼
+┌──────┴─────────────────────┐           ┌──────────────┐
+│ Host Browser Session       │           │Celery Workers│
+│ (Playwright / Chrome)      │           │Scraper Engine│
+└──────────────┬─────────────┘           └──────┬───────┘
+               │ Auth                           │ Ingestion
+               ▼                                ▼
+┌────────────────────────────────────────────────────────┐
+│                 Instagram Mobile & Web                 │
+└────────────────────────────────────────────────────────┘
 ```
 
 📖 **Detailed Architecture Guide:** [`docs/architecture.md`](docs/architecture.md)

@@ -1,176 +1,227 @@
 # MemWault — Digital Memory Preservation & Archiving
 
-> **Project Status:** v2.4
+<p align="center">
+  <img src="screenshots/The dashboard home screen.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+</p>
 
-## What is MemWault?
+<p align="center">
+  <a href="#key-features"><b>Key Features</b></a> •
+  <a href="#visual-tour"><b>Visual Tour</b></a> •
+  <a href="#quickstart"><b>Quickstart</b></a> •
+  <a href="#architecture"><b>Architecture</b></a> •
+  <a href="#license"><b>License</b></a>
+</p>
 
-MemWault is a private, local-first archive designed to permanently preserve, organize, and replay your Instagram stories. It ensures personal data portability by acting as a self-hosted social media dashboard that combines memories into one unified timeline.
-
-![UI Demo Placeholder](assets/demo.gif)
-*(UI Demo Placeholder - Add a GIF of the timeline and map view here)*
-
-Over the last decade, Instagram Stories have become the default medium for documenting our daily lives. MemWault was built to solve specific archiving challenges:
-* **Personal Data Portability:** If you lose access to an account, you lose your personal history. MemWault ensures you physically own a local copy of your data.
-* **Preservation of Rich Context:** Native exports don't let you easily search by tagged friends, locations, or music. MemWault parses and indexes this rich metadata locally for powerful searching and geographic mapping.
-* **Extensibility:** By storing all stories and metadata in a local SQLite/Postgres database, it opens the door to personal analytics, journaling, and custom integrations.
-* **Privacy & Security:** A self-hosted archive means your personal memories remain entirely on your own hardware.
-
----
-
-## Core Platform Features
-
-* **Local-First Archiving:** Full ownership of your data using a local SQLite/PostgreSQL database and local media storage (or S3/MinIO), providing an independent backup of your accounts.
-* **Interactive Map View:** Geographic plotting, clustering, and bounding-box filtering of your memories on an immersive interactive map.
-* **Custom Highlight Albums:** Curate and group your downloaded local stories into custom albums independently of Instagram.
-* **Robust Full-Text Database Search:** A lightning-fast, backend SQL search engine. Instantly query your entire archive by location, caption, music title, or artist name.
-* **Smart Media Segregation:** Automatically segregates "Reels reposted to Stories" from your organic memories, placing them in their own dedicated tab so they don't clutter your personal timeline.
-* **Perpetual Viewer Tracking:** Automatically captures and permanently stores your story viewers just before the story expires, dynamically rendering them with clickable links to their Instagram profiles.
-* **Meaning-Making Journal Editor (v2.3):** A core feature that allows you to write markdown-formatted journal entries attached directly to specific memories. Includes a highly customizable, side-by-side UI that seamlessly syncs `.md` files directly to your storage drive.
-* **Music Integrations & iTunes API:** Features a built-in Music mini-player that instantly streams high-quality 30-second previews from the iTunes API for the songs attached to your stories.
-* **PWA Offline Capabilities:** Progressive Web App architecture ensuring fast loading and offline capabilities.
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-v2.4-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.4" />
+  <img src="https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.12-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
+  <img src="https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="Database" />
+  <img src="https://img.shields.io/badge/Privacy-100%25%20Local--First-34C759?style=for-the-badge&logo=lock&logoColor=white" alt="Local First" />
+</p>
 
 ---
 
-## Version Updates
+## 🌟 What is MemWault?
 
-### Version 2.4 (The Engagement & Privacy Update)
-* **Perpetual Engagement Metrics:** Safely and indefinitely archives your Story Viewer Count and Story Like Count into the database and embeds them directly into your file's EXIF metadata.
-* **Privacy-First Design:** Implemented strict guardrails to avoid Instagram's 48-hour hard-deletion constraints and anti-bot systems by intentionally opting out of fetching individual viewer identity lists, guaranteeing zero account bans.
-* **Likers Metadata Preservation:** Story likes are permanently captured directly from Instagram's archive servers, even for expired stories that are years old.
-
-### Version 2.3 (The Highlights & Journaling Update)
-* **Dynamic Highlight Grid:** Your Highlight Albums now automatically adapt to their contents. Covers dynamically render as stunning 4-Image Grids, 3-Image layouts, or full vertical dual-views depending on the stories inside them.
-* **Intelligent Media Previews:** Full support for video thumbnails inside Album Covers — video stories automatically loop quietly inside their grid cells.
-* **Custom Cover Uploads:** Complete freedom to select the Official Cover, your Latest Story, or upload your own completely custom image from your local file system to serve as an album cover.
-* **Contextual Journaling:** Core feature addition allowing you to attach rich Markdown notes to any story. The editor runs side-by-side with your media for effortless journaling.
-* **Native Sidecar Files:** Journal notes aren't just locked in the database; they are automatically written as `.md` files directly next to your media files on your local drive (or S3) for ultimate data portability.
-* **Hyper-Customizable UI:** The editor interface can be toggled between "Modern (Docs)" and "Invisible" design philosophies, with fully customizable ribbon tools via the Settings dashboard.
-
-### Version 2.2 (The Archive & Search Update)
-* **Robust Archives (Trash):** Soft-delete/archive individual or bulk-selected stories from the main timeline. Archived stories are hidden from Memories and Reels but can be viewed and fully restored back to the timeline from the Archives page.
-* **Timeline Bulk Actions:** Enter multi-select mode directly from the Timeline, select multiple memories, and archive them in one click via a sleek, glassmorphic bottom control bar.
-* **Full-Text Database Search Engine:** Complete migration from client-side fuzzy searching to a powerful backend SQL engine, allowing for instantaneous queries across thousands of historical stories.
-
-### Version 2.1 (The Highlights Update)
-* **Highlights & Albums Integration:** Curate and group your downloaded stories into custom Highlight Albums locally.
-* **Robust Media Sync & S3 URLs:** Improved backend APIs that dynamically generate pre-signed S3 URLs for Highlights, ensuring your covers and story media load perfectly even in decoupled storage environments.
-
-### Version 2.0 (The UI & Maps Update)
-* **Smooth Page & Layout Transitions:** Enjoy buttery-smooth page transitions (slide and fade) between tabs, and watch your media grid naturally glide and scale when zooming between Day, Month, and Year views.
-* **Rapid Chronological Navigation:** Built-in `FastScrollbar` allows you to seamlessly drag and jump through months or years of memories in milliseconds, replacing tedious manual scrolling.
-* **Map View:** The initial release of the interactive map clustering feature.
+**MemWault** is a private, local-first digital archive engineered to permanently preserve, organize, and replay your personal Instagram stories, reels, and social memories. It guarantees 100% personal data portability by operating as a self-hosted memory vault with liquid continuous timeline zooming, sidecar markdown journaling, spatial geographic mapping, and iTunes music stream integration.
 
 ---
 
-## Tech Stack & Architecture
+## ✨ Key Features
 
-MemWault is designed as a self-hosted full-stack application relying on a modern Python and JavaScript ecosystem.
+- 📅 **Continuous Semantic Zoom Timeline:** Transition seamlessly between **Years**, **Months**, and **Days** zoom states using Framer Motion liquid spring physics.
+- 📖 **Meaning-Making Markdown Journaling:** Attach rich markdown journal notes directly to your memories. Notes auto-sync as `.md` sidecar files right next to your media files on disk.
+- 🗺️ **Spatial Story Map:** Explore your memories geographically on an interactive Leaflet map featuring spatial clustering and bounding-box search.
+- 🎨 **Custom Highlight Albums:** Group your local stories into custom albums with dynamic 4-image grid covers, video thumbnails, and local cover uploads.
+- 🎵 **iTunes Music Integration:** Built-in mini-player that streams 30-second high-fidelity previews for songs attached to your stories.
+- ⚡ **FastScrollbar Chronological Scrubbing:** Drag through years of historical memories in milliseconds with high-frequency timeline scrubbing.
+- 🔒 **100% Private & Self-Hosted:** All database records, media assets, and metadata reside exclusively on your local storage drive or personal S3 bucket.
 
-* **Frontend:** React, Vite, Framer Motion, and Leaflet JS built as a PWA (Progressive Web App).
-* **Backend:** FastAPI (Python) web server providing a highly concurrent async REST API.
-* **Database:** PostgreSQL (production) or SQLite (local development) managed via SQLAlchemy 2.0 and Alembic.
-* **Background Workers:** Celery + Redis for scheduled story polling and scraping tasks via `instagrapi`.
-* **Storage:** Local directory structure or an S3-compatible object storage (MinIO/AWS) via `boto3`.
+---
 
-### Repository Layout
+## 📸 Visual Tour
+
+### 1. Dashboard & Continuous Timeline
+
+<table align="center" width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Dashboard & Analytics Overview</b><br/>
+      <img src="screenshots/The dashboard home screen.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Live stats, total story counts, storage consumption, and system status</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Dedicated Reels Gallery</b><br/>
+      <img src="screenshots/The reels tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Automatically segregated reels view with date headers and duration badges</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Memories Timeline (Months Zoom)</b><br/>
+      <img src="screenshots/The memories tab in the month selector is on.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Clean grid layout morphing with liquid spring 3-pill zoom control</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Memories Timeline (Days Zoom)</b><br/>
+      <img src="screenshots/The memory have when particular days zoom is on.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Granular day-by-day view with high-res aspect ratio media cards</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+### 2. Memory Studio & Sidecar Journaling
+
+<table align="center" width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Sidecar Markdown Journal Editor</b><br/>
+      <img src="screenshots/Journal of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Write rich markdown notes auto-synced as .md sidecar files next to media on disk</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Memory Info & EXIF Metadata</b><br/>
+      <img src="screenshots/Info tab of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Detailed EXIF metadata, capture timestamp, duration, and local file paths</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>iTunes Music Preview Player</b><br/>
+      <img src="screenshots/Music tab of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Stream 30-second audio previews for soundtrack attached to your memory</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Data Manifest & JSON Export</b><br/>
+      <img src="screenshots/Data page of the memories of a memory.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Inspect raw JSON payload, story ID, and system data properties</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+### 3. Custom Highlight Albums & Spatial Map
+
+<table align="center" width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Highlight Albums Gallery</b><br/>
+      <img src="screenshots/The highlights tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Curated collections with dynamic 4-image grid covers and album titles</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Highlight Player & Audio Stream</b><br/>
+      <img src="screenshots/A particular highlight with the music and enabled.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Full-screen story playback inside custom highlight albums with music</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Opened Highlight Collection</b><br/>
+      <img src="screenshots/After opening up a highlight.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Explore stories inside a specific highlight album</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Album Options & Controls</b><br/>
+      <img src="screenshots/Three dots menu of a highlight.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Quick management actions, cover edits, and story additions</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Spatial Map (Split Grid View)</b><br/>
+      <img src="screenshots/Map in the bento grid.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Interactive spatial map with location pins and bento place cards</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Spatial Map (Fullscreen View)</b><br/>
+      <img src="screenshots/Map full screen.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Immersive full-screen geographic map view</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+### 4. Settings, Maintenance & Archives
+
+<table align="center" width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Settings & Instagram Connection</b><br/>
+      <img src="screenshots/Settings page first as we open the settings page.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Instagram session management, theme controls, and map style toggles</sub>
+    </td>
+    <td width="50%" align="center">
+      <b>Scrape Logs & Maintenance</b><br/>
+      <img src="screenshots/Data scrape history in the settings tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <sub>Scrape execution history, local folder opener, and metadata rescanning</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <b>Archives & Trash Recovery</b><br/>
+      <img src="screenshots/Archives tab.jpg" width="80%" style="border-radius: 8px;" /><br/>
+      <sub>Soft-delete trash manager for restoring or permanently deleting archived stories</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
 ```text
-MemWault/
+MemWault Workspace
 ├── techstack/
-│   ├── backend/           # FastAPI backend & Celery workers
+│   ├── backend/           # FastAPI async server, SQLite/PostgreSQL models
 │   │   ├── app/
-│   │   │   ├── api/       # API endpoints (Auth, Stories, Session)
-│   │   │   ├── scraper/   # Instagram scraper & metadata parser
-│   │   │   └── storage/   # S3 / Local media storage client
-│   │   └── requirements.txt # Python dependencies
-│   ├── frontend/          # React + Vite frontend
-│   │   ├── src/
-│   │   │   ├── components/# React UI Components (FastScrollbar, StoryPlayer)
-│   │   │   ├── pages/     # Timeline, MapView, Settings, Archives, StoryDetail
-│   │   │   └── services/  # API service client
-│   │   └── package.json   # Node.js dependencies
-│   └── docker-compose.yml # Dev environment (Postgres, Redis, MinIO)
-└── README.md              # This file
+│   │   │   ├── api/       # REST API endpoints (Auth, Stories, Storage)
+│   │   │   ├── scraper/   # Instagram browser login & scraper engine
+│   │   │   └── models.py  # SQLAlchemy database schemas
+│   │   └── requirements.txt
+│   └── frontend/          # React 18 + Vite PWA frontend
+│       ├── src/
+│       │   ├── components/# Framer Motion components (FastScrollbar, StoryCard)
+│       │   ├── pages/     # Timeline, StoryDetail, MapView, Settings
+│       │   └── services/  # API service client
+│       └── package.json
+├── screenshots/           # HD UI screenshots showcase
+└── README.md
 ```
 
----
-
-## Authentication Architecture
-
-Because this is a highly data-sensitive project, absolute transparency into the authentication flow is required. MemWault utilizes a robust dual-layer authentication architecture:
-
-### 1. Instagram Session Management (Scraper Auth)
-MemWault uses `instagrapi` to emulate an official Instagram mobile client. 
-* **Secure Login:** You provide your Instagram credentials (or a session ID) which are sent securely to Instagram's servers. 
-* **Cookie Handling & Anti-Ban:** The backend stores the resulting Instagram session cookies securely in the database (`InstagramSession` model). It actively rotates requests, mimics human delay, and adheres strictly to rate limits to avoid shadowbans or account restrictions.
-* **No Third Parties:** Your credentials and cookies are never sent to a third-party server. They live entirely on your local machine.
-
-### 2. App-Level Authentication (FastAPI & React)
-To secure the MemWault dashboard itself (ensuring nobody else on your network can view your memories):
-* **JWT Tokens:** FastAPI issues secure JSON Web Tokens (JWT) upon login. The React frontend stores this token and passes it in the `Authorization` header for all REST API requests.
-* **Bcrypt Hashing:** App-level user passwords are computationally hashed using `bcrypt` with a unique salt before being stored in the database.
-* **Database User Isolation:** A strict multi-tenant architecture is enforced at the ORM layer. Every database query explicitly filters by `user_id`, ensuring absolute data isolation if you host this for multiple family members.
-
-### End-to-End Auth Flow:
-1. User logs into the MemWault dashboard (App Auth) -> Receives JWT.
-2. User provides Instagram credentials in the Settings panel.
-3. Backend logs into Instagram (IG Auth) -> Retrieves and encrypts session cookies in the DB.
-4. Background Celery tasks use the stored IG cookies to periodically fetch new stories.
-5. The React UI requests stories from FastAPI, authenticated via JWT.
+- **Frontend:** React 18, Vite, Framer Motion, Leaflet.js, Lucide Icons
+- **Backend:** FastAPI, Python 3.12, SQLAlchemy 2.0, Playwright, Instagrapi
+- **Storage:** Local Drive / S3 Compatible Object Storage (MinIO / AWS)
 
 ---
 
-## Design Choices & Privacy Trade-offs
+## 🚀 Quickstart
 
-**Why doesn't MemWault extract the list of people who viewed my stories?**
-While older versions or other scrapers might attempt to fetch a literal list of story viewers, MemWault intentionally omits this feature to prioritize your account's safety. Instagram's modern anti-bot algorithms aggressively penalize automated fetching of viewer lists, leading to instant account shadowbans or permanent locks. Furthermore, Instagram permanently deletes viewer lists from their servers after 48 hours, making it impossible to retrieve them for older stories anyway.
-
-As a design philosophy, MemWault extracts only the perpetual engagement metrics (Viewer Count and Story Likes) and omits the individual viewer identities to ensure your long-term archiving runs silently, safely, and indefinitely.
-
----
-
-## Quick Start Guide (Manual Setup)
-
-### Prerequisites
-* Python 3.10+
-* Node.js 18+
-* Redis (Required for Celery background workers)
-* PostgreSQL (Optional, defaults to SQLite if not provided)
-
-### 1. Backend Setup
-
-Open a terminal, navigate to the backend directory, create a virtual environment, and install dependencies:
-
+### 1. Start the Backend Server
 ```bash
 cd techstack/backend
 python -m venv venv
-
-# Activate the environment
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-# source venv/bin/activate
-
+.\venv\Scripts\activate  # On Windows
 pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-Start the FastAPI backend server:
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Start the Celery worker (in a separate terminal, with venv activated):
-```bash
-celery -A app.worker worker --loglevel=info
-```
-
-### 2. Frontend Setup
-
-Open a new terminal, navigate to the frontend directory, install dependencies, and start Vite:
-
+### 2. Start the Frontend Application
 ```bash
 cd techstack/frontend
 npm install
 npm run dev
 ```
 
-Your MemWault dashboard will now be live at `http://localhost:5173`!
+Open **`http://localhost:5173`** in your web browser.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for details.

@@ -52,7 +52,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 
 - 🔒 **Data Ownership & Portability:** Maintain an independent local copy of your memory history free from cloud lock-in.
 - 📜 **Context Preservation:** Capture not just the photo or video, but the surrounding narrative—music, locations, tags, engagement, and personal journal notes.
-- 🛡️ **Account Safety & Privacy:** Scraper workflows operate locally under strict rate limits, explicitly avoiding volatile endpoints to protect your account.
+- 🛡️ **Account Safety & Privacy:** Scraper workflows operate locally with rate limiting and deliberately avoid volatile endpoints to reduce account restriction risk.
 - 🏛️ **Preservation Over Reinterpretation:** Media is stored in its authentic raw format, with metadata layered around it rather than altering the archived Story itself.
 
 ---

@@ -1049,19 +1049,19 @@ async def locate_local_media(
         
     try:
         if sys.platform == "win32":
-            import ctypes
             if file_path.exists():
-                # ShellExecuteW with "explore" and /select properly selects the file
-                # and brings the Explorer window to the foreground from a background service.
                 win_path = str(file_path.resolve())
-                ctypes.windll.shell32.ShellExecuteW(
-                    None, "open", "explorer.exe", f'/select,"{win_path}"', None, 1  # SW_SHOWNORMAL=1
+                # cmd /c start ensures the Explorer window comes to the foreground
+                # even when launched from a background uvicorn service process.
+                # The empty "" first arg is required as a window title when path has quotes.
+                subprocess.Popen(
+                    f'cmd.exe /c start "" explorer.exe /select,"{win_path}"',
+                    shell=True
                 )
             else:
                 folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
                 folder.mkdir(parents=True, exist_ok=True)
-                import os
-                os.startfile(str(folder.resolve()))
+                subprocess.Popen(f'cmd.exe /c start "" explorer.exe "{folder.resolve()}"', shell=True)
             return {"status": "success", "message": "File opened in Windows Explorer"}
         elif sys.platform == "darwin":
             if file_path.exists():
@@ -1102,9 +1102,7 @@ async def open_storage_folder(
 
     try:
         if sys.platform == "win32":
-            import os
-            # os.startfile uses ShellExecute which works correctly from background services
-            os.startfile(str(folder_path))
+            subprocess.Popen(f'cmd.exe /c start "" explorer.exe "{folder_path}"', shell=True)
         elif sys.platform == "darwin":
             subprocess.Popen(["open", str(folder_path)])
         else:

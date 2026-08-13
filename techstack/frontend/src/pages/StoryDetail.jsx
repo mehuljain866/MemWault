@@ -128,14 +128,16 @@ export default function StoryDetail() {
   const date = new Date(dateStrUtc)
   const isVideo = story.media_type === 2
 
+
   const SegmentedControl = ({ tabs, activeTab, onChange }) => (
     <div style={{
       display: 'flex',
       backgroundColor: 'var(--ios-border)',
-      borderRadius: '12px',
+      borderRadius: '20px',
       padding: '3px',
       marginBottom: '20px',
-      position: 'relative'
+      position: 'relative',
+      gap: '2px',
     }}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id
@@ -145,24 +147,41 @@ export default function StoryDetail() {
             onClick={() => onChange(tab.id)}
             style={{
               flex: 1,
-              padding: '8px 12px',
+              padding: '7px 12px',
               border: 'none',
-              backgroundColor: isActive ? 'var(--ios-bg-card)' : 'transparent',
+              backgroundColor: 'transparent',
               color: isActive ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-              borderRadius: '9px',
-              fontWeight: 600,
+              borderRadius: '16px',
+              fontWeight: isActive ? 700 : 500,
               fontSize: '13px',
               cursor: 'pointer',
-              boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-              transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease'
+              position: 'relative',
+              zIndex: 1,
+              transition: 'color 0.2s ease',
+              whiteSpace: 'nowrap',
             }}
           >
+            {isActive && (
+              <motion.span
+                layoutId="story-tab-pill"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '16px',
+                  background: 'var(--ios-bg-card)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                  zIndex: -1,
+                }}
+                transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+              />
+            )}
             {tab.label}
           </button>
         )
       })}
     </div>
   )
+
 
   const InfoRow = ({ icon: Icon, label, value, children }) => (
     <div 

@@ -199,18 +199,27 @@ export default function Timeline({ isReelView = false }) {
     )
   }
 
-  // Segment Filter Button
-  const SegmentButton = ({ active, onClick, icon: Icon, label }) => (
+  // Segment Filter Button — animated sliding pill
+  const SegmentButton = ({ active, onClick, icon: Icon, label, layoutId }) => (
     <button
       onClick={onClick}
       style={{
-        flex: 1, padding: '7px 10px', border: 'none', background: active ? 'var(--ios-bg-card)' : 'transparent',
+        flex: 1, padding: '7px 10px', border: 'none', background: 'transparent',
         borderRadius: '7px', color: active ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-        fontWeight: active ? 600 : 500, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease',
-        boxShadow: active ? '0 2px 6px rgba(0,0,0,0.12)' : 'none'
+        fontWeight: active ? 700 : 500, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '6px', cursor: 'pointer', position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
       }}
     >
+      {active && (
+        <motion.span
+          layoutId={layoutId || 'media-filter-pill'}
+          style={{
+            position: 'absolute', inset: 0, borderRadius: '7px',
+            background: 'var(--ios-bg-card)', boxShadow: '0 2px 6px rgba(0,0,0,0.14)', zIndex: -1,
+          }}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        />
+      )}
       <Icon size={15} /> {label}
     </button>
   )
@@ -246,27 +255,35 @@ export default function Timeline({ isReelView = false }) {
             {total} items
           </span>
 
-          {/* Clean 3-Pill Zoom Selector */}
+          {/* Clean animated 3-Pill Zoom Selector */}
           {!isSelectMode && (
             <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
-              <button 
-                onClick={() => setZoomLevel('year')} 
-                style={{ border: 'none', background: zoomLevel === 'year' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'year' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-              >
-                Years
-              </button>
-              <button 
-                onClick={() => setZoomLevel('month')} 
-                style={{ border: 'none', background: zoomLevel === 'month' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'month' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-              >
-                Months
-              </button>
-              <button 
-                onClick={() => setZoomLevel('day')} 
-                style={{ border: 'none', background: zoomLevel === 'day' ? 'var(--ios-bg-card)' : 'transparent', color: zoomLevel === 'day' ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '5px 14px', borderRadius: '16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-              >
-                Days
-              </button>
+              {[['year','Years'],['month','Months'],['day','Days']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setZoomLevel(val)}
+                  style={{
+                    border: 'none', background: 'transparent',
+                    color: zoomLevel === val ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+                    padding: '5px 14px', borderRadius: '16px',
+                    fontWeight: zoomLevel === val ? 700 : 500,
+                    fontSize: '13px', cursor: 'pointer',
+                    position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
+                  }}
+                >
+                  {zoomLevel === val && (
+                    <motion.span
+                      layoutId="zoom-pill"
+                      style={{
+                        position: 'absolute', inset: 0, borderRadius: '16px',
+                        background: 'var(--ios-bg-card)', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: -1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 36 }}
+                    />
+                  )}
+                  {label}
+                </button>
+              ))}
             </div>
           )}
 

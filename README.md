@@ -38,7 +38,7 @@
   - [Quickstart & Development](#quickstart--development)
   - [Docker Setup](#docker-setup)
   - [Configuration](#configuration)
-  - [Current Limitations](#current-limitations)
+  - [Known Limitations](#known-limitations)
   - [Design Decisions](#design-decisions)
   - [License](#license)
 
@@ -473,7 +473,7 @@ MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 
 ---
 
-## Current Limitations
+## Known Limitations
 
 - **Volatile Endpoints:** Instagram integration depends on private endpoints and rate limits; changes by Instagram may require session updates.
 - **Desktop Integration:** Native file manager ("Show in Folder") and Playwright browser popups require the backend to run on the host OS; containerized environments (Docker) cannot directly launch host desktop applications.

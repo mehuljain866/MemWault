@@ -75,7 +75,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 - ⚡ **Asynchronous FastAPI Backend:** SQLAlchemy 2.0 ORM with async connection pooling (`aiosqlite` / `asyncpg`).
 - 🔄 **Distributed Ingestion Pipeline:** Redis + Celery worker queue for periodic background polling.
 - 💾 **Hybrid Media Abstraction:** Local filesystem storage with `.md` sidecars or S3-compatible object storage (MinIO / AWS S3).
-- 🔑 **Dual-Layer Security Architecture:** Application JWT bearer tokens combined with local browser session persistence.
+- 🔑 **Separated Authentication Domains:** JWT-based MemWault application authentication and locally persisted Instagram browser sessions.
 - 📱 **Persistent UI Navigation:** React Router 7 outlet composition preserves page state across route transitions.
 
 ---

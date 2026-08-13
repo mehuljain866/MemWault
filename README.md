@@ -88,13 +88,14 @@ MemWault treats a Story as a **structured memory object** rather than a simple m
 Single Archived Memory Object
 ├── 📷 Original Media Asset (Original .jpg photo or .mp4 video)
 ├── ⏱️ Story Timestamp      (UTC creation timestamp)
-├── 💬 Story Text & Caption (Text stickers & overlay captions)
+├── 💬 Caption & Text Content (Raw caption & text sticker content)
+├── 🎨 Composition Manifest  (Visual layout state, sticker positioning & layers)
 ├── 🎵 Music Track         (Song title, artist name, and 30s preview URL)
 ├── 📍 Geolocation         (Named location venue & GPS coordinates)
 ├── 🏷️ User Mentions       (Tagged usernames)
 ├── 📈 Engagement Metrics  (Viewer Count & Story Like Count)
 ├── 📓 Sidecar Journal     (Human-authored Markdown .md file)
-└── 🎨 Highlight Metadata  (Album memberships & cover attributes)
+└── 🖼️ Highlight Metadata  (Album memberships & cover attributes)
 ```
 
 ---

@@ -134,7 +134,7 @@
   <tr>
     <td width="50%" align="center">
       <b>Spatial Map (Split Grid View)</b><br/>
-      <img src="screenshots/map_bento_grid.jpg" width="100%" style="border-radius: 8px;" /><br/>
+      <img src="screenshots/map_split_grid.png" width="100%" style="border-radius: 8px;" /><br/>
       <sub>Interactive spatial map with location pins and bento place cards</sub>
     </td>
     <td width="50%" align="center">

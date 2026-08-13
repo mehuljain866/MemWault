@@ -30,11 +30,15 @@
 - [Changelog & Evolution](#changelog--evolution)
 - [Developer Documentation](#-developer-documentation)
   - [Architecture & System Flow](#architecture--system-flow)
+  - [Data Model & Schemas](#data-model--schemas)
   - [Authentication & Security](#authentication--security)
   - [Storage & Media Model](#storage--media-model)
   - [Repository Structure](#repository-structure)
   - [Quickstart & Development](#quickstart--development)
+  - [Docker Setup](#docker-setup)
   - [Configuration](#configuration)
+  - [Troubleshooting](#troubleshooting)
+  - [Design Decisions](#design-decisions)
   - [License](#license)
 
 ---
@@ -288,6 +292,22 @@ MemWault uses a React PWA frontend backed by FastAPI, with PostgreSQL/SQLite per
 
 ---
 
+## Data Model & Schemas
+
+MemWault relies on SQLAlchemy 2.0 ORM schemas designed for high-performance timeline queries and multi-tenant data isolation:
+
+```text
+Database Relational Schemas
+├── User                 (id, username, password_hash, created_at)
+├── Story                (id, user_id, media_url, media_type, captured_at, caption, location, latitude, longitude, music_title, music_artist, viewer_count, like_count, is_archived)
+├── Highlight            (id, user_id, title, cover_url, cover_type, created_at)
+├── HighlightItem        (id, highlight_id, story_id, position)
+├── InstagramSession     (id, user_id, session_data_encrypted, updated_at)
+└── ScrapeLog            (id, user_id, status, items_count, executed_at)
+```
+
+---
+
 ## Authentication & Security
 
 MemWault separates dashboard user access from Instagram session credentials:
@@ -395,6 +415,20 @@ Open **`http://localhost:5173`** in your browser.
 
 ---
 
+## Docker Setup
+
+To run MemWault using Docker Compose (PostgreSQL, Redis, MinIO, FastAPI, Celery, and React frontend):
+
+```bash
+# Clone repository & navigate to directory
+cd techstack
+
+# Launch full containerized environment
+docker compose up --build -d
+```
+
+---
+
 ## Configuration
 
 MemWault is configured via environment variables.
@@ -408,6 +442,26 @@ MemWault is configured via environment variables.
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis broker URI for Celery tasks |
 
 📖 **Detailed Configuration Guide:** [`docs/configuration.md`](docs/configuration.md)
+
+---
+
+## Troubleshooting
+
+### 1. Windows Explorer / Browser Login Doesn't Pop Up
+- **Symptom:** Clicking "Show in Folder" or "Connect Instagram" doesn't bring Explorer or Chromium to the foreground.
+- **Solution:** Ensure uvicorn is running in an interactive user shell (not as an isolated background service). The backend uses `cmd.exe /c start ""` to force foreground desktop window creation.
+
+### 2. Celery Worker Redis Connection Refused
+- **Symptom:** `Error 111 connecting to localhost:6379. Connection refused.`
+- **Solution:** Verify Redis is installed and running on default port `6379` (`redis-server` or via Docker).
+
+---
+
+## Design Decisions
+
+Some features have been deliberately removed or avoided to preserve archival authenticity, reduce account risk, or prevent unnecessary software complexity.
+
+📖 **See [`removed_features.md`](removed_features.md) for full design rationale regarding removed timeline date filters and custom music player overlays.**
 
 ---
 

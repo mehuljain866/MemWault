@@ -34,7 +34,7 @@ Every attribute in a MemWault memory object is mapped to its exact origination s
 | **Caption & Text Content** | Story Sticker Payload | Extracted from raw text sticker JSON manifest | Source Authoritative |
 | **Composition Manifest** | Story Sticker Payload | Parsed sticker dimensions, coordinates, & angles | Source Authoritative |
 | **Spatial Geolocation** | Instagram Venue API | Extracted location sticker name & GPS coordinates | Source Authoritative |
-| **Music Track Metadata** | Instagram / iTunes API | Extracted track details + iTunes 30s preview URL | Hybrid / Enriched |
+| **Music Track Metadata** | Instagram / iTunes API | Extracted track details + optional external 30s preview reference | Hybrid / Enriched |
 | **Engagement Metrics** | Instagram API | Snapshot of `viewer_count` & `like_count` captured at archival time | Temporal Snapshot |
 | **Sidecar Journal Notes** | Local User | Authored in MemWault & saved as `.md` sidecar on disk | User Authoritative |
 | **EXIF / XMP Tags** | Local Metadata Engine | Embedded into media header by MemWault ExifTool engine | Derived Archival Unit |

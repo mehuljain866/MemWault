@@ -66,7 +66,7 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 - 📅 **Continuous Semantic Zoom Timeline:** Transition smoothly between **Years**, **Months**, and **Days** views using Framer Motion spring-based animations.
 - 🗺️ **Spatial Story Map:** Explore your memories geographically on an interactive Leaflet map featuring spatial clustering and bounding-box search.
 - 🎨 **Custom Highlight Albums:** Group your local stories into custom albums with dynamic 4-image grid covers, video thumbnails, and local cover uploads.
-- 🎵 **iTunes Music Integration:** Embedded mini-player that streams 30-second audio previews for songs attached to your stories.
+- 🎵 **iTunes Music Integration:** Embedded mini-player streaming 30-second external audio preview references for songs attached to your stories.
 
 ---
 
@@ -90,7 +90,7 @@ Single Archived Memory Object
 ├── ⏱️ Story Timestamp      (UTC creation timestamp)
 ├── 💬 Caption & Text Content (Raw caption & text sticker content)
 ├── 🎨 Composition Manifest  (Visual layout state, sticker positioning & layers)
-├── 🎵 Music Track         (Song title, artist name, and 30s preview URL)
+├── 🎵 Music Track         (Song title, artist name, and optional external 30s preview reference)
 ├── 📍 Geolocation         (Named location venue & GPS coordinates)
 ├── 🏷️ User Mentions       (Tagged usernames)
 ├── 📈 Engagement Metrics  (Viewer Count & Story Like Count)

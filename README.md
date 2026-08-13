@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <b>MemWault is a private, self-hosted digital archive for preserving, organizing, and replaying personal social-media memories. It turns ephemeral Instagram Stories, Reels, and their surrounding context—music, locations, tags, engagement, and journals—into a searchable, self-hosted personal memory archive.</b>
+  <b>MemWault is a private, self-hosted digital archive for preserving, organizing, and replaying personal social-media memories. It archives Instagram Stories, Reels, and their surrounding context—music, locations, tags, engagement metrics, and personal journals—into a searchable memory archive under your control.</b>
 </p>
 
 <p align="center">

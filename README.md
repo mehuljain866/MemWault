@@ -1,4 +1,4 @@
-# MemWault — Personal Memory Preservation & Archiving
+# MemWault - Personal Memory Preservation & Archiving
 
 <p align="center">
   <img src="screenshots/dashboard_home.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />

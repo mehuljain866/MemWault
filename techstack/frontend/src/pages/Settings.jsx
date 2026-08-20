@@ -11,10 +11,12 @@ import {
   openStorageFolder,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
-import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles } from 'lucide-react'
+import { useNavigate, useOutletContext } from 'react-router-dom'
+import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu } from 'lucide-react'
 
 export default function Settings() {
   const navigate = useNavigate()
+  const { onMenuClick } = useOutletContext() || {}
   const [igSession, setIgSession] = useState(null)
   const [scrapeLogs, setScrapeLogs] = useState([])
   const [connecting, setConnecting] = useState(false)

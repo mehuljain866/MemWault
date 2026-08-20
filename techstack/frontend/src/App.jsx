@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration, useLocation, useOutlet } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration, useLocation, useOutlet, useRouteError } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import { isAuthenticated } from './services/api'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
@@ -72,14 +73,55 @@ function AppShell() {
   )
 }
 
+function RouteErrorBoundary() {
+  const error = useRouteError()
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      minHeight: '70vh', padding: '32px', textAlign: 'center', gap: '16px', color: 'var(--ios-text-primary)'
+    }}>
+      <div style={{
+        width: '56px', height: '56px', borderRadius: '50%',
+        backgroundColor: 'rgba(255, 59, 48, 0.15)', color: 'var(--ios-danger, #ff3b30)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <AlertTriangle size={28} />
+      </div>
+      <h2 style={{ fontSize: '22px', fontWeight: 700, margin: 0 }}>Something went wrong</h2>
+      <p style={{ color: 'var(--ios-text-secondary)', maxWidth: '440px', fontSize: '14px', margin: 0 }}>
+        {error?.message || error?.statusText || 'An unexpected error occurred while loading this view.'}
+      </p>
+      <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+        <button
+          className="ios-btn"
+          onClick={() => window.location.reload()}
+          style={{ padding: '8px 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <RefreshCw size={14} /> Reload Page
+        </button>
+        <button
+          className="ios-btn-secondary ios-btn"
+          onClick={() => window.location.href = '/'}
+          style={{ padding: '8px 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Home size={14} /> Back to Dashboard
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/upload-link/:token",
     element: <MobileUploadPortal />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/",
@@ -88,18 +130,19 @@ const router = createBrowserRouter([
         <AppShell />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
     children: [
-      { path: "/", element: <Dashboard /> },
-      { path: "/posts", element: <Posts /> },
-      { path: "/posts/:postId", element: <PostDetail /> },
-      { path: "/timeline", element: <Timeline key="timeline" isReelView={false} /> },
-      { path: "/reels", element: <Timeline key="reels" isReelView={true} /> },
-      { path: "/highlights", element: <Highlights /> },
-      { path: "/highlights/:id", element: <HighlightViewer /> },
-      { path: "/story/:id", element: <StoryDetail /> },
-      { path: "/map", element: <MapView /> },
-      { path: "/settings", element: <Settings /> },
-      { path: "/archives", element: <Archives /> },
+      { path: "/", element: <Dashboard />, errorElement: <RouteErrorBoundary /> },
+      { path: "/posts", element: <Posts />, errorElement: <RouteErrorBoundary /> },
+      { path: "/posts/:postId", element: <PostDetail />, errorElement: <RouteErrorBoundary /> },
+      { path: "/timeline", element: <Timeline key="timeline" isReelView={false} />, errorElement: <RouteErrorBoundary /> },
+      { path: "/reels", element: <Timeline key="reels" isReelView={true} />, errorElement: <RouteErrorBoundary /> },
+      { path: "/highlights", element: <Highlights />, errorElement: <RouteErrorBoundary /> },
+      { path: "/highlights/:id", element: <HighlightViewer />, errorElement: <RouteErrorBoundary /> },
+      { path: "/story/:id", element: <StoryDetail />, errorElement: <RouteErrorBoundary /> },
+      { path: "/map", element: <MapView />, errorElement: <RouteErrorBoundary /> },
+      { path: "/settings", element: <Settings />, errorElement: <RouteErrorBoundary /> },
+      { path: "/archives", element: <Archives />, errorElement: <RouteErrorBoundary /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ]
   }

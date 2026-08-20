@@ -357,9 +357,37 @@ export default function Settings() {
         Playback & Media
       </div>
       <IosListGroup>
+        {/* Auto-Play Toggle */}
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>Auto-Play Videos</div>
+            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>Automatically start playback when opening a memory</div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', width: '50px', height: '30px', borderRadius: '15px', background: playbackSettings.autoplay !== false ? 'var(--ios-success, #34c759)' : 'var(--ios-border)', transition: 'background 0.3s' }}>
+              <div style={{ position: 'absolute', top: '2px', left: playbackSettings.autoplay !== false ? '22px' : '2px', width: '26px', height: '26px', borderRadius: '50%', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.3s' }} />
+            </div>
+            <input type="checkbox" checked={playbackSettings.autoplay !== false} onChange={(e) => handleSettingChange('autoplay', e.target.checked)} style={{ display: 'none' }} />
+          </label>
+        </div>
+
+        {/* Looping Toggle */}
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>Looping Stories</div>
+            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>Continuously loop video playback</div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', width: '50px', height: '30px', borderRadius: '15px', background: playbackSettings.loopVideo !== false ? 'var(--ios-success, #34c759)' : 'var(--ios-border)', transition: 'background 0.3s' }}>
+              <div style={{ position: 'absolute', top: '2px', left: playbackSettings.loopVideo !== false ? '22px' : '2px', width: '26px', height: '26px', borderRadius: '50%', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.3s' }} />
+            </div>
+            <input type="checkbox" checked={playbackSettings.loopVideo !== false} onChange={(e) => handleSettingChange('loopVideo', e.target.checked)} style={{ display: 'none' }} />
+          </label>
+        </div>
+
         <div style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '16px' }}>Auto-Play Delay (Video)</span>
+            <span style={{ fontSize: '16px' }}>Auto-Play Delay (Seconds)</span>
             <span style={{ color: 'var(--ios-text-secondary)' }}>
               {playbackSettings.autoplayDelay === -1 ? 'Disabled' : `${playbackSettings.autoplayDelay}s`}
             </span>

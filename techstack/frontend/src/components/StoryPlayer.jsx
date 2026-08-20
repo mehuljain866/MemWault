@@ -160,9 +160,10 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
   useEffect(() => {
     if (!videoRef.current || !story) return;
     const settings = getSettings();
+    const isAutoplay = settings.autoplay !== false;
     const delay = settings.autoplayDelay;
     
-    if (delay === -1) {
+    if (!isAutoplay || delay === -1) {
       // Disabled
       setIsPlaying(false);
     } else if (delay === 0) {
@@ -349,9 +350,14 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
             ref={videoRef}
             src={story.media_url}
             style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
-            loop
+            loop={getSettings().loopVideo !== false}
             playsInline
             controls={false}
+            onEnded={() => {
+              if (getSettings().loopVideo === false) {
+                setIsPlaying(false);
+              }
+            }}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
           />

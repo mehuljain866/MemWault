@@ -1,6 +1,8 @@
 const SETTINGS_KEY = 'memwault_settings';
 
 const DEFAULT_SETTINGS = {
+  autoplay: true, // Auto-play video when opened
+  loopVideo: true, // Loop video continuously
   autoplayDelay: 0, // 0 = instant, -1 = disabled, >0 = seconds delay
   preferredMusicApp: 'spotify', // 'spotify', 'apple', 'youtube', 'amazon'
   skipDuration: 5, // 3, 4, 5

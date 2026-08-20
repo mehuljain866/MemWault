@@ -54,6 +54,9 @@ class User(Base):
     stories: Mapped[list["Story"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    posts: Mapped[list["Post"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class InstagramSession(Base):
@@ -402,3 +405,142 @@ class ScrapeLog(Base):
     stories_found: Mapped[int] = mapped_column(Integer, default=0)
     stories_new: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════
+# Instagram Feed Posts & Multi-Slide Carousels
+# ═══════════════════════════════════════════════════════════
+
+class Post(Base):
+    """
+    An Instagram feed post (single photo, video reel, or multi-slide carousel).
+    """
+    __tablename__ = "posts"
+    __table_args__ = (
+        UniqueConstraint("ig_media_id", name="uq_posts_ig_media_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=new_uuid
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    # ── Instagram Identifiers ────────────────────────────
+    ig_media_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    ig_shortcode: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    ig_media_pk: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # ── Timestamps ───────────────────────────────────────
+    taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # ── Post Type & Dimensions ───────────────────────────
+    media_type: Mapped[int] = mapped_column(Integer)  # 1=photo, 2=video, 8=carousel
+    aspect_ratio: Mapped[float] = mapped_column(Float, default=1.0)  # width / height
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_trashed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── Content & Location ───────────────────────────────
+    caption_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    location_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    location_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # ── Audio / Music (if attached) ──────────────────────
+    audio_title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    audio_artist: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    # ── Engagement Metrics ───────────────────────────────
+    like_count: Mapped[int] = mapped_column(Integer, default=0)
+    comment_count: Mapped[int] = mapped_column(Integer, default=0)
+    has_liked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── Journal & Metadata ───────────────────────────────
+    journal_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_api_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="posts")
+    media_items: Mapped[list["PostMedia"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan", order_by="PostMedia.slide_index"
+    )
+    qr_sessions: Mapped[list["QRUploadSession"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan"
+    )
+
+
+class PostMedia(Base):
+    """
+    Individual slide / item in a post or carousel.
+    Supports Dual-Version storage: Compressed Instagram file + Uncompressed RAW Master.
+    Supports Apple Live Photos & Google Motion Photos.
+    """
+    __tablename__ = "post_media"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=new_uuid
+    )
+    post_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), index=True
+    )
+    slide_index: Mapped[int] = mapped_column(Integer, default=0)
+    media_type: Mapped[int] = mapped_column(Integer)  # 1=photo, 2=video
+
+    # ── Instagram Processed Version ──────────────────────
+    s3_key_instagram: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    instagram_cdn_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    instagram_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    instagram_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # ── Uncompressed RAW Master Version ──────────────────
+    s3_key_raw_master: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    raw_file_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    raw_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_mime_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    has_raw_master: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── Apple Live Photo / Motion Photo ──────────────────
+    is_live_photo: Mapped[bool] = mapped_column(Boolean, default=False)
+    s3_key_live_video: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    live_video_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # ── Display Controls & Framing ───────────────────────
+    default_version: Mapped[str] = mapped_column(String(16), default="raw")  # 'raw' | 'instagram'
+    crop_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # { zoom, x, y, rotation }
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # Relationships
+    post: Mapped["Post"] = relationship(back_populates="media_items")
+
+
+class QRUploadSession(Base):
+    """
+    Temporary Wi-Fi QR pairing session to upload camera-roll files from phone to PC.
+    """
+    __tablename__ = "qr_upload_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=new_uuid
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    post_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), index=True
+    )
+    token: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    uploaded_files: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # Relationships
+    user: Mapped["User"] = relationship()
+    post: Mapped["Post"] = relationship(back_populates="qr_sessions")

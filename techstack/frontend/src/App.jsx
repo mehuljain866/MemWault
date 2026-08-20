@@ -12,6 +12,9 @@ import MapView from './pages/MapView'
 import Highlights from './pages/Highlights'
 import HighlightViewer from './pages/HighlightViewer'
 import Archives from './pages/Archives'
+import Posts from './pages/Posts'
+import PostDetail from './pages/PostDetail'
+import MobileUploadPortal from './pages/MobileUploadPortal'
 
 /**
  * Protected route wrapper — redirects to /login if not authenticated.
@@ -74,6 +77,10 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
+    path: "/upload-link/:token",
+    element: <MobileUploadPortal />,
+  },
+  {
     path: "/",
     element: (
       <ProtectedRoute>
@@ -82,6 +89,8 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: "/", element: <Dashboard /> },
+      { path: "/posts", element: <Posts /> },
+      { path: "/posts/:postId", element: <PostDetail /> },
       { path: "/timeline", element: <Timeline key="timeline" isReelView={false} /> },
       { path: "/reels", element: <Timeline key="reels" isReelView={true} /> },
       { path: "/highlights", element: <Highlights /> },

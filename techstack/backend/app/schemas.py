@@ -350,3 +350,116 @@ class HighlightUpdate(BaseModel):
 
 class HighlightStoriesUpdate(BaseModel):
     story_ids: list[uuid.UUID]
+
+
+# ═══════════════════════════════════════════════════════════
+# Post & Carousel Schemas
+# ═══════════════════════════════════════════════════════════
+
+class PostMediaRead(BaseModel):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    slide_index: int
+    media_type: int
+
+    # Instagram Version
+    s3_key_instagram: Optional[str] = None
+    instagram_media_url: Optional[str] = None
+    instagram_width: Optional[int] = None
+    instagram_height: Optional[int] = None
+
+    # RAW Master Version
+    s3_key_raw_master: Optional[str] = None
+    raw_media_url: Optional[str] = None
+    raw_file_name: Optional[str] = None
+    raw_width: Optional[int] = None
+    raw_height: Optional[int] = None
+    raw_file_size: Optional[int] = None
+    raw_mime_type: Optional[str] = None
+    has_raw_master: bool = False
+
+    # Live Photo / Motion Photo
+    is_live_photo: bool = False
+    s3_key_live_video: Optional[str] = None
+    live_video_url: Optional[str] = None
+    live_video_duration_ms: Optional[int] = None
+
+    # Active display preferences
+    default_version: str = "raw"
+    crop_data: Optional[dict] = None
+    duration_ms: Optional[int] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PostRead(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    ig_media_id: str
+    ig_shortcode: Optional[str] = None
+    ig_media_pk: Optional[str] = None
+
+    taken_at: datetime
+    archived_at: datetime
+
+    media_type: int
+    aspect_ratio: float = 1.0
+    is_pinned: bool = False
+    is_favorite: bool = False
+    is_trashed: bool = False
+
+    caption_text: Optional[str] = None
+    location_name: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
+    location_id: Optional[str] = None
+
+    audio_title: Optional[str] = None
+    audio_artist: Optional[str] = None
+
+    like_count: int = 0
+    comment_count: int = 0
+    has_liked: bool = False
+    journal_note: Optional[str] = None
+
+    # Slides in carousel or single media item
+    media_items: list[PostMediaRead] = []
+
+    model_config = {"from_attributes": True}
+
+
+class PostListRead(BaseModel):
+    posts: list[PostRead]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
+
+class PostUpdate(BaseModel):
+    caption_text: Optional[str] = None
+    journal_note: Optional[str] = None
+    is_pinned: Optional[bool] = None
+    is_favorite: Optional[bool] = None
+    is_trashed: Optional[bool] = None
+    aspect_ratio: Optional[float] = None
+
+
+class PostMediaUpdate(BaseModel):
+    default_version: Optional[str] = None
+    crop_data: Optional[dict] = None
+    slide_index: Optional[int] = None
+
+
+class QRUploadSessionRead(BaseModel):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    token: str
+    qr_url: str
+    expires_at: datetime
+    is_completed: bool
+    uploaded_files: list[dict] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

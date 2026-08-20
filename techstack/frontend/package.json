@@ -19,6 +19,7 @@
     "leaflet.markercluster": "^1.5.3",
     "liquidify-react": "^0.6.25",
     "lucide-react": "^0.552.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",

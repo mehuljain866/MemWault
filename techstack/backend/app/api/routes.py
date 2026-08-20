@@ -30,6 +30,9 @@ from app.models import (
     Story,
     StoryMusic,
     User,
+    Post,
+    PostMedia,
+    QRUploadSession,
 )
 from app.schemas import (
     ArchiveImportRequest,
@@ -49,6 +52,12 @@ from app.schemas import (
     AdjacentStoriesRead,
     StoryUpdate,
     StoryBulkUpdate,
+    PostRead,
+    PostListRead,
+    PostUpdate,
+    PostMediaUpdate,
+    PostMediaRead,
+    QRUploadSessionRead,
 )
 from app.storage.s3 import get_storage
 
@@ -1523,3 +1532,450 @@ async def toggle_trash_story(
     await db.commit()
     await db.refresh(story)
     return story
+
+
+# ═══════════════════════════════════════════════════════════
+# Posts, Carousels, Lossless RAW Media & QR Upload API
+# ═══════════════════════════════════════════════════════════
+
+def get_local_lan_ip() -> str:
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def _format_post_media(media: PostMedia, s3) -> dict:
+    """Helper to attach pre-signed / direct URLs to PostMedia."""
+    ig_url = None
+    if media.s3_key_instagram:
+        ig_url = s3.get_presigned_url(media.s3_key_instagram, expires_in=86400)
+    elif media.instagram_cdn_url:
+        ig_url = media.instagram_cdn_url
+
+    raw_url = None
+    if media.s3_key_raw_master:
+        raw_url = s3.get_presigned_url(media.s3_key_raw_master, expires_in=86400)
+
+    live_vid_url = None
+    if media.s3_key_live_video:
+        live_vid_url = s3.get_presigned_url(media.s3_key_live_video, expires_in=86400)
+
+    return {
+        "id": media.id,
+        "post_id": media.post_id,
+        "slide_index": media.slide_index,
+        "media_type": media.media_type,
+        "s3_key_instagram": media.s3_key_instagram,
+        "instagram_media_url": ig_url,
+        "instagram_width": media.instagram_width,
+        "instagram_height": media.instagram_height,
+        "s3_key_raw_master": media.s3_key_raw_master,
+        "raw_media_url": raw_url,
+        "raw_file_name": media.raw_file_name,
+        "raw_width": media.raw_width,
+        "raw_height": media.raw_height,
+        "raw_file_size": media.raw_file_size,
+        "raw_mime_type": media.raw_mime_type,
+        "has_raw_master": media.has_raw_master,
+        "is_live_photo": media.is_live_photo,
+        "s3_key_live_video": media.s3_key_live_video,
+        "live_video_url": live_vid_url,
+        "live_video_duration_ms": media.live_video_duration_ms,
+        "default_version": media.default_version or "raw",
+        "crop_data": media.crop_data,
+        "duration_ms": media.duration_ms,
+        "created_at": media.created_at,
+    }
+
+
+def _format_post(post: Post, s3) -> dict:
+    """Format Post object with media items."""
+    media_list = [_format_post_media(m, s3) for m in sorted(post.media_items, key=lambda x: x.slide_index)]
+    return {
+        "id": post.id,
+        "user_id": post.user_id,
+        "ig_media_id": post.ig_media_id,
+        "ig_shortcode": post.ig_shortcode,
+        "ig_media_pk": post.ig_media_pk,
+        "taken_at": post.taken_at,
+        "archived_at": post.archived_at,
+        "media_type": post.media_type,
+        "aspect_ratio": post.aspect_ratio or 1.0,
+        "is_pinned": post.is_pinned,
+        "is_favorite": post.is_favorite,
+        "is_trashed": post.is_trashed,
+        "caption_text": post.caption_text,
+        "location_name": post.location_name,
+        "location_lat": post.location_lat,
+        "location_lng": post.location_lng,
+        "location_id": post.location_id,
+        "audio_title": post.audio_title,
+        "audio_artist": post.audio_artist,
+        "like_count": post.like_count or 0,
+        "comment_count": post.comment_count or 0,
+        "has_liked": post.has_liked,
+        "journal_note": post.journal_note,
+        "media_items": media_list,
+    }
+
+
+@router.get("/posts", response_model=PostListRead)
+async def list_posts(
+    media_type: Optional[int] = Query(None, description="1=photo, 2=video, 8=carousel"),
+    is_favorite: Optional[bool] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(24, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List archived Instagram feed posts & carousels."""
+    s3 = get_storage()
+    query = (
+        select(Post)
+        .options(selectinload(Post.media_items))
+        .where(Post.user_id == user.id, Post.is_trashed == False)
+        .order_by(Post.is_pinned.desc(), Post.taken_at.desc())
+    )
+
+    if media_type is not None:
+        query = query.where(Post.media_type == media_type)
+    if is_favorite is not None:
+        query = query.where(Post.is_favorite == is_favorite)
+
+    # Count total
+    count_query = select(func.count(Post.id)).where(Post.user_id == user.id, Post.is_trashed == False)
+    if media_type is not None:
+        count_query = count_query.where(Post.media_type == media_type)
+    if is_favorite is not None:
+        count_query = count_query.where(Post.is_favorite == is_favorite)
+
+    total_res = await db.execute(count_query)
+    total = total_res.scalar() or 0
+
+    # Paginate
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    posts = result.scalars().all()
+
+    formatted_posts = [_format_post(p, s3) for p in posts]
+
+    return {
+        "posts": formatted_posts,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_next": (page * page_size) < total,
+    }
+
+
+@router.get("/posts/{post_id}", response_model=PostRead)
+async def get_post_detail(
+    post_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get single post with all carousel slides, dual versions, and metadata."""
+    s3 = get_storage()
+    result = await db.execute(
+        select(Post)
+        .options(selectinload(Post.media_items))
+        .where(Post.id == post_id, Post.user_id == user.id)
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    return _format_post(post, s3)
+
+
+@router.post("/posts/sync")
+async def trigger_posts_sync(
+    amount: int = Query(50, ge=1, le=100),
+    user: User = Depends(get_current_user),
+):
+    """Trigger background sync of Instagram feed posts and carousels."""
+    from app.scraper.tasks import sync_user_feed_posts
+    result = sync_user_feed_posts(user_id=str(user.id), amount=amount)
+    return result
+
+
+@router.patch("/posts/{post_id}", response_model=PostRead)
+async def update_post(
+    post_id: uuid.UUID,
+    updates: PostUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update post caption, journal note, is_favorite, or grid aspect ratio."""
+    s3 = get_storage()
+    result = await db.execute(
+        select(Post)
+        .options(selectinload(Post.media_items))
+        .where(Post.id == post_id, Post.user_id == user.id)
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    update_dict = updates.model_dump(exclude_unset=True)
+    for k, v in update_dict.items():
+        setattr(post, k, v)
+
+    await db.commit()
+    await db.refresh(post)
+    return _format_post(post, s3)
+
+
+@router.patch("/posts/{post_id}/media/{media_id}", response_model=PostMediaRead)
+async def update_post_media(
+    post_id: uuid.UUID,
+    media_id: uuid.UUID,
+    updates: PostMediaUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update slide default version ('raw' or 'instagram'), crop, or slide index."""
+    s3 = get_storage()
+    result = await db.execute(
+        select(PostMedia)
+        .join(Post, PostMedia.post_id == Post.id)
+        .where(PostMedia.id == media_id, Post.id == post_id, Post.user_id == user.id)
+    )
+    media = result.scalar_one_or_none()
+    if not media:
+        raise HTTPException(status_code=404, detail="Post media slide not found")
+
+    update_dict = updates.model_dump(exclude_unset=True)
+    for k, v in update_dict.items():
+        setattr(media, k, v)
+
+    await db.commit()
+    await db.refresh(media)
+    return _format_post_media(media, s3)
+
+
+@router.post("/posts/{post_id}/media/{media_id}/replace-raw")
+async def replace_post_media_raw(
+    post_id: uuid.UUID,
+    media_id: uuid.UUID,
+    file: UploadFile = File(...),
+    companion_video: Optional[UploadFile] = File(None),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Replace a slide with its uncompressed 48MP RAW / Master file.
+    Automatically detects Google/Samsung Motion Photos or pairs Apple Live Photo .mov video.
+    """
+    from app.media.motion_photo import extract_embedded_motion_video
+    s3 = get_storage()
+
+    result = await db.execute(
+        select(PostMedia)
+        .join(Post, PostMedia.post_id == Post.id)
+        .where(PostMedia.id == media_id, Post.id == post_id, Post.user_id == user.id)
+    )
+    media = result.scalar_one_or_none()
+    if not media:
+        raise HTTPException(status_code=404, detail="Post media slide not found")
+
+    file_bytes = await file.read()
+    ext = Path(file.filename or "file.jpg").suffix.lower() or ".jpg"
+    raw_s3_key = f"posts/raw_masters/{post_id}_{media.slide_index}{ext}"
+    
+    # Upload Master RAW file
+    s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "application/octet-stream")
+
+    media.s3_key_raw_master = raw_s3_key
+    media.raw_file_name = file.filename
+    media.raw_file_size = len(file_bytes)
+    media.raw_mime_type = file.content_type
+    media.has_raw_master = True
+    media.default_version = "raw"
+
+    # Check for Live / Motion Photo
+    # 1. Companion video uploaded directly (Apple Live Photo)
+    if companion_video:
+        vid_bytes = await companion_video.read()
+        live_key = f"posts/raw_masters/{post_id}_{media.slide_index}_live.mov"
+        s3.upload_bytes(vid_bytes, live_key, content_type="video/quicktime")
+        media.is_live_photo = True
+        media.s3_key_live_video = live_key
+    else:
+        # 2. Extract embedded micro-video from motion photo (Google / Samsung)
+        extracted_vid, mime = extract_embedded_motion_video(file_bytes)
+        if extracted_vid:
+            live_key = f"posts/raw_masters/{post_id}_{media.slide_index}_live.mp4"
+            s3.upload_bytes(extracted_vid, live_key, content_type=mime or "video/mp4")
+            media.is_live_photo = True
+            media.s3_key_live_video = live_key
+
+    await db.commit()
+    await db.refresh(media)
+    return _format_post_media(media, s3)
+
+
+@router.post("/posts/{post_id}/qr-session", response_model=QRUploadSessionRead)
+async def create_qr_upload_session(
+    post_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate a local Wi-Fi QR code session for uploading master files from phone camera roll.
+    """
+    import secrets
+    from datetime import timedelta
+
+    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    
+    session = QRUploadSession(
+        user_id=user.id,
+        post_id=post_id,
+        token=token,
+        expires_at=expires_at,
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    lan_ip = get_local_lan_ip()
+    qr_url = f"http://{lan_ip}:5173/upload-link/{token}"
+
+    return {
+        "id": session.id,
+        "post_id": session.post_id,
+        "token": session.token,
+        "qr_url": qr_url,
+        "expires_at": session.expires_at,
+        "is_completed": session.is_completed,
+        "uploaded_files": session.uploaded_files or [],
+        "created_at": session.created_at,
+    }
+
+
+@router.get("/upload-portal/{token}")
+async def get_upload_portal_session(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public mobile endpoint accessed by scanning the QR code on local Wi-Fi.
+    Returns post metadata and slide slots ready for upload.
+    """
+    s3 = get_storage()
+    result = await db.execute(
+        select(QRUploadSession)
+        .options(selectinload(QRUploadSession.post).selectinload(Post.media_items))
+        .where(QRUploadSession.token == token)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Invalid QR upload session")
+
+    exp = session.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="QR upload session has expired")
+
+    post = session.post
+    formatted_post = _format_post(post, s3)
+
+    return {
+        "session_id": session.id,
+        "token": session.token,
+        "post": formatted_post,
+        "expires_at": session.expires_at,
+        "is_completed": session.is_completed,
+        "uploaded_files": session.uploaded_files or [],
+    }
+
+
+@router.post("/upload-portal/{token}/upload")
+async def upload_portal_files(
+    token: str,
+    slide_index: int = Query(0),
+    file: UploadFile = File(...),
+    companion_video: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Direct mobile LAN stream upload endpoint to attach uncompressed RAW / Live Photos from phone.
+    """
+    from app.media.motion_photo import extract_embedded_motion_video
+    s3 = get_storage()
+
+    result = await db.execute(
+        select(QRUploadSession)
+        .options(selectinload(QRUploadSession.post).selectinload(Post.media_items))
+        .where(QRUploadSession.token == token)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=400, detail="Invalid session")
+    exp = session.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Expired session")
+
+    post = session.post
+    media = next((m for m in post.media_items if m.slide_index == slide_index), None)
+    if not media:
+        raise HTTPException(status_code=404, detail=f"Slide index {slide_index} not found")
+
+    file_bytes = await file.read()
+    ext = Path(file.filename or "file.jpg").suffix.lower() or ".jpg"
+    raw_s3_key = f"posts/raw_masters/{post.id}_{slide_index}{ext}"
+
+    s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "application/octet-stream")
+
+    media.s3_key_raw_master = raw_s3_key
+    media.raw_file_name = file.filename
+    media.raw_file_size = len(file_bytes)
+    media.raw_mime_type = file.content_type
+    media.has_raw_master = True
+    media.default_version = "raw"
+
+    # Check companion video or embedded motion photo
+    if companion_video:
+        vid_bytes = await companion_video.read()
+        live_key = f"posts/raw_masters/{post.id}_{slide_index}_live.mov"
+        s3.upload_bytes(vid_bytes, live_key, content_type="video/quicktime")
+        media.is_live_photo = True
+        media.s3_key_live_video = live_key
+    else:
+        extracted_vid, mime = extract_embedded_motion_video(file_bytes)
+        if extracted_vid:
+            live_key = f"posts/raw_masters/{post.id}_{slide_index}_live.mp4"
+            s3.upload_bytes(extracted_vid, live_key, content_type=mime or "video/mp4")
+            media.is_live_photo = True
+            media.s3_key_live_video = live_key
+
+    # Track uploaded file in session
+    uploaded = list(session.uploaded_files or [])
+    uploaded.append({
+        "filename": file.filename,
+        "slide_index": slide_index,
+        "is_live_photo": media.is_live_photo,
+        "size_bytes": len(file_bytes),
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+    })
+    session.uploaded_files = uploaded
+
+    await db.commit()
+    await db.refresh(media)
+    return {"status": "ok", "slide": _format_post_media(media, s3)}

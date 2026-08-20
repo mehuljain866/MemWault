@@ -881,3 +881,141 @@ def sync_highlights(self, user_id: str):
     finally:
         db.close()
         sync_engine.dispose()
+
+
+@celery_app.task(name="app.scraper.tasks.sync_user_feed_posts")
+def sync_user_feed_posts(user_id: Optional[str] = None, amount: int = 50) -> dict:
+    """
+    Scrape user's Instagram feed posts (photos, video reels, and multi-slide carousels).
+    Downloads Instagram-compressed files and creates Post / PostMedia records.
+    """
+    logger.info("=== Starting Instagram Feed Posts & Carousels Sync ===")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from app.models import User, InstagramSession, Post, PostMedia
+    from app.scraper.instagram import InstagramScraper
+    from app.storage.s3 import get_storage
+    import httpx, os, uuid
+
+    db_url = settings.database_url
+    if "asyncpg" in db_url:
+        db_url = db_url.replace("postgresql+asyncpg", "postgresql")
+    elif "aiosqlite" in db_url:
+        db_url = db_url.replace("sqlite+aiosqlite", "sqlite")
+        
+    sync_engine = create_engine(db_url)
+    SyncSession = sessionmaker(bind=sync_engine)
+    db = SyncSession()
+    s3 = get_storage()
+
+    try:
+        user_uuid = uuid.UUID(str(user_id)) if user_id else None
+        if not user_uuid:
+            first_user = db.query(User).first()
+            if first_user:
+                user_uuid = first_user.id
+                
+        if not user_uuid:
+            logger.error("No user found for feed posts sync")
+            return {"status": "error", "message": "No user found"}
+
+        ig_session = db.query(InstagramSession).filter(
+            InstagramSession.user_id == user_uuid,
+            InstagramSession.is_valid == True,
+        ).first()
+
+        if not ig_session:
+            logger.warning("No valid Instagram session found for user %s", user_uuid)
+            return {"status": "error", "message": "No valid Instagram session"}
+
+        scraper = InstagramScraper(
+            username=ig_session.ig_username,
+            session_data=ig_session.session_data,
+        )
+        scraper.login()
+
+        raw_posts = scraper.fetch_user_feed_posts(amount=amount)
+        logger.info("Found %d feed posts from Instagram", len(raw_posts))
+        
+        posts_found = len(raw_posts)
+        posts_new = 0
+
+        for p_data in raw_posts:
+            media_id = p_data["ig_media_id"]
+            existing = db.query(Post).filter(Post.ig_media_id == media_id).first()
+            if existing:
+                existing.like_count = p_data.get("like_count", existing.like_count)
+                existing.comment_count = p_data.get("comment_count", existing.comment_count)
+                existing.has_liked = p_data.get("has_liked", existing.has_liked)
+                existing.caption_text = p_data.get("caption_text", existing.caption_text)
+                db.commit()
+                continue
+
+            # Create new Post
+            new_post = Post(
+                user_id=user_uuid,
+                ig_media_id=media_id,
+                ig_shortcode=p_data.get("ig_shortcode"),
+                ig_media_pk=p_data.get("ig_media_pk"),
+                taken_at=p_data.get("taken_at", datetime.now(timezone.utc)),
+                media_type=p_data.get("media_type", 1),
+                aspect_ratio=p_data.get("aspect_ratio", 1.0),
+                caption_text=p_data.get("caption_text"),
+                location_name=p_data.get("location_name"),
+                location_lat=p_data.get("location_lat"),
+                location_lng=p_data.get("location_lng"),
+                location_id=p_data.get("location_id"),
+                audio_title=p_data.get("audio_title"),
+                audio_artist=p_data.get("audio_artist"),
+                like_count=p_data.get("like_count", 0),
+                comment_count=p_data.get("comment_count", 0),
+                has_liked=p_data.get("has_liked", False),
+                raw_api_response=p_data.get("raw_api_response"),
+            )
+            db.add(new_post)
+            db.flush()
+
+            taken_at_dt = p_data.get("taken_at") or datetime.now(timezone.utc)
+            date_prefix = taken_at_dt.strftime("%Y/%m")
+
+            # Ingest media slides
+            for slide in p_data.get("media_items", []):
+                slide_idx = slide["slide_index"]
+                cdn_url = slide.get("instagram_cdn_url")
+                s3_key = None
+
+                if cdn_url:
+                    try:
+                        ext = ".mp4" if slide["media_type"] == 2 else ".jpg"
+                        s3_key = f"posts/{date_prefix}/{new_post.id}_{slide_idx}{ext}"
+                        with httpx.Client(timeout=30.0, follow_redirects=True) as http_client:
+                            r = http_client.get(cdn_url)
+                            if r.status_code == 200:
+                                s3.upload_bytes(r.content, s3_key, content_type="video/mp4" if slide["media_type"] == 2 else "image/jpeg")
+                    except Exception as err:
+                        logger.warning("Failed to download media slide %d for post %s: %s", slide_idx, media_id, err)
+
+                post_media = PostMedia(
+                    post_id=new_post.id,
+                    slide_index=slide_idx,
+                    media_type=slide["media_type"],
+                    s3_key_instagram=s3_key,
+                    instagram_cdn_url=cdn_url,
+                    instagram_width=slide.get("instagram_width"),
+                    instagram_height=slide.get("instagram_height"),
+                    duration_ms=slide.get("duration_ms"),
+                )
+                db.add(post_media)
+
+            db.commit()
+            posts_new += 1
+
+        logger.info("Feed posts sync completed: %d found, %d newly added", posts_found, posts_new)
+        return {"status": "success", "posts_found": posts_found, "posts_new": posts_new}
+    except Exception as e:
+        logger.error("Feed posts sync failed: %s", e)
+        db.rollback()
+        return {"status": "error", "error": str(e)}
+    finally:
+        db.close()
+        sync_engine.dispose()

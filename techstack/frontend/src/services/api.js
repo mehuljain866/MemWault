@@ -345,3 +345,76 @@ export async function removeStoriesFromHighlight(highlightId, storyIds) {
     body: JSON.stringify({ story_ids: storyIds }),
   })
 }
+
+// ═══════════════════════════════════════════════════════════
+// Posts & Carousels API
+// ═══════════════════════════════════════════════════════════
+
+export async function getPosts(params = {}) {
+  const searchParams = new URLSearchParams()
+  if (params.mediaType) searchParams.append('media_type', params.mediaType)
+  if (params.isFavorite !== undefined) searchParams.append('is_favorite', params.isFavorite)
+  if (params.page) searchParams.append('page', params.page)
+  if (params.pageSize) searchParams.append('page_size', params.pageSize)
+  const query = searchParams.toString()
+  return apiFetch(`/posts${query ? `?${query}` : ''}`)
+}
+
+export async function getPost(postId) {
+  return apiFetch(`/posts/${postId}`)
+}
+
+export async function triggerPostsSync(amount = 50) {
+  return apiFetch(`/posts/sync?amount=${amount}`, { method: 'POST' })
+}
+
+export async function updatePost(postId, updates) {
+  return apiFetch(`/posts/${postId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
+export async function updatePostMedia(postId, mediaId, updates) {
+  return apiFetch(`/posts/${postId}/media/${mediaId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
+export async function replacePostMediaRaw(postId, mediaId, file, companionVideo = null) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (companionVideo) {
+    formData.append('companion_video', companionVideo)
+  }
+  return apiFetch(`/posts/${postId}/media/${mediaId}/replace-raw`, {
+    method: 'POST',
+    headers: { 'Content-Type': null },
+    body: formData,
+  })
+}
+
+export async function createQRSession(postId) {
+  return apiFetch(`/posts/${postId}/qr-session`, { method: 'POST' })
+}
+
+export async function getUploadPortalSession(token) {
+  const res = await fetch(`/api/v1/upload-portal/${token}`)
+  if (!res.ok) throw new Error('Session not found or expired')
+  return res.json()
+}
+
+export async function uploadToPortal(token, slideIndex, file, companionVideo = null) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (companionVideo) {
+    formData.append('companion_video', companionVideo)
+  }
+  const res = await fetch(`/api/v1/upload-portal/${token}/upload?slide_index=${slideIndex}`, {
+    method: 'POST',
+    body: formData,
+  })
+  if (!res.ok) throw new Error('Upload failed')
+  return res.json()
+}

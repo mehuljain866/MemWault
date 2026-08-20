@@ -1,8 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive } from 'lucide-react'
+import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive, LayoutGrid } from 'lucide-react'
 
 const topNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/posts', label: 'Feed Posts', icon: LayoutGrid },
   { path: '/timeline', label: 'Memories', icon: ImageIcon },
   { path: '/reels', label: 'Reels', icon: PlaySquare },
   { path: '/highlights', label: 'Highlights', icon: FolderHeart },

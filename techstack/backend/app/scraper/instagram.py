@@ -292,6 +292,130 @@ class InstagramScraper:
             logger.error("Failed to fetch reel stats for %s: %s", media_id, e)
             return {}
 
+    def fetch_user_feed_posts(self, amount: int = 50) -> list[dict]:
+        """
+        Fetch user's feed posts (single photos, videos/reels, multi-slide carousels).
+        """
+        self._ensure_logged_in()
+        user_id = getattr(self.client, "user_id", None) or getattr(self, "user_id", None)
+        if not user_id:
+            try:
+                user_id = self.client.user_id_from_username(self.username)
+            except Exception:
+                pass
+        
+        posts = []
+        try:
+            res = self.client.private_request(f"feed/user/{user_id}/", params={"count": min(amount, 50)})
+            items = res.get("items", [])
+            for item in items:
+                parsed = self._parse_raw_post_dict(item)
+                if parsed:
+                    posts.append(parsed)
+            logger.info("Fetched %d feed posts from Instagram", len(posts))
+        except Exception as e:
+            logger.error("Failed to fetch user feed posts: %s", e)
+            
+        return posts
+
+    def _parse_raw_post_dict(self, item: dict) -> Optional[dict]:
+        """Parse raw Instagram feed post dictionary."""
+        try:
+            pk = str(item.get("pk") or item.get("id") or "").split("_")[0]
+            media_id = str(item.get("id") or pk)
+            code = item.get("code")  # shortcode
+            
+            media_type = item.get("media_type", 1)  # 1=photo, 2=video, 8=carousel
+            taken_at_ts = item.get("taken_at")
+            taken_at = datetime.fromtimestamp(taken_at_ts, tz=timezone.utc) if taken_at_ts else datetime.now(timezone.utc)
+            
+            # Caption
+            caption = item.get("caption", {}) or {}
+            caption_text = caption.get("text") if isinstance(caption, dict) else None
+            
+            # Location
+            location = item.get("location", {}) or {}
+            loc_name = location.get("name") if isinstance(location, dict) else None
+            loc_lat = location.get("lat") if isinstance(location, dict) else None
+            loc_lng = location.get("lng") if isinstance(location, dict) else None
+            loc_id = str(location.get("pk") or location.get("id") or "") if isinstance(location, dict) else None
+            
+            # Music / Audio
+            music_meta = item.get("music_metadata", {}) or {}
+            music_asset = music_meta.get("music_asset_info", {}) if isinstance(music_meta, dict) else {}
+            audio_title = music_asset.get("title") if isinstance(music_asset, dict) else None
+            audio_artist = music_asset.get("display_artist") if isinstance(music_asset, dict) else None
+            
+            # Engagement
+            like_count = item.get("like_count", 0)
+            comment_count = item.get("comment_count", 0)
+            has_liked = bool(item.get("has_liked", False))
+            
+            # Aspect ratio
+            width = item.get("original_width") or 1080
+            height = item.get("original_height") or 1080
+            aspect_ratio = round(width / max(height, 1), 4)
+            
+            # Carousel or single media items
+            media_items = []
+            if media_type == 8 and item.get("carousel_media"):
+                for idx, c_item in enumerate(item.get("carousel_media", [])):
+                    c_type = c_item.get("media_type", 1)
+                    c_width = c_item.get("original_width") or 1080
+                    c_height = c_item.get("original_height") or 1080
+                    
+                    candidates = c_item.get("image_versions2", {}).get("candidates", [])
+                    cdn_url = candidates[0].get("url") if candidates else None
+                    if c_type == 2 and c_item.get("video_versions"):
+                        cdn_url = c_item["video_versions"][0].get("url")
+                    
+                    media_items.append({
+                        "slide_index": idx,
+                        "media_type": c_type,
+                        "instagram_cdn_url": cdn_url,
+                        "instagram_width": c_width,
+                        "instagram_height": c_height,
+                        "duration_ms": int(c_item.get("video_duration", 0) * 1000) if c_type == 2 else None,
+                    })
+            else:
+                candidates = item.get("image_versions2", {}).get("candidates", [])
+                cdn_url = candidates[0].get("url") if candidates else None
+                if media_type == 2 and item.get("video_versions"):
+                    cdn_url = item["video_versions"][0].get("url")
+                    
+                media_items.append({
+                    "slide_index": 0,
+                    "media_type": media_type,
+                    "instagram_cdn_url": cdn_url,
+                    "instagram_width": width,
+                    "instagram_height": height,
+                    "duration_ms": int(item.get("video_duration", 0) * 1000) if media_type == 2 else None,
+                })
+            
+            return {
+                "ig_media_id": media_id,
+                "ig_shortcode": code,
+                "ig_media_pk": pk,
+                "taken_at": taken_at,
+                "media_type": media_type,
+                "aspect_ratio": aspect_ratio,
+                "caption_text": caption_text,
+                "location_name": loc_name,
+                "location_lat": loc_lat,
+                "location_lng": loc_lng,
+                "location_id": loc_id,
+                "audio_title": audio_title,
+                "audio_artist": audio_artist,
+                "like_count": like_count,
+                "comment_count": comment_count,
+                "has_liked": has_liked,
+                "media_items": media_items,
+                "raw_api_response": item,
+            }
+        except Exception as e:
+            logger.error("Error parsing feed post item: %s", e)
+            return None
+
     def fetch_archive_stories(self, max_stories: Optional[int] = None) -> list[dict]:
         """
         Fetch historical stories from the authenticated user's story archive.

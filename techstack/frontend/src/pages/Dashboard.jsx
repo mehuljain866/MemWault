@@ -64,9 +64,29 @@ export default function Dashboard() {
     )
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.06,
+        delayChildren: 0.05,
+      }
+    }
+  }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 16, scale: 0.98 },
+    visible: { 
+      opacity: 1, y: 0, scale: 1,
+      transition: { type: 'spring', stiffness: 380, damping: 26 }
+    }
+  }
+
   // Helper for Bento Stats
   const BentoStat = ({ icon: Icon, color, label, value }) => (
     <motion.div 
+      variants={cardVariants}
       whileHover={{ scale: 1.03, y: -4 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
@@ -93,10 +113,9 @@ export default function Dashboard() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25 }}
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
       style={{ paddingTop: '20px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
@@ -111,13 +130,17 @@ export default function Dashboard() {
       </div>
       
       {/* ── Stats Grid (Bento) ──────────────────────── */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-        gap: '24px', 
-        marginBottom: '40px' 
-      }}>
+      <motion.div 
+        variants={containerVariants}
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gap: '24px', 
+          marginBottom: '40px' 
+        }}
+      >
         <motion.div 
+          variants={cardVariants}
           whileHover={{ scale: 1.01, y: -2 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="ios-card hero-card" 
@@ -133,7 +156,7 @@ export default function Dashboard() {
         <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
         <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
         <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
-      </div>
+      </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
         {/* ── Quick Actions ───────────────────── */}

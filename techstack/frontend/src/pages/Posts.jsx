@@ -223,17 +223,20 @@ export default function Posts() {
             return (
               <motion.div
                 key={post.id}
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.025, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 24 }}
                 onClick={() => navigate(`/posts/${post.id}`)}
                 style={{
                   position: 'relative',
-                  backgroundColor: '#111',
-                  borderRadius: '16px',
+                  backgroundColor: 'var(--ios-bg-card)',
+                  borderRadius: '18px',
                   overflow: 'hidden',
                   cursor: 'pointer',
-                  border: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                  border: '1px solid var(--ios-border)',
+                  boxShadow: 'var(--ios-shadow-md)',
                   ...getAspectRatioStyle(post),
                 }}
               >

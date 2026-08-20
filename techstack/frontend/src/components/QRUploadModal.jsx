@@ -95,7 +95,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
             onClick={onClose}
             style={{
               position: 'absolute', top: '18px', right: '18px',
-              background: 'rgba(255,255,255,0.1)', border: 'none',
+              background: 'var(--ios-border)', border: 'none',
               width: '32px', height: '32px', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', color: 'inherit'
@@ -108,7 +108,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
             <div style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               width: '48px', height: '48px', borderRadius: '16px',
-              background: 'rgba(0, 122, 255, 0.15)', color: 'var(--ios-accent, #007aff)',
+              background: 'rgba(136, 116, 74, 0.15)', color: 'var(--ios-accent, #007aff)',
               marginBottom: '12px',
             }}>
               <Smartphone size={26} />
@@ -158,10 +158,10 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
 
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'rgba(255,255,255,0.06)', borderRadius: '14px', padding: '6px 6px 6px 12px',
+            background: 'var(--ios-border)', borderRadius: '14px', padding: '6px 6px 6px 12px',
             fontSize: '12px', color: 'var(--ios-text-secondary, #8e8e93)',
           }}>
-            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ios-text-primary)' }}>
               {session?.qr_url || 'Generating link...'}
             </span>
             <button

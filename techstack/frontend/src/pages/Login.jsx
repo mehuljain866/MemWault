@@ -2,6 +2,21 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login, register } from '../services/api'
 
+function MemWaultVaultIcon({ size = 48 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 16px auto', display: 'block', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>
+      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #88744A)" />
+      {/* Outer Arch Vault */}
+      <path d="M7 25V13C7 9.68629 9.68629 7 13 7H19C22.3137 7 25 9.68629 25 13V25" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+      {/* Inner Vault Door Arch */}
+      <path d="M11 25V16C11 14.3431 12.3431 13 14 13H18C19.6569 13 21 14.3431 21 16V25" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+      {/* Keyhole */}
+      <circle cx="16" cy="18" r="1.5" fill="#ffffff" />
+      <path d="M16 19.5V22" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const [isRegister, setIsRegister] = useState(false)
@@ -59,12 +74,8 @@ export default function Login() {
           border: '1px solid var(--ios-border)',
         }}>
           {/* Logo & Title */}
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <div style={{
-              fontSize: '56px',
-              marginBottom: '16px',
-              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))',
-            }}>🏛️</div>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <MemWaultVaultIcon size={52} />
             <div style={{
               fontSize: '28px',
               fontWeight: 700,

@@ -15,6 +15,21 @@ const bottomNavItems = [
   { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
+function MemWaultVaultIcon({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #88744A)" />
+      {/* Outer Arch Vault */}
+      <path d="M7 25V13C7 9.68629 9.68629 7 13 7H19C22.3137 7 25 9.68629 25 13V25" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+      {/* Inner Vault Door Arch */}
+      <path d="M11 25V16C11 14.3431 12.3431 13 14 13H18C19.6569 13 21 14.3431 21 16V25" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+      {/* Keyhole */}
+      <circle cx="16" cy="18" r="1.5" fill="#ffffff" />
+      <path d="M16 19.5V22" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation()
 
@@ -32,9 +47,16 @@ export default function Sidebar({ isOpen, onClose }) {
 
       <aside className="ios-sidebar" style={{ display: isOpen || window.innerWidth > 768 ? 'flex' : 'none' }}>
         {/* ── Brand ──────────────────────────── */}
-        <div className="ios-sidebar-logo">
-          <Film size={28} color="var(--ios-accent)" />
-          <span>MemWault</span>
+        <div className="ios-sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <MemWaultVaultIcon size={32} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--ios-text-inverse, #ffffff)', lineHeight: 1.1 }}>
+              MemWault
+            </span>
+            <span className="archive-label" style={{ fontSize: '9px', letterSpacing: '0.16em', opacity: 0.75, marginTop: '2px', color: 'var(--ios-text-inverse, #ffffff)' }}>
+              DIGITAL VAULT
+            </span>
+          </div>
         </div>
 
         {/* ── Navigation ────────────────────── */}

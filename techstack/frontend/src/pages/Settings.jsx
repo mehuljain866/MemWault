@@ -11,8 +11,11 @@ import {
   openStorageFolder,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
-import { useNavigate, useOutletContext } from 'react-router-dom'
-import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu } from 'lucide-react'
+import { 
+  Camera, Play, List, User as UserIcon, RefreshCcw, RefreshCw, LogOut, 
+  Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu,
+  ShieldCheck, CheckCircle2, Image as ImageIcon, Users, Hash
+} from 'lucide-react'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -203,58 +206,230 @@ export default function Settings() {
       <h2 className="ios-title">Settings</h2>
 
       {/* ── Instagram Connection ────────────── */}
-      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
-        Instagram Connection
+      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+        Instagram Connection & Profile
       </div>
-      <IosListGroup>
+      <div style={{
+        backgroundColor: 'var(--ios-bg-card)',
+        borderRadius: '16px',
+        border: '1px solid var(--ios-border)',
+        boxShadow: 'var(--ios-shadow-sm)',
+        overflow: 'hidden',
+        marginBottom: '32px'
+      }}>
         {igSession ? (
-          <>
-            <IosListItem icon={UserIcon} iconBg="#007aff" title="Username" value={`@${igSession.ig_username}`} />
+          <div>
+            {/* ── Profile Header Banner ── */}
+            <div style={{
+              padding: '24px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              borderBottom: '1px solid var(--ios-border)',
+              background: 'linear-gradient(135deg, rgba(136, 116, 74, 0.08) 0%, rgba(0, 122, 255, 0.04) 100%)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                {/* Avatar with Instagram-style Ring */}
+                <div style={{
+                  position: 'relative',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  padding: '3px',
+                  background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  flexShrink: 0
+                }}>
+                  {igSession.profile_pic_url ? (
+                    <img
+                      src={`/api/v1/proxy/image?url=${encodeURIComponent(igSession.profile_pic_url)}`}
+                      alt={igSession.full_name || igSession.ig_username}
+                      onError={(e) => {
+                        // Fallback to direct URL or placeholder
+                        if (e.target.src.includes('/proxy/')) {
+                          e.target.src = igSession.profile_pic_url
+                        } else {
+                          e.target.style.display = 'none'
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        backgroundColor: 'var(--ios-bg-app)',
+                        display: 'block'
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--ios-bg-app)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--ios-accent)'
+                    }}>
+                      <UserIcon size={30} />
+                    </div>
+                  )}
+                  {/* Status Indicator Beacon */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    backgroundColor: igSession.is_valid ? '#34c759' : '#ff3b30',
+                    border: '2px solid var(--ios-bg-card)',
+                    boxShadow: igSession.is_valid ? '0 0 8px #34c759' : 'none'
+                  }} />
+                </div>
+
+                {/* User Titles & Handle */}
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ios-text-primary)', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+                    {igSession.full_name || igSession.ig_username}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ios-accent)' }}>
+                      @{igSession.ig_username}
+                    </span>
+                    {igSession.is_valid && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: 'rgba(52, 199, 89, 0.15)',
+                        color: '#34c759',
+                        padding: '2px 7px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        <CheckCircle2 size={11} /> Connected
+                      </span>
+                    )}
+                  </div>
+                  {igSession.biography && (
+                    <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', marginTop: '4px', maxWidth: '360px' }}>
+                      {igSession.biography}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Profile Metrics Strip */}
+              {(igSession.media_count !== undefined || igSession.follower_count !== undefined) && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  backgroundColor: 'var(--ios-bg-app)',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--ios-border)'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
+                      {igSession.media_count ?? 0}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--ios-text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Posts
+                    </div>
+                  </div>
+                  <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--ios-border)' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
+                      {igSession.follower_count ?? 0}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--ios-text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Followers
+                    </div>
+                  </div>
+                  <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--ios-border)' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
+                      {igSession.following_count ?? 0}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--ios-text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Following
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Metadata Items ── */}
             <IosListItem 
               icon={igSession.is_valid ? Wifi : WifiOff} 
               iconBg={igSession.is_valid ? '#34c759' : '#ff3b30'} 
-              title="Status" 
-              value={igSession.is_valid ? 'Connected ✓' : 'Session Expired'}
+              title="Connection Status" 
+              value={igSession.is_valid ? 'Active & Polling Local Stories' : 'Session Expired'}
             />
-            <IosListItem icon={UserIcon} iconBg="#5856d6" title="Last Login" value={new Date(igSession.last_login).toLocaleDateString()} />
-            {/* Action Buttons */}
-            <div style={{ padding: '16px', display: 'flex', gap: '12px', borderTop: '1px solid var(--ios-border)' }}>
-              {(renewing) ? (
+            {igSession.ig_user_id && (
+              <IosListItem 
+                icon={Hash} 
+                iconBg="#5856d6" 
+                title="Instagram Account ID" 
+                value={igSession.ig_user_id} 
+              />
+            )}
+            <IosListItem 
+              icon={UserIcon} 
+              iconBg="#af52de" 
+              title="Last Session Update" 
+              value={new Date(igSession.last_login).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} 
+              last={true}
+            />
+
+            {/* ── Action Buttons ── */}
+            <div style={{ padding: '16px 20px', display: 'flex', gap: '12px', borderTop: '1px solid var(--ios-border)' }}>
+              {renewing ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ios-text-secondary)', fontSize: '14px' }}>
                   <RefreshCcw size={18} className="spin-anim" color="var(--ios-accent)" />
                   A browser window is open. Please log in there...
                 </div>
               ) : (
                 <>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     className="ios-btn"
                     onClick={handleRenewSession}
-                    style={{ flex: 1, fontSize: '14px', padding: '10px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ flex: 1, fontSize: '14px', padding: '12px', gap: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <RefreshCcw size={16} /> Renew Session
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleDisconnectInstagram}
                     disabled={disconnecting}
                     style={{
-                      flex: 1, fontSize: '14px', padding: '10px',
+                      flex: 1, fontSize: '14px', padding: '12px',
                       background: 'rgba(255, 59, 48, 0.1)',
                       border: '1px solid rgba(255, 59, 48, 0.3)',
                       borderRadius: '12px', color: 'var(--ios-danger)',
                       cursor: 'pointer', fontWeight: 600,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                       fontFamily: 'inherit',
                     }}
                   >
                     <WifiOff size={16} /> {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-                  </button>
+                  </motion.button>
                 </>
               )}
             </div>
-            {error && <div style={{ padding: '8px 16px 16px', color: 'var(--ios-danger)', fontSize: '13px' }}>{error}</div>}
-          </>
+            {error && <div style={{ padding: '8px 20px 16px', color: 'var(--ios-danger)', fontSize: '13px' }}>{error}</div>}
+          </div>
         ) : (
-          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+          <div style={{ padding: '32px 20px', textAlign: 'center' }}>
             {error && <div style={{ color: 'var(--ios-danger)', marginBottom: '16px' }}>{error}</div>}
             
             {connecting ? (
@@ -269,7 +444,7 @@ export default function Settings() {
             )}
           </div>
         )}
-      </IosListGroup>
+      </div>
 
       {/* ── Design System & Appearance (4-Mode Matrix) ────────────── */}
       <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>

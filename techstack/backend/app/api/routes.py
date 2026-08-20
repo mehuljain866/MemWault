@@ -286,11 +286,7 @@ async def get_instagram_session(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the current Instagram session status."""
-    # A user can accumulate several session rows - one per Instagram account,
-    # plus rows left behind by disconnect (which only flips is_valid). With two
-    # connected accounts scalar_one_or_none() raises MultipleResultsFound and
-    # the whole Settings page 500s, so take the most recent valid session.
+    """Get the current Instagram session status and enriched profile info."""
     result = await db.execute(
         select(InstagramSession)
         .where(
@@ -300,7 +296,43 @@ async def get_instagram_session(
         .order_by(InstagramSession.last_login.desc())
         .limit(1)
     )
-    return result.scalars().first()
+    sess = result.scalars().first()
+    if not sess:
+        return None
+
+    # Check if profile data is cached in session_data or fetch it
+    profile_data = (sess.session_data or {}).get("profile", {})
+    if not profile_data or (sess.ig_username and sess.ig_username.isdigit()):
+        try:
+            from app.scraper.instagram import InstagramScraper
+            scraper = InstagramScraper(
+                username=sess.ig_username,
+                session_data=sess.session_data,
+                device_settings=sess.device_settings,
+            )
+            prof = scraper.fetch_user_profile()
+            if prof:
+                if prof.get("username") and sess.ig_username.isdigit():
+                    sess.ig_username = prof["username"]
+                profile_data = prof
+                sess.session_data = {**(sess.session_data or {}), "profile": profile_data}
+                await db.flush()
+        except Exception as e:
+            logger.warning("Could not refresh profile data: %s", e)
+
+    return InstagramSessionRead(
+        id=sess.id,
+        ig_username=sess.ig_username,
+        ig_user_id=sess.ig_user_id,
+        full_name=profile_data.get("full_name"),
+        profile_pic_url=profile_data.get("profile_pic_url"),
+        biography=profile_data.get("biography"),
+        follower_count=profile_data.get("follower_count"),
+        following_count=profile_data.get("following_count"),
+        media_count=profile_data.get("media_count"),
+        is_valid=sess.is_valid,
+        last_login=sess.last_login,
+    )
 
 
 @router.delete("/instagram/session", status_code=204)

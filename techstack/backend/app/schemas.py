@@ -53,6 +53,12 @@ class InstagramSessionRead(BaseModel):
     id: uuid.UUID
     ig_username: str
     ig_user_id: Optional[str] = None
+    full_name: Optional[str] = None
+    profile_pic_url: Optional[str] = None
+    biography: Optional[str] = None
+    follower_count: Optional[int] = None
+    following_count: Optional[int] = None
+    media_count: Optional[int] = None
     is_valid: bool
     last_login: datetime
 

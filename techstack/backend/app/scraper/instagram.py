@@ -292,6 +292,28 @@ class InstagramScraper:
             logger.error("Failed to fetch reel stats for %s: %s", media_id, e)
             return {}
 
+    def fetch_user_profile(self) -> Optional[dict]:
+        """Fetch the logged-in user's profile info (username, full_name, profile_pic_url, etc.)."""
+        self._ensure_logged_in()
+        try:
+            uid = getattr(self.client, "user_id", None) or getattr(self, "user_id", None)
+            if not uid:
+                return None
+            res = self.client.private_request(f"users/{uid}/info/")
+            user = res.get("user", {})
+            return {
+                "username": user.get("username"),
+                "full_name": user.get("full_name"),
+                "profile_pic_url": user.get("profile_pic_url"),
+                "biography": user.get("biography"),
+                "follower_count": user.get("follower_count"),
+                "following_count": user.get("following_count"),
+                "media_count": user.get("media_count"),
+            }
+        except Exception as e:
+            logger.warning("Failed to fetch user profile: %s", e)
+            return None
+
     def fetch_user_feed_posts(self, amount: int = 50) -> list[dict]:
         """
         Fetch user's feed posts (single photos, videos/reels, multi-slide carousels).

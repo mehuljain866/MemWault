@@ -411,6 +411,23 @@ class InstagramScraper:
         logger.info("Fetched %d stories from %d highlights", len(result), len(highlights))
         return result
 
+    # ── Close Friends ────────────────────────────────────
+
+    def fetch_close_friends(self) -> list[str]:
+        """
+        Fetch the list of real usernames currently on the user's Close Friends (besties) list from Instagram.
+        """
+        self._ensure_logged_in()
+        try:
+            res = self.client.private_request("friendships/besties/")
+            users = res.get("users", [])
+            usernames = [u.get("username") for u in users if u.get("username")]
+            logger.info("Fetched %d real Close Friends from Instagram", len(usernames))
+            return usernames
+        except Exception as e:
+            logger.warning("Failed to fetch Close Friends list from Instagram: %s", e)
+            return []
+
     # ── Internal Parsers ─────────────────────────────────
 
     def _parse_story(self, story: IGStory) -> dict:

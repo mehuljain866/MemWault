@@ -256,6 +256,14 @@ def poll_stories(self, user_id: Optional[str] = None):
                     s3_key = f"stories/{date_prefix}/{file_path.name}"
                     storage.upload_file(file_path, s3_key)
 
+                    # If this is a Close Friends story, grab the authentic Close Friends list snapshot
+                    audience_snapshot = story_data.get("audience_snapshot")
+                    if story_data.get("is_close_friends") and not audience_snapshot:
+                        try:
+                            audience_snapshot = scraper.fetch_close_friends()
+                        except Exception as cf_err:
+                            logger.warning("Failed to fetch Close Friends snapshot: %s", cf_err)
+
                     # Step 4: Save story record to the database
                     new_story = Story(
                         user_id=(user_uuid if user_id else ig_session.user_id),
@@ -283,7 +291,7 @@ def poll_stories(self, user_id: Optional[str] = None):
                         is_memory=True,
                         is_reel=story_data.get("is_reel", False),
                         is_close_friends=story_data.get("is_close_friends", False),
-                        audience_snapshot=story_data.get("audience_snapshot"),
+                        audience_snapshot=audience_snapshot,
                         og_reel_media_id=og_reel_media_id,
                         og_reel_s3_key=og_reel_s3_key,
                         og_reel_likes=og_reel_likes,
@@ -475,7 +483,6 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                         continue
 
                     MetadataWriter.write_metadata(file_path, story_data)
-
                     taken_at = story_data.get("taken_at", datetime.now(timezone.utc))
                     if isinstance(taken_at, str):
                         taken_at = datetime.fromisoformat(taken_at)
@@ -491,6 +498,13 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                     ).first()
                     
                     if not existing:
+                        audience_snapshot = story_data.get("audience_snapshot")
+                        if story_data.get("is_close_friends") and not audience_snapshot:
+                            try:
+                                audience_snapshot = scraper.fetch_close_friends()
+                            except Exception as cf_err:
+                                logger.warning("Failed to fetch Close Friends snapshot: %s", cf_err)
+
                         new_story = Story(
                             user_id=ig_session.user_id,
                             ig_media_id=str(media_id),
@@ -515,7 +529,7 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                             is_uploaded_to_s3=True,
                             is_ai_generated=story_data.get("is_ai_generated", False),
                             is_close_friends=story_data.get("is_close_friends", False),
-                            audience_snapshot=story_data.get("audience_snapshot"),
+                            audience_snapshot=audience_snapshot,
                             viewer_count=story_data.get("viewer_count", 0),
                             like_count=story_data.get("like_count", 0),
                         )

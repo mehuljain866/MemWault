@@ -37,10 +37,11 @@ function AppShell() {
   // This prevents the exiting page from suddenly re-rendering as the new page during the animation!
   const currentOutlet = useOutlet({ onMenuClick: () => setSidebarOpen(true) })
 
-  // Apply theme class to body/html
+  // Apply theme & design philosophy to body/html
   useEffect(() => {
     const settings = JSON.parse(localStorage.getItem('memwault_settings') || '{}')
     document.documentElement.setAttribute('data-theme', settings.theme || 'dark')
+    document.documentElement.setAttribute('data-design', settings.designPhilosophy || 'modern')
   }, [])
 
   return (

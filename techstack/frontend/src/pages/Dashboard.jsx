@@ -120,10 +120,10 @@ export default function Dashboard() {
         <motion.div 
           whileHover={{ scale: 1.01, y: -2 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="ios-card" 
+          className="ios-card hero-card" 
           style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(135deg, #007aff 0%, #5856d6 100%)', color: 'white', cursor: 'pointer' }}
         >
-          <div style={{ fontSize: '20px', fontWeight: 600, opacity: 0.9 }}>Total Stories Archived</div>
+          <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.85 }}>Archived Records</div>
           <div style={{ fontSize: '64px', fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 }}>{stats.total_stories}</div>
         </motion.div>
         

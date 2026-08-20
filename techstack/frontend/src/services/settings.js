@@ -8,16 +8,25 @@ const DEFAULT_SETTINGS = {
   skipDuration: 5, // 3, 4, 5
   mapMode: 'immersive', // 'immersive' or 'split'
   theme: 'dark', // 'dark' or 'light'
+  designPhilosophy: 'modern', // 'modern' (Flat/Glass) or 'skeuomorphic' (Archival Vault & Paper)
   
   // Meaning-Making Editor Settings
   editorSplitPane: false,
-  editorStyle: 'docs', // 'docs' or 'invisible'
+  editorStyle: 'docs', // 'modern', 'docs', or 'invisible'
   editorRibbonMode: 'simple', // 'simple' or 'advanced'
   editorCustomTools: [], // array of command names like ['image', 'code']
   
   // Tag visibility
   showAITags: true,
 };
+
+export function applyThemeSettings(settings) {
+  const current = settings || getSettings();
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', current.theme || 'dark');
+    document.documentElement.setAttribute('data-design', current.designPhilosophy || 'modern');
+  }
+}
 
 export function getSettings() {
   try {

@@ -11,8 +11,7 @@ import {
   openStorageFolder,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
-import { useNavigate } from 'react-router-dom'
-import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder } from 'lucide-react'
+import { Camera, Play, List, User as UserIcon, RefreshCcw, LogOut, Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles } from 'lucide-react'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -270,18 +269,69 @@ export default function Settings() {
         )}
       </IosListGroup>
 
-      {/* ── Preferences ────────────── */}
-      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
-        Preferences
+      {/* ── Design System & Appearance (4-Mode Matrix) ────────────── */}
+      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+        Design System & Visual Language
       </div>
       <IosListGroup>
-        {/* Theme Toggle */}
-        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Design Philosophy (Modern vs Skeuomorphic) */}
+        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--ios-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: 'var(--ios-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600 }}>Design Philosophy</div>
+              <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', marginTop: '2px' }}>
+                {playbackSettings.designPhilosophy === 'skeuomorphic' ? 'Archival Vault, Warm Paper & Tactile Hardware' : 'Minimalist Flat Surfaces & Glass Blur'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
+            {[
+              { id: 'modern', label: 'Modern Flat' },
+              { id: 'skeuomorphic', label: 'Skeuomorphic' }
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => handleSettingChange('designPhilosophy', item.id)}
+                style={{
+                  border: 'none', background: 'transparent',
+                  color: playbackSettings.designPhilosophy === item.id ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+                  padding: '6px 14px', borderRadius: '18px',
+                  fontWeight: playbackSettings.designPhilosophy === item.id ? 700 : 500,
+                  fontSize: '13px', cursor: 'pointer',
+                  position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
+                }}
+              >
+                {playbackSettings.designPhilosophy === item.id && (
+                  <motion.span
+                    layoutId="settings-design-pill"
+                    style={{
+                      position: 'absolute', inset: 0, borderRadius: '18px',
+                      background: 'var(--ios-bg-card)', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: -1,
+                    }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                  />
+                )}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme Toggle (Light vs Dark) */}
+        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--ios-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#5856d6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {playbackSettings.theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}
             </div>
-            Appearance
+            <div>
+              <div style={{ fontWeight: 600 }}>Color Environment</div>
+              <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', marginTop: '2px' }}>
+                {playbackSettings.theme === 'light' ? (playbackSettings.designPhilosophy === 'skeuomorphic' ? 'Archival Desk Paper (#E6E2D9)' : 'Clean Light Mode') : (playbackSettings.designPhilosophy === 'skeuomorphic' ? 'Dark Vault (#181818)' : 'OLED Dark Mode')}
+              </div>
+            </div>
           </div>
           <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
             {[['light','Light'],['dark','Dark']].map(([val, label]) => (
@@ -313,8 +363,42 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* 4-Mode Active Matrix Summary Card */}
+        <div style={{
+          padding: '16px',
+          background: 'rgba(255,255,255,0.02)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontSize: '13px',
+        }}>
+          <div>
+            <span style={{ fontWeight: 700, color: 'var(--ios-accent)' }}>Active System: </span>
+            <span style={{ fontWeight: 600 }}>
+              {playbackSettings.designPhilosophy === 'skeuomorphic' 
+                ? (playbackSettings.theme === 'light' ? '📜 Skeuomorphic + Archival Paper' : '🏛️ Skeuomorphic + Dark Vault')
+                : (playbackSettings.theme === 'light' ? '☀️ Modern + Light iOS' : '🌟 Modern + Dark Glass')}
+            </span>
+          </div>
+          <div style={{
+            fontSize: '11px',
+            background: 'var(--ios-border)',
+            padding: '3px 10px',
+            borderRadius: '10px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}>
+            4-Matrix Ready
+          </div>
+        </div>
+      </IosListGroup>
+
+      {/* ── Preferences ────────────── */}
+      <div style={{ paddingLeft: '16px', marginBottom: '8px', fontSize: '13px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase' }}>
+        Preferences
+      </div>
+      <IosListGroup>
         {/* Map View Mode */}
-        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--ios-border)' }}>
+        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '16px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#34c759', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Map size={18} />

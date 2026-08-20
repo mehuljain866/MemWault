@@ -1,46 +1,134 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ════════════════════════════════════════════════════════════
-   MemWault — iOS Native Overhaul (Bento Box Architecture)
-   ════════════════════════════════════════════════════════════ */
+/* ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+   MemWault â iOS Native Overhaul (Bento Box Architecture)
+   ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
 
-:root {
-  /* LIGHT MODE (Default) */
+/* ══════════════════════════════════════════════════════════════
+   MemWault — 4-Combination Design System Matrix
+   1. Modern + Dark
+   2. Modern + Light
+   3. Skeuomorphic + Dark (The Canonical Vault)
+   4. Skeuomorphic + Light (Archival Desk Paper)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 1. MODERN + LIGHT ───────────────────────────────────────── */
+:root,
+:root[data-design='modern'][data-theme='light'] {
   --ios-bg-app: #f2f2f7;
   --ios-bg-card: #ffffff;
-  --ios-bg-sidebar: #111111; /* Always dark for depth */
+  --ios-bg-sidebar: #111111;
   --ios-text-primary: #1c1c1e;
   --ios-text-secondary: #8e8e93;
   --ios-text-inverse: #ffffff;
-  --ios-border: rgba(0, 0, 0, 0.05);
+  --ios-border: rgba(0, 0, 0, 0.08);
   --ios-accent: #007aff;
   --ios-accent-hover: #005bb5;
   --ios-success: #34c759;
   --ios-danger: #ff3b30;
-  
   --ios-glass: rgba(255, 255, 255, 0.7);
   --ios-glass-sidebar: rgba(17, 17, 17, 0.85);
-  
   --ios-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
   --ios-shadow-md: 0 12px 24px rgba(0, 0, 0, 0.06);
   --ios-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.08);
   --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
+  --bg-grain: none;
 }
 
-:root[data-theme='dark'] {
+/* ── 2. MODERN + DARK ────────────────────────────────────────── */
+:root[data-theme='dark'],
+:root[data-design='modern'][data-theme='dark'] {
   --ios-bg-app: #000000;
   --ios-bg-card: #1c1c1e;
   --ios-bg-sidebar: #111111;
   --ios-text-primary: #ffffff;
   --ios-text-secondary: #98989d;
+  --ios-text-inverse: #ffffff;
   --ios-border: rgba(255, 255, 255, 0.1);
-  
+  --ios-accent: #007aff;
+  --ios-accent-hover: #005bb5;
+  --ios-success: #34c759;
+  --ios-danger: #ff3b30;
   --ios-glass: rgba(28, 28, 30, 0.7);
-  
+  --ios-glass-sidebar: rgba(17, 17, 17, 0.85);
   --ios-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
   --ios-shadow-md: 0 12px 24px rgba(0, 0, 0, 0.5);
   --ios-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.7);
   --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
+  --bg-grain: none;
+}
+
+/* ── 3. SKEUOMORPHIC + DARK (The Vault) ──────────────────────── */
+:root[data-design='skeuomorphic'][data-theme='dark'],
+:root[data-design='skeuomorphic'] {
+  --mw-vault: #181818;
+  --mw-vault-raised: #2C2C2C;
+  --mw-paper: #E6E2D9;
+  --mw-brass: #88744A;
+  --mw-brass-light: #A18C61;
+  --mw-brass-dark: #665635;
+  --mw-stone: #6F6A60;
+  --mw-stone-light: #8B857B;
+
+  --ios-bg-app: #181818;
+  --ios-bg-card: #2C2C2C;
+  --ios-bg-sidebar: #131313;
+  --ios-text-primary: #E6E2D9;
+  --ios-text-secondary: #8B857B;
+  --ios-text-inverse: #181818;
+  --ios-border: rgba(230, 226, 217, 0.12);
+  --ios-accent: #88744A;
+  --ios-accent-hover: #A18C61;
+  --ios-success: #60884A;
+  --ios-danger: #A84840;
+
+  --ios-glass: rgba(44, 44, 44, 0.85);
+  --ios-glass-sidebar: rgba(19, 19, 19, 0.95);
+
+  --ios-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(230, 226, 217, 0.08);
+  --ios-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(230, 226, 217, 0.09);
+  --ios-shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(230, 226, 217, 0.10);
+  --ios-shadow-sheen: inset 0 1px 0 rgba(230, 226, 217, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+
+  --font-serif: "Newsreader", "Playfair Display", "Cinzel", Georgia, serif;
+  --bg-grain: url('/textures/vault-grain.svg');
+}
+
+/* ── 4. SKEUOMORPHIC + LIGHT (Archival Desk Paper) ───────────── */
+:root[data-design='skeuomorphic'][data-theme='light'] {
+  --mw-vault: #181818;
+  --mw-vault-raised: #2C2C2C;
+  --mw-paper: #E6E2D9;
+  --mw-brass: #88744A;
+  --mw-brass-light: #A18C61;
+  --mw-brass-dark: #665635;
+  --mw-stone: #6F6A60;
+  --mw-stone-light: #8B857B;
+
+  --ios-bg-app: #E6E2D9;
+  --ios-bg-card: #F3EFE6;
+  --ios-bg-sidebar: #181818;
+  --ios-text-primary: #181818;
+  --ios-text-secondary: #5F5A52;
+  --ios-text-inverse: #E6E2D9;
+  --ios-border: rgba(24, 24, 24, 0.14);
+  --ios-accent: #88744A;
+  --ios-accent-hover: #665635;
+  --ios-success: #3E6B2C;
+  --ios-danger: #962820;
+
+  --ios-glass: rgba(243, 239, 230, 0.90);
+  --ios-glass-sidebar: rgba(24, 24, 24, 0.96);
+
+  --ios-shadow-sm: 0 2px 6px rgba(24, 24, 24, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --ios-shadow-md: 0 6px 16px rgba(24, 24, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --ios-shadow-lg: 0 16px 36px rgba(24, 24, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+
+  --font-serif: "Newsreader", "Playfair Display", "Cinzel", Georgia, serif;
+  --bg-grain: url('/textures/paper-grain.svg');
 }
 
 :root {
@@ -52,8 +140,84 @@
   --ios-spring-fast: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
   --ios-spring-bouncy: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   
-  --font-ios: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-ios: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Skeuomorphic grain overlay */
+[data-design='skeuomorphic'] .app-container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background-image: var(--bg-grain);
+  background-repeat: repeat;
+}
+
+/* Archival Labels */
+.archive-label {
+  font-family: var(--font-ios);
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ios-text-secondary);
+}
+
+[data-design='skeuomorphic'] .archive-label {
+  color: var(--mw-stone, #6F6A60);
+}
+
+/* Tactile push button effects */
+[data-design='skeuomorphic'] .ios-btn,
+[data-design='skeuomorphic'] button {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+[data-design='skeuomorphic'] .ios-btn:active,
+[data-design='skeuomorphic'] button:active {
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+  transform: translateY(1px);
+}
+
+/* Skeuomorphic Title & Hero Card enhancements */
+[data-design='skeuomorphic'] .ios-title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+[data-design='skeuomorphic'] .hero-card {
+  background: linear-gradient(135deg, #181818 0%, #2C2C2C 100%) !important;
+  border: 1px solid rgba(230, 226, 217, 0.15) !important;
+  color: #E6E2D9 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-design='skeuomorphic'][data-theme='light'] .hero-card {
+  background: linear-gradient(135deg, #2C2C2C 0%, #181818 100%) !important;
+  border: 1px solid rgba(24, 24, 24, 0.2) !important;
+  color: #E6E2D9 !important;
+}
+
+[data-design='skeuomorphic'] .ios-sidebar {
+  border-right: 1px solid rgba(230, 226, 217, 0.08);
+}
+
+[data-design='skeuomorphic'] .ios-nav-item.active {
+  background-color: var(--mw-brass, #88744A);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Editorial Serif for Journaling */
+[data-design='skeuomorphic'] .editorial-text,
+[data-design='skeuomorphic'] .journal-preview,
+[data-design='skeuomorphic'] textarea {
+  font-family: var(--font-serif);
 }
 
 * {
@@ -81,7 +245,7 @@ ul {
   list-style: none;
 }
 
-/* ── APP SHELL ─────────────── */
+/* ââ APP SHELL âââââââââââââââ */
 #root {
   display: flex;
   height: 100vh;
@@ -100,7 +264,7 @@ ul {
   position: relative;
 }
 
-/* ── SIDEBAR ─────────────── */
+/* ââ SIDEBAR âââââââââââââââ */
 .ios-sidebar {
   width: 280px;
   background-color: var(--ios-bg-sidebar);
@@ -157,7 +321,7 @@ ul {
   height: 22px;
 }
 
-/* ── MAIN CONTENT AREA ─────────────── */
+/* ââ MAIN CONTENT AREA âââââââââââââââ */
 .ios-main-content {
   flex: 1;
   background-color: var(--ios-bg-app);
@@ -180,7 +344,7 @@ ul {
   box-shadow: var(--ios-shadow-sm);
 }
 
-/* ── TYPOGRAPHY ─────────────── */
+/* ââ TYPOGRAPHY âââââââââââââââ */
 .ios-title {
   font-size: 34px;
   font-weight: 700;
@@ -195,7 +359,7 @@ ul {
   color: var(--ios-text-secondary);
 }
 
-/* ── CARDS (Bento Box) ─────────────── */
+/* ââ CARDS (Bento Box) âââââââââââââââ */
 .ios-card {
   background-color: var(--ios-bg-card);
   border-radius: var(--ios-radius-lg);
@@ -250,7 +414,7 @@ ul {
   opacity: 1;
 }
 
-/* ── BUTTONS ─────────────── */
+/* ââ BUTTONS âââââââââââââââ */
 .ios-btn {
   display: inline-flex;
   align-items: center;
@@ -287,7 +451,7 @@ ul {
   background-color: var(--ios-bg-app);
 }
 
-/* ── TOGGLE SWITCH ─────────────── */
+/* ââ TOGGLE SWITCH âââââââââââââââ */
 .ios-toggle {
   appearance: none;
   width: 51px;
@@ -325,14 +489,14 @@ ul {
   transform: translateX(20px);
 }
 
-/* ── FROSTED GLASS (Liquid) ─────────────── */
+/* ââ FROSTED GLASS (Liquid) âââââââââââââââ */
 .ios-glass {
   background-color: var(--ios-glass);
   backdrop-filter: blur(25px) saturate(180%);
   -webkit-backdrop-filter: blur(25px) saturate(180%);
 }
 
-/* ── UTILS ─────────────── */
+/* ââ UTILS âââââââââââââââ */
 .flex-row { display: flex; align-items: center; }
 .flex-col { display: flex; flex-direction: column; }
 .gap-2 { gap: 8px; }
@@ -365,7 +529,7 @@ ul {
   animation: spin 1s linear infinite;
 }
 
-/* � � � �  Highlights Tab � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � � �  */
+/* â ¬ â ¬  Highlights Tab â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬ â ¬  */
 .album-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

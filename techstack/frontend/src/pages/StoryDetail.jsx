@@ -634,14 +634,28 @@ export default function StoryDetail() {
                             </div>
                           </a>
 
-                          {v.has_liked && (
+                          {v.has_liked ? (
                             <div style={{
-                              display: 'flex', alignItems: 'center', gap: '4px',
-                              background: 'rgba(255, 45, 85, 0.15)', color: '#ff2d55',
-                              padding: '5px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 700,
-                              flexShrink: 0
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              background: 'linear-gradient(135deg, rgba(255, 45, 85, 0.2), rgba(255, 45, 85, 0.08))',
+                              border: '1px solid rgba(255, 45, 85, 0.4)',
+                              color: '#ff2d55', padding: '6px 12px', borderRadius: '20px',
+                              fontSize: '12px', fontWeight: 800, flexShrink: 0,
+                              boxShadow: '0 2px 8px rgba(255, 45, 85, 0.25)'
                             }}>
-                              ❤️ Liked
+                              <Heart size={15} fill="#ff2d55" color="#ff2d55" />
+                              <span>Liked</span>
+                            </div>
+                          ) : (
+                            <div 
+                              style={{ 
+                                display: 'flex', alignItems: 'center', gap: '4px', 
+                                opacity: 0.3, padding: '6px 8px', flexShrink: 0,
+                                color: 'var(--ios-text-secondary)'
+                              }} 
+                              title="Viewed (not liked)"
+                            >
+                              <Heart size={16} />
                             </div>
                           )}
                         </div>

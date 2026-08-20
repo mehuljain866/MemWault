@@ -376,6 +376,8 @@ class StoryViewer(Base):
     full_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     profile_pic_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    has_liked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    reaction_emoji: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     story: Mapped["Story"] = relationship(back_populates="viewers")
 

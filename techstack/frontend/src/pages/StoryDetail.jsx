@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
+import { getStory, getStoryViewers, refreshStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
 
@@ -20,6 +20,7 @@ export default function StoryDetail() {
   const [activeTab, setActiveTab] = useState('metadata')
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
+  const [refreshingViewers, setRefreshingViewers] = useState(false)
   
   const [journalNote, setJournalNote] = useState('')
   const [savingJournal, setSavingJournal] = useState(false)
@@ -539,26 +540,79 @@ export default function StoryDetail() {
               {/* ── Viewers Tab ───────────────── */}
               {activeTab === 'viewers' && (
                 <div>
+                  {/* Viewers & Likes Control Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--ios-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700 }}>{viewers.length} {viewers.length === 1 ? 'Viewer' : 'Viewers'}</span>
+                      {viewers.filter(v => v.has_liked).length > 0 && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          background: 'rgba(255, 45, 85, 0.15)', color: '#ff2d55',
+                          padding: '3px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 700
+                        }}>
+                          ❤️ {viewers.filter(v => v.has_liked).length} {viewers.filter(v => v.has_liked).length === 1 ? 'Like' : 'Likes'}
+                        </span>
+                      )}
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          setRefreshingViewers(true)
+                          const data = await refreshStoryViewers(id)
+                          const fresh = await getStoryViewers(id)
+                          setViewers(fresh)
+                          setStory(prev => ({ ...prev, viewer_count: data.viewer_count, like_count: data.like_count }))
+                        } catch (err) {
+                          alert(`Could not refresh viewers: ${err.message}`)
+                        } finally {
+                          setRefreshingViewers(false)
+                        }
+                      }}
+                      disabled={refreshingViewers}
+                      className="ios-btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                    >
+                      <RefreshCw size={13} className={refreshingViewers ? "spin-anim" : ""} />
+                      {refreshingViewers ? "Syncing..." : "Refresh Live"}
+                    </button>
+                  </div>
+
                   {viewers.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {viewers.map((v) => (
-                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
-                          {v.profile_pic_url ? (
-                            <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} color="var(--ios-text-secondary)" /></div>
-                          )}
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{v.username}</div>
-                            {v.full_name && <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
+                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {v.profile_pic_url ? (
+                              <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Users size={18} color="var(--ios-text-secondary)" />
+                              </div>
+                            )}
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '14px' }}>@{v.username}</div>
+                              {v.full_name && <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
+                            </div>
                           </div>
+                          {v.has_liked && (
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              background: 'rgba(255, 45, 85, 0.15)', color: '#ff2d55',
+                              padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700
+                            }}>
+                              ❤️ Liked
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ios-text-secondary)' }}>
                       <Eye size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                      <div>No viewer data available.</div>
+                      <div>No viewer data available yet.</div>
+                      <div style={{ fontSize: '12px', marginTop: '6px', color: 'var(--ios-text-secondary)' }}>
+                        Click "Refresh Live" above while the story is active on Instagram.
+                      </div>
                     </div>
                   )}
                 </div>

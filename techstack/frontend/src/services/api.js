@@ -189,6 +189,10 @@ export async function getStoryViewers(storyId) {
   return apiFetch(`/stories/${storyId}/viewers`);
 }
 
+export async function refreshStoryViewers(storyId) {
+  return apiFetch(`/stories/${storyId}/refresh-viewers`, { method: 'POST' });
+}
+
 export async function getAdjacentStories(storyId) {
   return apiFetch(`/stories/${storyId}/adjacent`);
 }

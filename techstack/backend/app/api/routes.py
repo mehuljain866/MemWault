@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import func, select
+from sqlalchemy import func, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -679,6 +679,61 @@ async def get_story_viewers(
         select(StoryViewer).where(StoryViewer.story_id == story_id)
     )
     return viewers_result.scalars().all()
+
+
+@router.post("/stories/{story_id}/refresh-viewers")
+async def refresh_story_viewers(
+    story_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch the latest live viewers and reactions for an active story from Instagram."""
+    from app.models import StoryViewer, InstagramSession
+    from app.scraper.instagram import InstagramScraper
+
+    result = await db.execute(
+        select(Story).where(Story.id == story_id, Story.user_id == user.id)
+    )
+    story = result.scalar_one_or_none()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    # Get user's active session
+    session_res = await db.execute(
+        select(InstagramSession).where(InstagramSession.user_id == user.id, InstagramSession.is_valid == True).limit(1)
+    )
+    ig_session = session_res.scalars().first()
+    if not ig_session or not ig_session.session_data:
+        raise HTTPException(status_code=400, detail="No active Instagram session connected.")
+
+    scraper = InstagramScraper(username=ig_session.ig_username, session_data=ig_session.session_data)
+    scraper.login()
+    viewers_list = scraper.fetch_story_viewers(story.ig_media_id)
+    
+    # Delete old and insert fresh viewers
+    await db.execute(delete(StoryViewer).where(StoryViewer.story_id == story_id))
+    for v in viewers_list:
+        sv = StoryViewer(
+            story_id=story_id,
+            ig_user_id=v["ig_user_id"],
+            username=v["username"],
+            full_name=v.get("full_name"),
+            profile_pic_url=v.get("profile_pic_url"),
+            has_liked=v.get("has_liked", False),
+            reaction_emoji=v.get("reaction_emoji"),
+        )
+        db.add(sv)
+
+    story.viewer_count = len(viewers_list)
+    story.like_count = sum(1 for v in viewers_list if v.get("has_liked"))
+    await db.commit()
+
+    return {
+        "status": "ok",
+        "viewer_count": story.viewer_count,
+        "like_count": story.like_count,
+        "viewers": viewers_list
+    }
 
 
 @router.get("/stories/{story_id}/manifest")

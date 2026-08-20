@@ -225,24 +225,47 @@ class InstagramScraper:
 
     def fetch_story_viewers(self, media_id: str) -> list[dict]:
         """
-        Fetch the list of users who viewed a specific story.
+        Fetch the list of users who viewed and liked a specific story.
         Must be called before the story expires (24h window).
         """
-        if self.web_cookies:
-            logger.warning("fetch_story_viewers disabled for web sessions to prevent account locks.")
-            return []
-            
         self._ensure_logged_in()
-        viewers = self.client.story_viewers(media_id)
-        return [
-            {
-                "ig_user_id": str(v.pk),
-                "username": v.username,
-                "full_name": v.full_name,
-                "profile_pic_url": str(v.profile_pic_url) if v.profile_pic_url else None,
-            }
-            for v in viewers
-        ]
+        pk = str(media_id).split("_")[0]
+        
+        try:
+            res = self.client.private_request(f"media/{pk}/list_reel_media_viewer/")
+            updated = res.get("updated_media", {}) or {}
+            raw_viewers = updated.get("viewers") or res.get("users") or []
+            reactions = updated.get("reactions") or res.get("reactions") or []
+            
+            # Build reaction map by user pk
+            liked_user_ids = set()
+            reaction_emojis = {}
+            for r in reactions:
+                user = r.get("user") or {}
+                uid = str(user.get("pk") or user.get("id") or "")
+                if uid:
+                    liked_user_ids.add(uid)
+                    if r.get("reaction_type"):
+                        reaction_emojis[uid] = r.get("reaction_type")
+
+            result = []
+            for v in raw_viewers:
+                uid = str(v.get("pk") or v.get("id") or v.get("pk_id") or "")
+                has_liked = bool(v.get("has_liked")) or (uid in liked_user_ids)
+                result.append({
+                    "ig_user_id": uid,
+                    "username": v.get("username", ""),
+                    "full_name": v.get("full_name"),
+                    "profile_pic_url": v.get("profile_pic_url"),
+                    "has_liked": has_liked,
+                    "reaction_emoji": reaction_emojis.get(uid) or ("❤️" if has_liked else None),
+                })
+            
+            logger.info("Fetched %d viewers (%d likes) for story %s", len(result), sum(1 for x in result if x["has_liked"]), pk)
+            return result
+        except Exception as e:
+            logger.warning("Failed to fetch story viewers for %s: %s", media_id, e)
+            return []
 
     def fetch_reel_stats(self, media_id: str) -> dict:
         """

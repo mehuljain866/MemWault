@@ -154,6 +154,8 @@ class StoryViewerRead(BaseModel):
     full_name: Optional[str] = None
     profile_pic_url: Optional[str] = None
     viewed_at: Optional[datetime] = None
+    has_liked: bool = False
+    reaction_emoji: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

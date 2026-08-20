@@ -184,6 +184,7 @@ def poll_stories(self, user_id: Optional[str] = None):
                     try:
                         viewers_list = scraper.fetch_story_viewers(media_id)
                         existing.viewer_count = len(viewers_list)
+                        existing.like_count = sum(1 for v in viewers_list if v.get("has_liked"))
                         
                         from app.models import StoryViewer
                         db.query(StoryViewer).filter(StoryViewer.story_id == existing.id).delete()
@@ -194,6 +195,8 @@ def poll_stories(self, user_id: Optional[str] = None):
                                 username=v_data["username"],
                                 full_name=v_data.get("full_name"),
                                 profile_pic_url=v_data.get("profile_pic_url"),
+                                has_liked=v_data.get("has_liked", False),
+                                reaction_emoji=v_data.get("reaction_emoji"),
                             )
                             db.add(sv)
                             
@@ -357,6 +360,7 @@ def poll_stories(self, user_id: Optional[str] = None):
                     try:
                         viewers_list = scraper.fetch_story_viewers(media_id)
                         new_story.viewer_count = len(viewers_list)
+                        new_story.like_count = sum(1 for v in viewers_list if v.get("has_liked"))
                         
                         from app.models import StoryViewer
                         for v_data in viewers_list:
@@ -366,6 +370,8 @@ def poll_stories(self, user_id: Optional[str] = None):
                                 username=v_data["username"],
                                 full_name=v_data.get("full_name"),
                                 profile_pic_url=v_data.get("profile_pic_url"),
+                                has_liked=v_data.get("has_liked", False),
+                                reaction_emoji=v_data.get("reaction_emoji"),
                             )
                             db.add(sv)
                         db.commit()

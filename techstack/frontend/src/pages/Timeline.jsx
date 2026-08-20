@@ -8,7 +8,7 @@ import FastScrollbar from '../components/FastScrollbar'
 import { useOutletContext } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, 
+  Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, RefreshCw,
   ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers,
   Star, Users, Globe, Search, CheckCircle2
 } from 'lucide-react'
@@ -332,47 +332,47 @@ export default function Timeline({ isReelView = false }) {
 
           {/* Sync Button */}
           {!isSelectMode && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+            <button
+              onClick={handleSync}
               disabled={syncing}
-              className="ios-btn-secondary ios-btn"
               style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
+                backgroundColor: 'var(--ios-accent, #007aff)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '13px',
                 fontWeight: 600,
-                border: '1px solid var(--ios-border)',
-                opacity: syncing ? 0.75 : 1,
-                cursor: syncing ? 'default' : 'pointer'
+                cursor: syncing ? 'default' : 'pointer',
+                opacity: syncing ? 0.7 : 1,
+                transition: 'opacity 0.2s',
               }}
-              onClick={handleSync}
             >
-              <RefreshCcw size={13} className={syncing ? 'spin-anim' : ''} />
-              <span>{syncing ? 'Syncing...' : 'Sync'}</span>
-            </motion.button>
+              <RefreshCw size={15} className={syncing ? 'spin-anim' : ''} />
+              <span>{syncing ? 'Syncing...' : (isReelView ? 'Sync Reels' : 'Sync Memories')}</span>
+            </button>
           )}
 
           {/* Select Mode Toggle */}
           <motion.button
-            whileHover={{ scale: 1.03 }}
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
             className={isSelectMode ? 'ios-btn' : 'ios-btn ios-btn-secondary'}
             onClick={isSelectMode ? exitSelectMode : enterSelectMode}
             style={{
-              padding: '6px 16px',
-              fontSize: '12px',
-              borderRadius: '16px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               fontWeight: 600,
-              background: isSelectMode ? 'var(--ios-accent)' : undefined,
-              color: isSelectMode ? '#fff' : undefined,
-              border: isSelectMode ? 'none' : '1px solid var(--ios-border, rgba(255,255,255,0.1))',
+              background: isSelectMode ? 'var(--ios-accent)' : 'var(--ios-bg-card)',
+              color: isSelectMode ? '#fff' : 'var(--ios-text-primary)',
+              border: isSelectMode ? 'none' : '1px solid var(--ios-border)',
             }}
           >
             {isSelectMode ? (

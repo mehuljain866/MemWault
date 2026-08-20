@@ -8,6 +8,8 @@ import asyncio
 import logging
 from typing import Optional
 
+from app.desktop import ensure_desktop_available, raise_new_window, snapshot_windows
+
 logger = logging.getLogger("memwault.browser_login")
 
 # Required cookies we need to extract
@@ -36,30 +38,54 @@ async def browser_login(timeout_ms: int = LOGIN_TIMEOUT_MS) -> dict:
             "Playwright is not installed. Run: pip install playwright && playwright install chromium"
         )
 
+    # Fail immediately and explain why, rather than launching a browser nobody
+    # can see (e.g. when the backend runs inside a container).
+    ensure_desktop_available("Instagram browser login")
+
     result = {}
 
+    # Snapshot existing windows so the new browser window can be identified by
+    # difference afterwards, instead of by matching its title.
+    windows_before = snapshot_windows()
+
     async with async_playwright() as p:
-        # Launch a VISIBLE browser (not headless) so the user can interact
+        # Launch a VISIBLE browser (not headless) so the user can interact.
+        # We launch bundled Chromium as a dedicated standalone window so it never
+        # merges into an existing running Chrome instance.
         launch_args = [
             "--disable-blink-features=AutomationControlled",
             "--no-first-run",
             "--no-default-browser-check",
-            "--start-maximized",
+            "--new-window",
+            "--window-position=120,80",
+            "--window-size=1280,850",
         ]
         
         try:
-            # Try launching system Google Chrome first for maximum compatibility
-            browser = await p.chromium.launch(
-                channel="chrome",
-                headless=False,
-                args=launch_args,
-            )
-        except Exception:
-            # Fall back to Playwright bundled Chromium
             browser = await p.chromium.launch(
                 headless=False,
                 args=launch_args,
             )
+            logger.info("Launched standalone bundled Chromium for Instagram login")
+        except Exception as chromium_exc:
+            logger.info(
+                "Bundled Chromium unavailable (%s); falling back to system Chrome",
+                chromium_exc,
+            )
+            try:
+                browser = await p.chromium.launch(
+                    channel="chrome",
+                    headless=False,
+                    args=launch_args,
+                )
+                logger.info("Launched system Google Chrome for Instagram login")
+            except Exception as chrome_exc:
+                raise RuntimeError(
+                    "Could not open a browser window: neither Playwright's bundled "
+                    "Chromium nor system Google Chrome could be started. Run "
+                    "'playwright install chromium' inside the backend virtualenv. "
+                    f"Underlying error: {chromium_exc} / {chrome_exc}"
+                ) from chrome_exc
 
         # Create a context that looks like a real browser
         context = await browser.new_context(
@@ -87,45 +113,20 @@ async def browser_login(timeout_ms: int = LOGIN_TIMEOUT_MS) -> dict:
         except Exception:
             pass
 
-        # On Windows, force the browser window to the foreground using Win32 API.
-        # Playwright's bring_to_front() only works inside the browser context;
-        # for OS-level focus when launched from a background service we need ctypes.
-        import sys as _sys
-        if _sys.platform == "win32":
-            import asyncio as _asyncio
-            await _asyncio.sleep(0.8)  # brief pause for window to render
-            try:
-                import ctypes
-                import ctypes.wintypes
-
-                user32 = ctypes.windll.user32
-
-                # Find the Chromium window — it will have "Instagram" in the title
-                # after navigation completes. Enumerate all top-level windows.
-                def _force_foreground():
-                    hwnd_target = [None]
-
-                    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
-                    def enum_cb(hwnd, lparam):
-                        length = user32.GetWindowTextLengthW(hwnd)
-                        if length > 0:
-                            buf = ctypes.create_unicode_buffer(length + 1)
-                            user32.GetWindowTextW(hwnd, buf, length + 1)
-                            title = buf.value.lower()
-                            if "instagram" in title or "chrome" in title or "chromium" in title:
-                                hwnd_target[0] = hwnd
-                                return False  # stop enum once found
-                        return True
-
-                    user32.EnumWindows(enum_cb, 0)
-                    if hwnd_target[0]:
-                        user32.ShowWindow(hwnd_target[0], 9)   # SW_RESTORE=9
-                        user32.SetForegroundWindow(hwnd_target[0])
-                        user32.BringWindowToTop(hwnd_target[0])
-
-                _force_foreground()
-            except Exception as _e:
-                logger.debug("Could not force foreground window: %s", _e)
+        # Raise the new browser window to the foreground. Playwright's
+        # bring_to_front() only reorders tabs within the browser - it cannot give
+        # the window OS-level focus when uvicorn launched it from the background.
+        #
+        # The window is identified by diffing against the snapshot taken before
+        # launch. Matching on the title instead (the previous approach) picked
+        # whichever window contained "chrome" - normally the user's own browser,
+        # the one displaying MemWault - so the login window stayed hidden behind it.
+        await asyncio.sleep(0.8)  # brief pause for the window to render
+        if not raise_new_window(windows_before, title_hint="instagram"):
+            logger.warning(
+                "Could not bring the Instagram login window to the front - "
+                "it is open, check the taskbar."
+            )
 
         # Handle cookie consent dialog if it appears
         try:

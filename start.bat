@@ -1,51 +1,43 @@
 @echo off
+setlocal
+cd /d "%~dp0"
 title MemWault Starter
+
 echo =========================================
 echo       MemWault One-Click Starter
 echo =========================================
 echo.
 
-echo [1/4] Checking/Setting up Python Backend...
-cd techstack\backend
-if not exist "venv" (
+echo [1/3] Verifying environment...
+if not exist "%~dp0techstack\backend\venv" (
     echo Creating Python virtual environment...
+    cd /d "%~dp0techstack\backend"
     python -m venv venv
+    call venv\Scripts\activate
+    pip install -r requirements.txt
+    playwright install chromium
 )
-call venv\Scripts\activate
-echo Installing Python dependencies...
-pip install -r requirements.txt
-echo Ensuring Playwright browser is installed...
-playwright install chromium
-cd ..\..
-echo.
 
-echo [2/4] Checking/Setting up Frontend...
-cd techstack\frontend
-if not exist "node_modules" (
+if not exist "%~dp0techstack\frontend\node_modules" (
     echo Installing Node dependencies...
-    npm install
+    cd /d "%~dp0techstack\frontend"
+    cmd /c npm install
 )
-cd ..\..
-echo.
 
-echo [3/4] Starting Backend Server...
-cd techstack\backend
-start "MemWault Backend" cmd /k "call venv\Scripts\activate && uvicorn app.main:app --reload --port 8000"
-cd ..\..
 echo.
+echo [2/3] Starting Backend API on http://localhost:8000 ...
+start "MemWault Backend API" /D "%~dp0techstack\backend" cmd /k "call venv\Scripts\activate && python -m uvicorn app.main:app --reload --port 8000"
 
-echo [4/4] Starting Frontend Server...
-cd techstack\frontend
-start "MemWault Frontend" cmd /k "npm run dev"
-cd ..\..
 echo.
+echo [3/3] Starting Frontend UI on http://localhost:5173 ...
+start "MemWault Frontend UI" /D "%~dp0techstack\frontend" cmd /k "npm run dev"
 
+echo.
 echo =========================================
-echo MemWault is now starting up! 
-echo.
-echo A new window has opened for the Backend API.
-echo A new window has opened for the Frontend UI.
-echo.
-echo You can access the app at: http://localhost:5173
+echo  MemWault is now starting up!
+echo  Backend:  http://localhost:8000
+echo  Frontend: http://localhost:5173
 echo =========================================
-pause
+timeout /t 3 /nobreak >nul
+start http://localhost:5173
+exit /b 0

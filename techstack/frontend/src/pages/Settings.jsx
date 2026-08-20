@@ -22,6 +22,7 @@ export default function Settings() {
   const [renewing, setRenewing] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [rescanning, setRescanning] = useState(false)
+  const [folderMsg, setFolderMsg] = useState('')
   const [error, setError] = useState('')
   const [playbackSettings, setPlaybackSettings] = useState(getSettings())
 
@@ -121,9 +122,15 @@ export default function Settings() {
   }
 
   async function handleOpenFolder() {
+    setFolderMsg('')
     try {
-      await openStorageFolder()
+      const res = await openStorageFolder()
+      // Windows stops background processes from stealing focus, so the Explorer
+      // window can open behind the browser. Showing the path confirms it worked
+      // and lets the user navigate there by hand if the window stayed hidden.
+      setFolderMsg(res?.path ? `Opened: ${res.path}` : 'Folder opened.')
     } catch (err) {
+      setFolderMsg('')
       alert('Failed to open storage folder: ' + err.message)
     }
   }
@@ -532,6 +539,14 @@ export default function Settings() {
           title="Open Local Media Folder"
           onClick={handleOpenFolder}
         />
+        {folderMsg && (
+          <div style={{
+            padding: '0 16px 12px 60px', fontSize: '12px',
+            color: 'var(--ios-text-secondary)', wordBreak: 'break-all',
+          }}>
+            {folderMsg}
+          </div>
+        )}
         <IosListItem
           icon={RefreshCcw} iconBg="#ff9500"
           title={rescanning ? "Scanning..." : "Rescan Local Metadata"}

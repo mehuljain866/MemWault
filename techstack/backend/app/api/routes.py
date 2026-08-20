@@ -3,8 +3,12 @@ MemWault REST API Routes
 All endpoints for the PWA frontend to consume.
 """
 
+import logging
+import os
+import shutil
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
@@ -50,6 +54,7 @@ from app.storage.s3 import get_storage
 
 router = APIRouter()
 security = HTTPBearer()
+logger = logging.getLogger("memwault.api")
 
 
 # ── Auth Dependency ──────────────────────────────────────
@@ -188,7 +193,7 @@ async def instagram_browser_login(
     Captures all session cookies after successful login.
     This is the safest method — Instagram cannot distinguish it from a normal login.
     """
-    import asyncio
+    from app.desktop import DesktopUnavailable
     from app.scraper.browser_login import browser_login
     from app.scraper.instagram import InstagramScraper
 
@@ -207,9 +212,16 @@ async def instagram_browser_login(
 
         # Run the browser login in a separate thread (blocks until the user logs in or timeout)
         login_result = await run_in_threadpool(run_browser_sync)
+    except DesktopUnavailable as e:
+        # Must be caught before RuntimeError - it is a subclass. 501 means the
+        # request was fine but this deployment has no desktop to show a window on.
+        logger.warning("Browser login unavailable: %s", e)
+        raise HTTPException(status_code=501, detail=str(e))
     except RuntimeError as e:
+        logger.warning("Browser login failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.exception("Browser login crashed")
         raise HTTPException(status_code=500, detail=f"Browser login failed: {e}")
 
     cookies = login_result["cookies"]
@@ -266,13 +278,20 @@ async def get_instagram_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Get the current Instagram session status."""
+    # A user can accumulate several session rows - one per Instagram account,
+    # plus rows left behind by disconnect (which only flips is_valid). With two
+    # connected accounts scalar_one_or_none() raises MultipleResultsFound and
+    # the whole Settings page 500s, so take the most recent valid session.
     result = await db.execute(
-        select(InstagramSession).where(
+        select(InstagramSession)
+        .where(
             InstagramSession.user_id == user.id,
             InstagramSession.is_valid == True,
         )
+        .order_by(InstagramSession.last_login.desc())
+        .limit(1)
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 @router.delete("/instagram/session", status_code=204)
@@ -300,7 +319,7 @@ async def renew_instagram_session(
     Re-launch the browser login flow to refresh expired Instagram cookies.
     Same as browser-login but ensures old session data is cleared first.
     """
-    import asyncio
+    from app.desktop import DesktopUnavailable
     from app.scraper.browser_login import browser_login
     from app.scraper.instagram import InstagramScraper
 
@@ -315,9 +334,16 @@ async def renew_instagram_session(
             return asyncio.run(browser_login(timeout_ms=300_000))
 
         login_result = await run_in_threadpool(run_browser_sync)
+    except DesktopUnavailable as e:
+        # Must be caught before RuntimeError - it is a subclass. 501 means the
+        # request was fine but this deployment has no desktop to show a window on.
+        logger.warning("Browser login unavailable: %s", e)
+        raise HTTPException(status_code=501, detail=str(e))
     except RuntimeError as e:
+        logger.warning("Browser login failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.exception("Browser login crashed")
         raise HTTPException(status_code=500, detail=f"Browser login failed: {e}")
 
     cookies = login_result["cookies"]
@@ -331,11 +357,16 @@ async def renew_instagram_session(
     )
     session_data = scraper.login()
 
-    # Upsert session
+    # Upsert session. This query is unfiltered, so any user who has ever
+    # connected a second account would hit MultipleResultsFound here - take the
+    # most recently used row instead.
     result = await db.execute(
-        select(InstagramSession).where(InstagramSession.user_id == user.id)
+        select(InstagramSession)
+        .where(InstagramSession.user_id == user.id)
+        .order_by(InstagramSession.last_login.desc())
+        .limit(1)
     )
-    ig_session = result.scalar_one_or_none()
+    ig_session = result.scalars().first()
 
     if ig_session:
         ig_session.session_data = session_data
@@ -986,12 +1017,16 @@ async def get_dashboard_stats(
 
     # IG session validity
     ig_result = await db.execute(
-        select(InstagramSession).where(
+        select(InstagramSession)
+        .where(
             InstagramSession.user_id == user.id,
             InstagramSession.is_valid == True,
         )
+        .limit(1)
     )
-    ig_session_valid = ig_result.scalar_one_or_none() is not None
+    # .limit(1) matters: with two connected accounts scalar_one_or_none() would
+    # raise MultipleResultsFound and 500 the whole dashboard.
+    ig_session_valid = ig_result.scalars().first() is not None
 
     return DashboardStats(
         total_stories=total_stories,
@@ -1017,11 +1052,11 @@ async def locate_local_media(
     db: AsyncSession = Depends(get_db),
 ):
     """Locate the media file in the native OS File Explorer."""
-    import subprocess
-    import sys
     from pathlib import Path
+
     from app.config import get_settings
-    
+    from app.desktop import DesktopUnavailable, reveal_file
+
     result = await db.execute(
         select(Story).where(Story.id == body.story_id, Story.user_id == user.id)
     )
@@ -1048,39 +1083,17 @@ async def locate_local_media(
                 file_path = alt_path
         
     try:
-        if sys.platform == "win32":
-            if file_path.exists():
-                win_path = str(file_path.resolve())
-                # cmd /c start ensures the Explorer window comes to the foreground
-                # even when launched from a background uvicorn service process.
-                # The empty "" first arg is required as a window title when path has quotes.
-                subprocess.Popen(
-                    f'cmd.exe /c start "" explorer.exe /select,"{win_path}"',
-                    shell=True
-                )
-            else:
-                folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
-                folder.mkdir(parents=True, exist_ok=True)
-                subprocess.Popen(f'cmd.exe /c start "" explorer.exe "{folder.resolve()}"', shell=True)
-            return {"status": "success", "message": "File opened in Windows Explorer"}
-        elif sys.platform == "darwin":
-            if file_path.exists():
-                subprocess.Popen(["open", "-R", str(file_path.resolve())])
-            else:
-                folder = file_path.parent if file_path.parent.exists() else Path(settings.storage_local_dir).resolve()
-                subprocess.Popen(["open", str(folder.resolve())])
-            return {"status": "success", "message": "File opened in Finder"}
-        else:
-            try:
-                if file_path.exists():
-                    subprocess.Popen(["nautilus", "--select", str(file_path.resolve())])
-                else:
-                    subprocess.Popen(["xdg-open", str(file_path.parent.resolve())])
-            except Exception:
-                subprocess.Popen(["xdg-open", str(file_path.parent.resolve())])
-            return {"status": "success", "message": "File opened in File Manager"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to open file explorer: {str(e)}")
+        message = reveal_file(file_path)
+    except DesktopUnavailable as exc:
+        # 501 Not Implemented: the request itself is fine, but this deployment
+        # has no desktop to open a window on (e.g. the backend runs in Docker).
+        logger.warning("Cannot reveal media file: %s", exc)
+        raise HTTPException(status_code=501, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Failed to reveal media file %s", file_path)
+        raise HTTPException(status_code=500, detail=f"Failed to open file explorer: {exc}")
+
+    return {"status": "success", "message": message}
 
 
 @router.post("/storage/open-folder")
@@ -1088,28 +1101,35 @@ async def open_storage_folder(
     user: User = Depends(get_current_user),
 ):
     """Open the main local storage media folder in native File Explorer."""
-    import subprocess
-    import sys
     from pathlib import Path
+
     from app.config import get_settings
+    from app.desktop import DesktopUnavailable, open_folder
 
     settings = get_settings()
     if settings.storage_type != "local":
-        raise HTTPException(status_code=400, detail="Only supported for local storage")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Media is kept in '{settings.storage_type}' object storage rather than "
+                f"on this machine's disk, so there is no local folder to open."
+            ),
+        )
 
     folder_path = Path(settings.storage_local_dir).resolve()
-    folder_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        if sys.platform == "win32":
-            subprocess.Popen(f'cmd.exe /c start "" explorer.exe "{folder_path}"', shell=True)
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", str(folder_path)])
-        else:
-            subprocess.Popen(["xdg-open", str(folder_path)])
-        return {"status": "success", "message": "Storage folder opened"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to open storage folder: {str(e)}")
+        message = open_folder(folder_path)
+    except DesktopUnavailable as exc:
+        logger.warning("Cannot open storage folder: %s", exc)
+        raise HTTPException(status_code=501, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Failed to open storage folder %s", folder_path)
+        raise HTTPException(status_code=500, detail=f"Failed to open storage folder: {exc}")
+
+    # The resolved path is returned so the UI can show *which* folder opened -
+    # it is relative to the backend's working directory, which surprises people.
+    return {"status": "success", "message": message, "path": str(folder_path)}
 
 # ── Media serving for Local Storage fallback ─────────────
 from fastapi.responses import FileResponse
@@ -1121,11 +1141,20 @@ async def serve_local_media(rest_of_path: str):
     settings = get_settings()
     if settings.storage_type != "local":
         raise HTTPException(status_code=403, detail="Local storage is not enabled")
-    
-    file_path = Path(settings.storage_local_dir) / rest_of_path
+
+    # This endpoint is deliberately unauthenticated - browsers do not send the
+    # Authorization header for <img src>/<video src>. That makes path containment
+    # essential: without it, "../../.." in the URL would read any file on disk,
+    # including memwault.db and the .env holding the JWT secret.
+    base = Path(settings.storage_local_dir).resolve()
+    file_path = (base / rest_of_path).resolve()
+    if not file_path.is_relative_to(base):
+        logger.warning("Blocked path traversal attempt: %r", rest_of_path)
+        raise HTTPException(status_code=404, detail="File not found")
+
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-        
+
     return FileResponse(file_path)
 
 
@@ -1260,8 +1289,6 @@ async def delete_highlight(
     return
 
 from app.schemas import HighlightUpdate, HighlightStoriesUpdate
-import os
-import shutil
 
 @router.post('/highlights/{highlight_id}/cover', response_model=HighlightResponse)
 async def upload_highlight_cover(
@@ -1277,22 +1304,32 @@ async def upload_highlight_cover(
     if not hl:
         raise HTTPException(status_code=404, detail="Highlight not found")
 
-    # Ensure directory exists
-    cover_dir = "data/media/covers"
-    os.makedirs(cover_dir, exist_ok=True)
-    
-    # Generate unique filename
-    ext = os.path.splitext(file.filename)[1]
-    if not ext:
-        ext = ".jpg"
+    # Covers must live under the configured media directory, because that is
+    # what GET /media/{path} serves from. Hardcoding "data/media" here broke
+    # covers for anyone who set MEMWAULT_STORAGE_LOCAL_DIR to another path.
+    from app.config import get_settings
+
+    cover_dir = Path(get_settings().storage_local_dir).resolve() / "covers"
+    cover_dir.mkdir(parents=True, exist_ok=True)
+
+    # Take the extension from an allowlist rather than from the upload. The
+    # cover is later served back from our own origin, so accepting an arbitrary
+    # extension (.html, .svg) would allow storing a script that runs as us.
+    ALLOWED_COVER_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_COVER_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cover must be one of: {', '.join(sorted(ALLOWED_COVER_EXTS))}",
+        )
     filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(cover_dir, filename)
-    
+    filepath = cover_dir / filename
+
     # Save file
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
-    # Update highlight with local path URL format that main.py serves
+
+    # Served by GET /api/v1/media/{path}, relative to storage_local_dir.
     hl.cover_media_url = f"/api/v1/media/covers/{filename}"
     hl.updated_at = datetime.now(timezone.utc)
     await db.commit()

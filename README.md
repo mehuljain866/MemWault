@@ -403,8 +403,11 @@ MemWault/
   - *Database Note:* SQLite is used by default for local development (`MEMWAULT_DATABASE_TYPE=sqlite`). PostgreSQL is optional.
 
 - **Ingestion Prerequisites (Full Scraping & Session Ingestion):**
-  - Redis (Required for Celery background task queue execution)
+  - Redis (only when `MEMWAULT_CELERY_ALWAYS_EAGER=false`; by default tasks run inline and Redis is not needed)
   - Playwright Chromium (`playwright install chromium` required for local Instagram browser authentication)
+  - **ExifTool** (optional, for embedding archival context into media files). MemWault looks for it on your `PATH`, or as `techstack/backend/exiftool_bin/exiftool`(`.exe`). Without it, EXIF/XMP embedding is skipped and a warning is logged — everything else works normally.
+
+> **Desktop-only features:** "Show in Folder" and the Instagram browser login open a window on your machine, so they need the backend running on your host OS. In Docker they return HTTP 501 with an explanation rather than failing silently.
 
 ### 2. Backend Setup
 ```bash
@@ -428,8 +431,10 @@ cd techstack/backend
 .\venv\Scripts\activate
 
 # Start Celery Worker Execution
-celery -A app.worker worker --loglevel=info
+celery -A app.scraper.tasks worker --loglevel=info
 ```
+
+> *Note: `MEMWAULT_CELERY_ALWAYS_EAGER` defaults to `true`, which runs scrape tasks inline inside the API process — so neither Redis nor this worker is required for local development. Set it to `false` to use a real Redis-backed queue.*
 
 ### 4. Frontend Setup
 ```bash

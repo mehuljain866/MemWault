@@ -3,7 +3,6 @@ MemWault Backend — FastAPI Application Entry Point
 """
 
 import sys
-import os
 import asyncio
 
 if sys.platform == "win32":
@@ -72,11 +71,18 @@ app.add_middleware(
 )
 
 from pathlib import Path
-from fastapi.staticfiles import StaticFiles
 
-# ── Static Media ─────────────────────────────────────────
-os.makedirs("data/media", exist_ok=True)
-app.mount("/api/v1/media", StaticFiles(directory="data/media"), name="media")
+# ── Media directory ──────────────────────────────────────
+# Media is served by the router's GET /media/{path} handler, which honours
+# MEMWAULT_STORAGE_LOCAL_DIR and refuses paths outside it.
+#
+# A StaticFiles mount used to sit at /api/v1/media. Starlette matches routes in
+# registration order and a Mount matches on prefix, so it also swallowed
+# PUT /api/v1/media/{story_id}/location - that endpoint returned 405 and editing
+# a story's location silently did nothing. The mount is redundant with the
+# router handler (and ignored the configured storage dir), so it is gone.
+if settings.storage_type == "local":
+    Path(settings.storage_local_dir).mkdir(parents=True, exist_ok=True)
 
 # ── Routes ───────────────────────────────────────────────
 app.include_router(router, prefix="/api/v1")

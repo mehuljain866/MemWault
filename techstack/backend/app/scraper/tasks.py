@@ -423,7 +423,7 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
     from app.storage.s3 import get_storage
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from app.models import InstagramSession
+    from app.models import InstagramSession, Story, StoryMusic, StoryMention, ScrapeLog
     import uuid
 
     logger.info("=== Archive Import Started (max: %s) ===", max_stories)
@@ -574,11 +574,12 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
 
                     processed += 1
 
-                    # Update progress
-                    self.update_state(
-                        state="PROGRESS",
-                        meta={"current": processed, "total": len(stories)},
-                    )
+                    # Update progress if running inside Celery worker
+                    if getattr(self.request, "id", None):
+                        self.update_state(
+                            state="PROGRESS",
+                            meta={"current": processed, "total": len(stories)},
+                        )
 
                 except Exception as e:
                     logger.error("Archive story %s failed: %s", media_id, e)

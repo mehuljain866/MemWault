@@ -269,33 +269,63 @@ class InstagramScraper:
     def fetch_archive_stories(self, max_stories: Optional[int] = None) -> list[dict]:
         """
         Fetch historical stories from the authenticated user's story archive.
-        This retrieves ALL past stories, not just the active 24h window.
+        This retrieves ALL past stories from Instagram's Story Archive.
         """
         self._ensure_logged_in()
 
         try:
             stories = []
-            
-            result = self.client.private_request(
-                "archive/reel/day_shells/",
-                params={"include_cover": "0"},
-            )
+            day_ids = []
+            max_id = None
 
-            # Each "day shell" contains story items for that day
-            items = result.get("items", [])
-            for day_shell in items:
-                day_items = day_shell.get("items", [])
-                for item_data in day_items:
-                    try:
-                        parsed = self._parse_raw_story_dict(item_data)
-                        stories.append(parsed)
-                        if max_stories and len(stories) >= max_stories:
-                            return stories
-                    except Exception as e:
-                        logger.warning("Failed to parse archive story: %s", e)
-                        continue
+            # Fetch day shells from archive (paginated)
+            while True:
+                params = {"include_cover": "0"}
+                if max_id:
+                    params["max_id"] = max_id
 
-            logger.info("Fetched %d stories from archive", len(stories))
+                result = self.client.private_request(
+                    "archive/reel/day_shells/",
+                    params=params,
+                )
+
+                items = result.get("items", [])
+                for day_shell in items:
+                    did = day_shell.get("id")
+                    if did and did not in day_ids:
+                        day_ids.append(did)
+
+                if not result.get("more_available") or not result.get("max_id") or (max_stories and len(day_ids) >= max_stories):
+                    break
+                max_id = result.get("max_id")
+
+            logger.info("Found %d archive day shells from Instagram", len(day_ids))
+
+            # Query feed/reels_media in batches of 10 day IDs
+            batch_size = 10
+            for i in range(0, len(day_ids), batch_size):
+                batch = day_ids[i:i + batch_size]
+                try:
+                    feed_res = self.client.private_request(
+                        "feed/reels_media/",
+                        params={"reel_ids": batch},
+                    )
+                    reels = feed_res.get("reels", {})
+                    for did in batch:
+                        reel = reels.get(did, {})
+                        for item_data in reel.get("items", []):
+                            try:
+                                parsed = self._parse_raw_story_dict(item_data)
+                                stories.append(parsed)
+                                if max_stories and len(stories) >= max_stories:
+                                    logger.info("Fetched %d stories from archive (hit max_stories)", len(stories))
+                                    return stories
+                            except Exception as parse_err:
+                                logger.warning("Failed to parse archive story: %s", parse_err)
+                except Exception as batch_err:
+                    logger.warning("Failed to fetch reel batch %s: %s", batch, batch_err)
+
+            logger.info("Fetched %d total stories from Instagram archive", len(stories))
             return stories
 
         except Exception as e:

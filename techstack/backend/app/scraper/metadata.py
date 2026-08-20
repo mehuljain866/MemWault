@@ -11,11 +11,33 @@ This enables gallery-level visibility of story context:
 
 import json
 import logging
+import shutil
 import subprocess
+import sys
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger("memwault.metadata")
+
+
+@lru_cache(maxsize=1)
+def find_exiftool() -> Optional[str]:
+    """
+    Locate the exiftool binary.
+
+    Prefers a copy bundled at backend/exiftool_bin/, then falls back to PATH.
+    The bundled path used to be the only option and was hardcoded to
+    "exiftool.exe", so metadata embedding silently did nothing on macOS, Linux
+    and Docker - and on Windows too unless the binary had been added by hand.
+    """
+    backend_dir = Path(__file__).parent.parent.parent
+    exe = "exiftool.exe" if sys.platform == "win32" else "exiftool"
+    bundled = backend_dir / "exiftool_bin" / exe
+    if bundled.exists():
+        return str(bundled)
+    return shutil.which("exiftool")
 
 class MetadataWriter:
     """
@@ -32,15 +54,20 @@ class MetadataWriter:
         """
         try:
             backend_dir = Path(__file__).parent.parent.parent
-            exiftool_path = backend_dir / "exiftool_bin" / "exiftool.exe"
             config_path = backend_dir / "memwault.config"
 
-            if not exiftool_path.exists():
-                logger.error("Exiftool not found at %s", exiftool_path)
+            exiftool_path = find_exiftool()
+            if not exiftool_path:
+                logger.warning(
+                    "exiftool not found - skipping EXIF/XMP embedding for %s. "
+                    "Install it and put it on PATH, or drop the binary in %s.",
+                    file_path.name,
+                    backend_dir / "exiftool_bin",
+                )
                 return False
 
             cmd = [
-                str(exiftool_path),
+                exiftool_path,
                 "-config", str(config_path),
                 "-overwrite_original",
                 "-m" # Ignore minor errors
@@ -69,8 +96,8 @@ class MetadataWriter:
                 mention_str = " ".join(f"@{m.get('username', '')}" for m in mentions)
                 description_parts.append(f"👥 Tags: {mention_str}")
                 
-            viewer_count = story_data.get("viewer_count", 0)
-            like_count = story_data.get("like_count", 0)
+            viewer_count = story_data.get("viewer_count") or 0
+            like_count = story_data.get("like_count") or 0
             if viewer_count > 0 or like_count > 0:
                 description_parts.append(f"📊 Engagement: {viewer_count} Views, {like_count} Likes")
 
@@ -105,9 +132,7 @@ class MetadataWriter:
                 cmd.append("-Iptc4xmpExt:DigitalSourceType=trainedAlgorithmicMedia")
 
             # ── 2. Custom Memwault Tags (XMP-Memwault) ─────────────────────
-            viewer_count = story_data.get("viewer_count", 0)
             cmd.append(f"-XMP-Memwault:ViewerCount={viewer_count}")
-            like_count = story_data.get("like_count", 0)
             cmd.append(f"-XMP-Memwault:LikeCount={like_count}")
             
             if music:

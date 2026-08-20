@@ -1,4 +1,35 @@
-version: "3.9"
+# MemWault containerised stack.
+#
+# Note: "Show in Folder" and the Instagram browser login cannot work in here.
+# They need a desktop session to open a window on; containers have neither a
+# file manager nor a display. Those endpoints return HTTP 501 with an
+# explanation when MEMWAULT_IN_CONTAINER is set. Run the backend on your host
+# (techstack/backend) if you need them.
+
+# Shared backend configuration. Every variable needs the MEMWAULT_ prefix -
+# app/config.py sets env_prefix="MEMWAULT_", so unprefixed names are ignored.
+x-backend-env: &backend-env
+  MEMWAULT_DEBUG: "true"
+  MEMWAULT_IN_CONTAINER: "true"
+  # Change this before exposing the stack anywhere: it signs the login JWTs.
+  MEMWAULT_SECRET_KEY: change-me-to-a-random-secret-key-in-production
+  # Without these two the stack would quietly run on SQLite + local disk while
+  # Postgres and MinIO idled unused, because config.py defaults to sqlite/local.
+  MEMWAULT_DATABASE_TYPE: postgres
+  MEMWAULT_STORAGE_TYPE: s3
+  MEMWAULT_POSTGRES_HOST: postgres
+  MEMWAULT_POSTGRES_PORT: "5432"
+  MEMWAULT_POSTGRES_USER: memwault
+  MEMWAULT_POSTGRES_PASSWORD: memwault_dev_password
+  MEMWAULT_POSTGRES_DB: memwault
+  MEMWAULT_REDIS_URL: redis://redis:6379/0
+  # Defaults to true, which makes Celery use an in-memory broker and run tasks
+  # inline in the API process - leaving the worker and beat containers idle.
+  MEMWAULT_CELERY_ALWAYS_EAGER: "false"
+  MEMWAULT_S3_ENDPOINT_URL: http://minio:9000
+  MEMWAULT_S3_ACCESS_KEY: minioadmin
+  MEMWAULT_S3_SECRET_KEY: minioadmin
+  MEMWAULT_S3_BUCKET_NAME: memwault-media
 
 services:
   # ── PostgreSQL Database ──────────────────────────────
@@ -67,13 +98,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-    environment:
-      MEMWAULT_DEBUG: "true"
-      MEMWAULT_POSTGRES_HOST: postgres
-      MEMWAULT_REDIS_URL: redis://redis:6379/0
-      MEMWAULT_S3_ENDPOINT_URL: http://minio:9000
-    env_file:
-      - ./backend/.env
+    environment: *backend-env
     ports:
       - "8000:8000"
     volumes:
@@ -94,13 +119,7 @@ services:
       minio:
         condition: service_started
     command: celery -A app.scraper.tasks worker --loglevel=info --concurrency=2
-    environment:
-      MEMWAULT_DEBUG: "true"
-      MEMWAULT_POSTGRES_HOST: postgres
-      MEMWAULT_REDIS_URL: redis://redis:6379/0
-      MEMWAULT_S3_ENDPOINT_URL: http://minio:9000
-    env_file:
-      - ./backend/.env
+    environment: *backend-env
     volumes:
       - ./backend:/app
 
@@ -112,13 +131,12 @@ services:
     container_name: memwault-beat
     restart: unless-stopped
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     command: celery -A app.scraper.tasks beat --loglevel=info
-    environment:
-      MEMWAULT_REDIS_URL: redis://redis:6379/0
-    env_file:
-      - ./backend/.env
+    environment: *backend-env
     volumes:
       - ./backend:/app
 

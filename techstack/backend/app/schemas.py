@@ -307,6 +307,8 @@ class DashboardStats(BaseModel):
     total_with_location: int
     total_mentions: int
     total_close_friends: int = 0
+    total_feed_posts: int = 0
+    total_with_raw_master: int = 0
     storage_used_mb: float
     last_scrape: Optional[ScrapeLogRead] = None
     ig_session_valid: bool

@@ -1123,6 +1123,23 @@ async def get_dashboard_stats(
     )
     total_close_friends = cf_result.scalar() or 0
 
+    # Total Feed Posts
+    posts_result = await db.execute(
+        select(func.count())
+        .select_from(Post)
+        .where(Post.user_id == user.id, Post.is_trashed == False)
+    )
+    total_feed_posts = posts_result.scalar() or 0
+
+    # Total RAW / Lossless Master media preserved
+    raw_result = await db.execute(
+        select(func.count())
+        .select_from(PostMedia)
+        .join(Post)
+        .where(Post.user_id == user.id, PostMedia.has_raw_master == True)
+    )
+    total_with_raw_master = raw_result.scalar() or 0
+
     # Storage used
     try:
         storage = get_storage()
@@ -1160,6 +1177,8 @@ async def get_dashboard_stats(
         total_with_location=total_with_location,
         total_mentions=total_mentions,
         total_close_friends=total_close_friends,
+        total_feed_posts=total_feed_posts,
+        total_with_raw_master=total_with_raw_master,
         storage_used_mb=storage_used_mb,
         last_scrape=ScrapeLogRead.model_validate(last_scrape) if last_scrape else None,
         ig_session_valid=ig_session_valid,

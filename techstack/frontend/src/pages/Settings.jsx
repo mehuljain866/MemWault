@@ -10,7 +10,7 @@ import {
   rescanMetadata,
   openStorageFolder,
 } from '../services/api'
-import { getSettings, saveSettings } from '../services/settings'
+import { getSettings, saveSettings, applyThemeSettings } from '../services/settings'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { 
   Camera, Play, List, User as UserIcon, RefreshCcw, RefreshCw, LogOut, 
@@ -144,17 +144,13 @@ export default function Settings() {
     const newSettings = { ...playbackSettings, [key]: value };
     setPlaybackSettings(newSettings);
     saveSettings(newSettings);
-    
-    // Apply theme immediately
-    if (key === 'theme') {
-      document.documentElement.setAttribute('data-theme', value);
-    }
+    applyThemeSettings(newSettings);
   }
 
-  // Ensure initial theme is set correctly (this is also done in App.jsx but good to be safe here)
+  // Ensure initial theme is set correctly
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', playbackSettings.theme || 'dark');
-  }, [playbackSettings.theme]);
+    applyThemeSettings(playbackSettings);
+  }, [playbackSettings.theme, playbackSettings.designPhilosophy]);
 
   const IosListGroup = ({ children }) => (
     <div style={{

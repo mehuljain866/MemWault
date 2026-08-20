@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../services/api'
 import { useOutletContext } from 'react-router-dom'
-import { Images, Video, Music, MapPin, Users, Database, Server, HardDrive, RefreshCcw, DownloadCloud, Menu, Star } from 'lucide-react'
+import { 
+  Images, Video, Music, MapPin, Users, Database, Server, HardDrive, 
+  RefreshCcw, DownloadCloud, Menu, Star, Layers, Sparkles 
+} from 'lucide-react'
 
 export default function Dashboard() {
   const { onMenuClick } = useOutletContext() || {}
@@ -152,6 +155,8 @@ export default function Dashboard() {
         
         <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
         <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
+        <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
+        <BentoStat icon={Sparkles} color="#88744A" label="RAW Masters Preserved" value={stats.total_with_raw_master || 0} />
         <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
         <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
         <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />

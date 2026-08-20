@@ -168,7 +168,6 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
   return (
     <div 
       ref={containerRef}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

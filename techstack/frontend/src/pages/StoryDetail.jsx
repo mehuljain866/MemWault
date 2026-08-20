@@ -5,7 +5,7 @@ import { getStory, getStoryViewers, refreshStoryViewers, locateStoryMedia, updat
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
 
@@ -578,27 +578,68 @@ export default function StoryDetail() {
                   </div>
 
                   {viewers.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {viewers.map((v) => (
-                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--ios-border)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div 
+                          key={v.id} 
+                          style={{ 
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                            padding: '10px 12px', borderRadius: '12px',
+                            background: 'var(--ios-bg-card, rgba(255,255,255,0.03))',
+                            border: '1px solid var(--ios-border)',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <a
+                            href={`https://www.instagram.com/${v.username}/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '12px',
+                              textDecoration: 'none', color: 'inherit',
+                              flex: 1, minWidth: 0,
+                            }}
+                            title={`Open @${v.username} on Instagram`}
+                          >
                             {v.profile_pic_url ? (
-                              <img src={v.profile_pic_url} alt={v.username} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--ios-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Users size={18} color="var(--ios-text-secondary)" />
-                              </div>
-                            )}
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: '14px' }}>@{v.username}</div>
-                              {v.full_name && <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>{v.full_name}</div>}
+                              <img 
+                                src={`/api/v1/proxy/image?url=${encodeURIComponent(v.profile_pic_url)}`} 
+                                alt={v.username}
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  // Fallback to direct URL or icon if proxy fails
+                                  if (e.target.src.includes('/api/v1/proxy/image')) {
+                                    e.target.src = v.profile_pic_url;
+                                  } else {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                                  }
+                                }}
+                                style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--ios-border)' }} 
+                              />
+                            ) : null}
+                            <div style={{
+                              width: 44, height: 44, borderRadius: '50%',
+                              background: 'var(--ios-border)', display: v.profile_pic_url ? 'none' : 'flex',
+                              alignItems: 'center', justifyContent: 'center'
+                            }}>
+                              <Users size={20} color="var(--ios-text-secondary)" />
                             </div>
-                          </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ios-text-primary)' }}>
+                                @{v.username}
+                                <ExternalLink size={13} style={{ color: 'var(--ios-accent)', opacity: 0.8 }} />
+                              </div>
+                              {v.full_name && <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.full_name}</div>}
+                            </div>
+                          </a>
+
                           {v.has_liked && (
                             <div style={{
                               display: 'flex', alignItems: 'center', gap: '4px',
                               background: 'rgba(255, 45, 85, 0.15)', color: '#ff2d55',
-                              padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700
+                              padding: '5px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 700,
+                              flexShrink: 0
                             }}>
                               ❤️ Liked
                             </div>

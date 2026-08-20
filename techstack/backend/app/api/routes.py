@@ -736,6 +736,23 @@ async def refresh_story_viewers(
     }
 
 
+@router.get("/proxy/image")
+async def proxy_image(url: str = Query(...)):
+    """Proxy image requests to bypass Instagram CDN referrer/CORS restrictions."""
+    import httpx
+    from fastapi import Response
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        try:
+            resp = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+            if resp.status_code == 200:
+                return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"))
+        except Exception:
+            pass
+    raise HTTPException(status_code=404, detail="Image could not be retrieved")
+
+
 @router.get("/stories/{story_id}/manifest")
 async def get_story_manifest(
     story_id: uuid.UUID,

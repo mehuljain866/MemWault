@@ -93,13 +93,14 @@ export default function MobileUploadPortal() {
           <Sparkles size={28} />
         </div>
         <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0' }}>
-          MemWault AirDrop
+          Upload Original Media
         </h1>
         <p style={{ fontSize: '13px', color: '#8e8e93', margin: 0 }}>
           Uploading uncompressed master files to your computer over local Wi-Fi.
         </p>
       </div>
 
+      {/* Target Post Card */}
       <div style={{
         backgroundColor: '#1c1c1e', borderRadius: '20px', padding: '16px',
         border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px'
@@ -115,6 +116,7 @@ export default function MobileUploadPortal() {
         </div>
       </div>
 
+      {/* Slide Selector */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ fontSize: '13px', fontWeight: 700, color: '#8e8e93', marginBottom: '10px' }}>
           SELECT SLIDE TO ATTACH MASTER FILE
@@ -140,6 +142,7 @@ export default function MobileUploadPortal() {
         </div>
       </div>
 
+      {/* Upload Action Button */}
       <div style={{
         backgroundColor: '#1c1c1e', borderRadius: '24px', padding: '24px',
         border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center'
@@ -178,7 +181,7 @@ export default function MobileUploadPortal() {
         </button>
 
         <p style={{ fontSize: '12px', color: '#8e8e93', marginTop: '12px', margin: '12px 0 0 0' }}>
-          Select 48MP ProRAW / HEIC, Motion Photos, or 4K videos directly from your iPhone / Android photo library.
+          Select original uncompressed photos, motion photos, or videos directly from your phone library.
         </p>
 
         {uploadSuccess && (

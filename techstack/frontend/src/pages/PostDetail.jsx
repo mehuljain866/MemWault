@@ -240,7 +240,7 @@ export default function PostDetail() {
                   }}
                 >
                   <Smartphone size={14} />
-                  <span>QR Upload</span>
+                  <span>Upload from Phone</span>
                 </button>
 
                 <button

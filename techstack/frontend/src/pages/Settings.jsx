@@ -468,10 +468,14 @@ export default function Settings() {
 
         <div style={{ padding: '16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '16px' }}>Design Philosophy</div>
-          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px' }}>
-            {['docs', 'invisible'].map(style => (
-              <button key={style} onClick={() => handleSettingChange('editorStyle', style)} style={{ border: 'none', background: playbackSettings.editorStyle === style ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.editorStyle === style ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.editorStyle === style ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', textTransform: 'capitalize' }}>
-                {style === 'docs' ? 'Modern (Docs)' : 'Apple Notes (Invisible)'}
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '20px', padding: '2px', gap: '2px' }}>
+            {[
+              { id: 'modern', label: 'Modern' },
+              { id: 'docs', label: 'Rich Docs' },
+              { id: 'invisible', label: 'Minimal' }
+            ].map(item => (
+              <button key={item.id} onClick={() => handleSettingChange('editorStyle', item.id)} style={{ border: 'none', background: playbackSettings.editorStyle === item.id ? 'var(--ios-bg-card)' : 'transparent', color: playbackSettings.editorStyle === item.id ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)', padding: '6px 12px', borderRadius: '18px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: playbackSettings.editorStyle === item.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}>
+                {item.label}
               </button>
             ))}
           </div>

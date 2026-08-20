@@ -398,17 +398,6 @@ export default function StoryDetail() {
                           } catch (err) { alert('Update failed'); e.target.checked = !val; }
                         }}
                       />
-                      <ToggleSwitch 
-                        label="Close Friends (Green Ring)"
-                        checked={story.is_close_friends}
-                        onChange={async (e) => {
-                          const val = e.target.checked;
-                          try {
-                            await updateStory(id, { is_close_friends: val });
-                            setStory(prev => ({ ...prev, is_close_friends: val }));
-                          } catch (err) { alert('Update failed'); e.target.checked = !val; }
-                        }}
-                      />
                     </div>
                   </InfoRow>
 
@@ -691,7 +680,7 @@ export default function StoryDetail() {
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
-                      Meaning-Making Editor
+                      Meaning-Making Journal
                     </div>
                     <button 
                       onClick={handleSaveJournal}
@@ -711,51 +700,82 @@ export default function StoryDetail() {
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      <Save size={16} />
+                      {journalNote === story.journal_note && story.journal_note ? <Check size={16} /> : <Save size={16} />}
                       {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
                     </button>
                   </div>
                   
-                  <div 
-                    data-color-mode="dark" 
-                    style={{ 
-                      flex: 1, 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      minHeight: '400px', 
-                      borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
-                      overflow: 'hidden', 
-                      border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
-                      backgroundColor: 'transparent'
-                    }}
-                  >
-                    <MDEditor
-                      value={journalNote}
-                      onChange={setJournalNote}
-                      height="100%"
-                      visibleDragbar={false}
-                      preview={settings.editorSplitPane ? 'live' : 'edit'}
-                      commands={
-                        settings.editorRibbonMode === 'advanced' 
-                          ? undefined 
-                          : [
-                              commands.bold,
-                              commands.italic,
-                              commands.strikethrough,
-                              commands.divider,
-                              ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
-                              ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
-                              ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
-                              ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
-                              ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
-                            ]
-                      }
+                  {settings.editorStyle === 'modern' ? (
+                    <div style={{
+                      flex: 1,
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      border: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}>
+                      <textarea
+                        value={journalNote}
+                        onChange={(e) => setJournalNote(e.target.value)}
+                        placeholder="Reflect on this memory... where were you, how did you feel, what made this moment special?"
+                        style={{
+                          width: '100%',
+                          flex: 1,
+                          minHeight: '350px',
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          color: '#fff',
+                          fontSize: '14px',
+                          lineHeight: 1.6,
+                          resize: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div 
+                      data-color-mode="dark" 
                       style={{ 
-                        backgroundColor: 'transparent',
-                        boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
+                        flex: 1, 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        minHeight: '400px', 
+                        borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
+                        overflow: 'hidden', 
+                        border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
+                        backgroundColor: 'transparent'
                       }}
-                    />
-                  </div>
+                    >
+                      <MDEditor
+                        value={journalNote}
+                        onChange={setJournalNote}
+                        height="100%"
+                        visibleDragbar={false}
+                        preview={settings.editorSplitPane ? 'live' : 'edit'}
+                        commands={
+                          settings.editorRibbonMode === 'advanced' 
+                            ? undefined 
+                            : [
+                                commands.bold,
+                                commands.italic,
+                                commands.strikethrough,
+                                commands.divider,
+                                ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
+                                ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
+                                ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
+                                ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
+                                ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
+                              ]
+                        }
+                        style={{ 
+                          backgroundColor: 'transparent',
+                          boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>

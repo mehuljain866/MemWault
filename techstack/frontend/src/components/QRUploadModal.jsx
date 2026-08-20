@@ -114,10 +114,10 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
               <Smartphone size={26} />
             </div>
             <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 6px 0' }}>
-              AirDrop to MemWault
+              Upload Original Media
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--ios-text-secondary, #8e8e93)', margin: 0, lineHeight: 1.4 }}>
-              Scan this QR code with your phone camera on local Wi-Fi to stream original 48MP RAW photos or 4K videos.
+              Scan this QR code with your phone camera on local Wi-Fi to upload your original, uncompressed photos and videos.
             </p>
           </div>
 

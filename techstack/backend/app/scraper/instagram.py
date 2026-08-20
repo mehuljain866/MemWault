@@ -234,15 +234,15 @@ class InstagramScraper:
         try:
             res = self.client.private_request(f"media/{pk}/list_reel_media_viewer/")
             updated = res.get("updated_media", {}) or {}
-            raw_viewers = updated.get("viewers") or res.get("users") or []
-            reactions = updated.get("reactions") or res.get("reactions") or []
+            raw_viewers = res.get("viewers") or updated.get("viewers", []) or res.get("users", [])
+            reactions = res.get("reactions") or updated.get("reactions", []) or []
             
             # Build reaction map by user pk
             liked_user_ids = set()
             reaction_emojis = {}
             for r in reactions:
                 user = r.get("user") or {}
-                uid = str(user.get("pk") or user.get("id") or "")
+                uid = str(user.get("pk") or user.get("id") or user.get("strong_id__") or "")
                 if uid:
                     liked_user_ids.add(uid)
                     if r.get("reaction_type"):
@@ -250,13 +250,16 @@ class InstagramScraper:
 
             result = []
             for v in raw_viewers:
-                uid = str(v.get("pk") or v.get("id") or v.get("pk_id") or "")
-                has_liked = bool(v.get("has_liked")) or (uid in liked_user_ids)
+                if not isinstance(v, dict):
+                    continue
+                user = v.get("user") if ("user" in v and isinstance(v["user"], dict)) else v
+                uid = str(user.get("pk") or user.get("id") or user.get("pk_id") or user.get("strong_id__") or "")
+                has_liked = bool(v.get("has_liked")) or bool(user.get("has_liked")) or (uid in liked_user_ids)
                 result.append({
                     "ig_user_id": uid,
-                    "username": v.get("username", ""),
-                    "full_name": v.get("full_name"),
-                    "profile_pic_url": v.get("profile_pic_url"),
+                    "username": user.get("username", ""),
+                    "full_name": user.get("full_name"),
+                    "profile_pic_url": user.get("profile_pic_url"),
                     "has_liked": has_liked,
                     "reaction_emoji": reaction_emojis.get(uid) or ("❤️" if has_liked else None),
                 })

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getStories, bulkUpdateStories } from '../services/api'
+import { getStories, bulkUpdateStories, triggerScrape } from '../services/api'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, 
   ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers,
-  Star, Users, Globe, Search
+  Star, Users, Globe, Search, CheckCircle2
 } from 'lucide-react'
 
 // Helper for Year/Month cluster preview
@@ -68,6 +68,9 @@ export default function Timeline({ isReelView = false }) {
   const [showAddToHighlightModal, setShowAddToHighlightModal] = useState(false)
   const [showHighlightCreatorModal, setShowHighlightCreatorModal] = useState(false)
 
+  const [syncing, setSyncing] = useState(false)
+  const [toast, setToast] = useState(null)
+
   const PAGE_SIZE = zoomLevel === 'year' ? 120 : zoomLevel === 'month' ? 60 : 30
 
   const loadStories = useCallback(async (pageNum = 1) => {
@@ -102,6 +105,22 @@ export default function Timeline({ isReelView = false }) {
       setLoading(false)
     }
   }, [filters, isReelView, PAGE_SIZE, searchQuery])
+
+  const handleSync = async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      await triggerScrape(true)
+      await loadStories(1)
+      setToast('Archive synced successfully!')
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast(`Sync error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // Debounce search input
   useEffect(() => {
@@ -316,6 +335,7 @@ export default function Timeline({ isReelView = false }) {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
+              disabled={syncing}
               className="ios-btn-secondary ios-btn"
               style={{
                 padding: '6px 14px',
@@ -325,16 +345,14 @@ export default function Timeline({ isReelView = false }) {
                 alignItems: 'center',
                 gap: '6px',
                 fontWeight: 600,
-                border: '1px solid var(--ios-border, rgba(255,255,255,0.1))',
+                border: '1px solid var(--ios-border)',
+                opacity: syncing ? 0.75 : 1,
+                cursor: syncing ? 'default' : 'pointer'
               }}
-              onClick={() => {
-                import('../services/api').then(api => {
-                  api.triggerScrape(true).catch(console.error)
-                })
-              }}
+              onClick={handleSync}
             >
-              <RefreshCcw size={13} />
-              <span>Sync</span>
+              <RefreshCcw size={13} className={syncing ? 'spin-anim' : ''} />
+              <span>{syncing ? 'Syncing...' : 'Sync'}</span>
             </motion.button>
           )}
 
@@ -612,6 +630,28 @@ export default function Timeline({ isReelView = false }) {
         onCreated={handleHighlightCreated}
         preSelectedStoryIds={selectedIds}
       />
+
+      {/* ── Floating Notification Toast ─────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="ios-glass" 
+            style={{
+              position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+              padding: '12px 20px', borderRadius: 'var(--ios-radius-md)',
+              boxShadow: 'var(--ios-shadow-lg)', color: 'var(--ios-text-primary)',
+              fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px',
+              border: '1px solid var(--ios-border)'
+            }}
+          >
+            <CheckCircle2 size={16} color="var(--ios-success, #34c759)" />
+            <span>{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

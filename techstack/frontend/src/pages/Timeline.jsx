@@ -443,20 +443,18 @@ export default function Timeline({ isReelView = false }) {
                 width: '100%',
                 padding: '7px 12px 7px 34px',
                 borderRadius: '14px',
-                border: '1px solid var(--ios-border, rgba(255,255,255,0.1))',
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                color: 'var(--ios-text-primary, #fff)',
+                border: '1px solid var(--ios-border)',
+                backgroundColor: 'var(--ios-bg-card)',
+                color: 'var(--ios-text-primary)',
                 fontSize: '13px',
                 outline: 'none',
                 transition: 'all 0.2s ease',
               }}
               onFocus={e => {
-                e.target.style.borderColor = 'var(--ios-accent, #007aff)'
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.07)'
+                e.target.style.borderColor = 'var(--ios-accent)'
               }}
               onBlur={e => {
-                e.target.style.borderColor = 'var(--ios-border, rgba(255,255,255,0.1))'
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.04)'
+                e.target.style.borderColor = 'var(--ios-border)'
               }}
             />
             {searchInput && (

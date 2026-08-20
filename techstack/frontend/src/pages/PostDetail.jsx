@@ -80,17 +80,17 @@ export default function PostDetail() {
 
   if (loading && !post) {
     return (
-      <div style={{ height: '100vh', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <RefreshCw size={32} className="spin-anim" color="#007aff" />
+      <div style={{ height: '100vh', backgroundColor: 'var(--ios-bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <RefreshCw size={32} className="spin-anim" color="var(--ios-accent)" />
       </div>
     )
   }
 
   if (!post) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#fff' }}>
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--ios-text-primary)' }}>
         <h3>Post not found</h3>
-        <Link to="/posts" style={{ color: '#007aff' }}>Back to Feed</Link>
+        <Link to="/posts" style={{ color: 'var(--ios-accent)' }}>Back to Feed</Link>
       </div>
     )
   }
@@ -100,8 +100,8 @@ export default function PostDetail() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: 'var(--ios-bg-primary, #000000)',
-      color: 'var(--ios-text-primary, #ffffff)',
+      backgroundColor: 'var(--ios-bg-app)',
+      color: 'var(--ios-text-primary)',
       padding: '20px 24px 80px 24px',
     }}>
       <div style={{ marginBottom: '16px' }}>
@@ -177,8 +177,8 @@ export default function PostDetail() {
           {post.audio_title && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '12px',
-              fontSize: '13px', color: '#fff',
+              background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)', padding: '8px 12px', borderRadius: '12px',
+              fontSize: '13px', color: 'var(--ios-text-primary)',
             }}>
               <Music size={14} color="var(--ios-accent, #007aff)" />
               <span style={{ fontWeight: 600 }}>{post.audio_title}</span>
@@ -209,16 +209,16 @@ export default function PostDetail() {
 
           {post.caption_text && (
             <div style={{
-              background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px',
-              fontSize: '13px', lineHeight: 1.5, whiteSpace: 'pre-wrap',
+              background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)', padding: '16px', borderRadius: '16px',
+              fontSize: '13px', lineHeight: 1.5, whiteSpace: 'pre-wrap', color: 'var(--ios-text-primary)',
             }}>
               {post.caption_text}
             </div>
           )}
 
           <div style={{
-            background: 'rgba(0, 122, 255, 0.06)',
-            border: '1px solid rgba(0, 122, 255, 0.2)',
+            background: 'var(--ios-bg-card)',
+            border: '1px solid var(--ios-border)',
             borderRadius: '16px', padding: '16px',
           }}>
             <div style={{
@@ -226,7 +226,7 @@ export default function PostDetail() {
               marginBottom: '12px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={16} color="#ffd700" />
+                <Sparkles size={16} color="var(--ios-accent)" />
                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Lossless Master Media</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -247,7 +247,7 @@ export default function PostDetail() {
                   onClick={() => fileInputRef.current?.click()}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'rgba(255,255,255,0.1)', color: '#fff',
+                    background: 'var(--ios-border)', color: 'var(--ios-text-primary)',
                     border: 'none', padding: '6px 12px', borderRadius: '10px',
                     fontSize: '12px', fontWeight: 600, cursor: 'pointer'
                   }}
@@ -273,8 +273,8 @@ export default function PostDetail() {
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '8px 12px', borderRadius: '12px',
-                    background: activeSlideIndex === idx ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    border: `1px solid ${activeSlideIndex === idx ? 'var(--ios-accent, #007aff)' : 'rgba(255,255,255,0.05)'}`,
+                    background: activeSlideIndex === idx ? 'var(--ios-border)' : 'transparent',
+                    border: `1px solid ${activeSlideIndex === idx ? 'var(--ios-accent)' : 'var(--ios-border)'}`,
                     cursor: 'pointer',
                   }}
                 >
@@ -282,7 +282,7 @@ export default function PostDetail() {
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ios-text-secondary, #8e8e93)' }}>
                       Slide {idx + 1}
                     </span>
-                    <span style={{ fontSize: '12px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--ios-text-primary)' }}>
                       {slide.has_raw_master ? (slide.raw_file_name || 'UNCOMPRESSED MASTER') : 'Instagram 1080p version'}
                     </span>
                   </div>
@@ -313,9 +313,9 @@ export default function PostDetail() {
 
           {/* Dual Metadata Inspector (Original vs Instagram) */}
           <div style={{
-            background: 'rgba(255,255,255,0.02)',
+            background: 'var(--ios-bg-card)',
             borderRadius: '16px', padding: '16px',
-            border: '1px solid var(--ios-border, rgba(255,255,255,0.06))',
+            border: '1px solid var(--ios-border)',
           }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-secondary, #8e8e93)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Dual-Version Metadata
@@ -324,40 +324,40 @@ export default function PostDetail() {
             <div style={{ display: 'grid', gridTemplateColumns: currentMedia?.has_raw_master ? '1fr 1fr' : '1fr', gap: '16px' }}>
               {/* Instagram Side */}
               <div style={{
-                background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
+                background: 'var(--ios-border)', padding: '12px', borderRadius: '12px',
+                border: '1px solid var(--ios-border)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
               }}>
-                <div style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--ios-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Layers size={14} color="var(--ios-accent, #007aff)" />
                   <span>Instagram Processed</span>
                 </div>
                 <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                  <div><strong style={{ color: '#ccc' }}>Uploaded:</strong> {new Date(post.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
-                  <div><strong style={{ color: '#ccc' }}>Quality:</strong> 1080 × {Math.round(1080 / (post.aspect_ratio || 1))} (Web compressed)</div>
-                  <div><strong style={{ color: '#ccc' }}>Stats:</strong> {post.like_count || 0} likes • {post.comment_count || 0} comments</div>
+                  <div><strong>Uploaded:</strong> {new Date(post.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                  <div><strong>Quality:</strong> 1080 × {Math.round(1080 / (post.aspect_ratio || 1))} (Web compressed)</div>
+                  <div><strong>Stats:</strong> {post.like_count || 0} likes • {post.comment_count || 0} comments</div>
                 </div>
               </div>
 
               {/* Original Master Side */}
               {currentMedia?.has_raw_master && (
                 <div style={{
-                  background: 'rgba(255, 215, 0, 0.05)', padding: '12px', borderRadius: '12px',
-                  border: '1px solid rgba(255, 215, 0, 0.2)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
+                  background: 'rgba(255, 215, 0, 0.08)', padding: '12px', borderRadius: '12px',
+                  border: '1px solid rgba(255, 215, 0, 0.3)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
                 }}>
-                  <div style={{ fontWeight: 700, color: '#ffd700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Sparkles size={14} color="#ffd700" />
+                  <div style={{ fontWeight: 700, color: '#d4af37', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={14} color="#d4af37" />
                     <span>Original Master File</span>
                   </div>
                   <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                    <div><strong style={{ color: '#eee' }}>Shot / Taken:</strong> {currentMedia.crop_data?.taken_at ? String(currentMedia.crop_data.taken_at) : new Date(post.taken_at).toLocaleDateString()}</div>
+                    <div><strong>Shot / Taken:</strong> {currentMedia.crop_data?.taken_at ? String(currentMedia.crop_data.taken_at) : new Date(post.taken_at).toLocaleDateString()}</div>
                     {(currentMedia.crop_data?.camera_make || currentMedia.crop_data?.camera_model) && (
-                      <div><strong style={{ color: '#eee' }}>Camera:</strong> {[currentMedia.crop_data.camera_make, currentMedia.crop_data.camera_model].filter(Boolean).join(' ')}</div>
+                      <div><strong>Camera:</strong> {[currentMedia.crop_data.camera_make, currentMedia.crop_data.camera_model].filter(Boolean).join(' ')}</div>
                     )}
                     {currentMedia.raw_width && (
-                      <div><strong style={{ color: '#eee' }}>Resolution:</strong> {currentMedia.raw_width} × {currentMedia.raw_height} ({Math.round((currentMedia.raw_width * currentMedia.raw_height) / 1000000)} MP)</div>
+                      <div><strong>Resolution:</strong> {currentMedia.raw_width} × {currentMedia.raw_height} ({Math.round((currentMedia.raw_width * currentMedia.raw_height) / 1000000)} MP)</div>
                     )}
                     {currentMedia.raw_file_size && (
-                      <div><strong style={{ color: '#eee' }}>File Size:</strong> {(currentMedia.raw_file_size / (1024 * 1024)).toFixed(1)} MB</div>
+                      <div><strong>File Size:</strong> {(currentMedia.raw_file_size / (1024 * 1024)).toFixed(1)} MB</div>
                     )}
                   </div>
                 </div>
@@ -366,8 +366,9 @@ export default function PostDetail() {
           </div>
 
           <div style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--ios-bg-card)',
             borderRadius: '16px', padding: '16px',
+            border: '1px solid var(--ios-border)',
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -375,7 +376,7 @@ export default function PostDetail() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} color="var(--ios-accent, #007aff)" />
-                <span style={{ fontSize: '14px', fontWeight: 700 }}>Meaning-Making Journal</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Meaning-Making Journal</span>
               </div>
               <button
                 onClick={saveJournal}
@@ -400,7 +401,7 @@ export default function PostDetail() {
               style={{
                 width: '100%', background: 'transparent',
                 border: 'none', outline: 'none',
-                color: '#fff', fontSize: '13px', lineHeight: 1.5,
+                color: 'var(--ios-text-primary)', fontSize: '13px', lineHeight: 1.5,
                 resize: 'vertical',
               }}
             />

@@ -151,9 +151,16 @@
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.035;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
   background-image: var(--bg-grain);
   background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+[data-design='skeuomorphic'][data-theme='light'] .app-container::before {
+  opacity: 0.45;
+  mix-blend-mode: multiply;
 }
 
 /* Archival Labels */

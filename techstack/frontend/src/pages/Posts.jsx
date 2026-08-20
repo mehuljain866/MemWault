@@ -92,7 +92,8 @@ export default function Posts() {
               onClick={() => setGridAspect('square')}
               style={{
                 background: gridAspect === 'square' ? 'var(--ios-accent, #007aff)' : 'transparent',
-                color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '9px',
+                color: gridAspect === 'square' ? '#fff' : 'var(--ios-text-secondary)',
+                border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
@@ -102,7 +103,8 @@ export default function Posts() {
               onClick={() => setGridAspect('portrait')}
               style={{
                 background: gridAspect === 'portrait' ? 'var(--ios-accent, #007aff)' : 'transparent',
-                color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '9px',
+                color: gridAspect === 'portrait' ? '#fff' : 'var(--ios-text-secondary)',
+                border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
@@ -112,7 +114,8 @@ export default function Posts() {
               onClick={() => setGridAspect('original')}
               style={{
                 background: gridAspect === 'original' ? 'var(--ios-accent, #007aff)' : 'transparent',
-                color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '9px',
+                color: gridAspect === 'original' ? '#fff' : 'var(--ios-text-secondary)',
+                border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
               }}
             >

@@ -708,10 +708,10 @@ export default function StoryDetail() {
                   {settings.editorStyle === 'modern' ? (
                     <div style={{
                       flex: 1,
-                      background: 'rgba(255,255,255,0.03)',
+                      background: 'var(--ios-bg-card)',
                       borderRadius: '16px',
                       padding: '16px',
-                      border: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
+                      border: '1px solid var(--ios-border)',
                       display: 'flex',
                       flexDirection: 'column',
                     }}>
@@ -726,7 +726,7 @@ export default function StoryDetail() {
                           background: 'transparent',
                           border: 'none',
                           outline: 'none',
-                          color: '#fff',
+                          color: 'var(--ios-text-primary)',
                           fontSize: '14px',
                           lineHeight: 1.6,
                           resize: 'none',
@@ -736,7 +736,7 @@ export default function StoryDetail() {
                     </div>
                   ) : (
                     <div 
-                      data-color-mode="dark" 
+                      data-color-mode={document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'} 
                       style={{ 
                         flex: 1, 
                         display: 'flex', 
@@ -745,7 +745,7 @@ export default function StoryDetail() {
                         borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
                         overflow: 'hidden', 
                         border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
-                        backgroundColor: 'transparent'
+                        backgroundColor: 'var(--ios-bg-card)'
                       }}
                     >
                       <MDEditor

@@ -486,9 +486,8 @@ export default function Highlights() {
                     onClick={e => e.stopPropagation()}
                     style={{
                       position: 'absolute', bottom: '44px', right: '8px',
-                      background: 'rgba(30,30,30,0.85)',
-                      backdropFilter: 'blur(20px) saturate(180%)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'var(--ios-bg-card)',
+                      border: '1px solid var(--ios-border)',
                       borderRadius: '12px',
                       padding: '8px 0',
                       display: 'flex', flexDirection: 'column',
@@ -519,13 +518,13 @@ export default function Highlights() {
                           fontSize: '14px', fontWeight: 500,
                           color: (coverPrefs[hl.id] || 'grid') === opt.key
                             ? 'var(--ios-accent)'
-                            : '#fff',
+                            : 'var(--ios-text-primary)',
                         }}
                       >
                         {opt.label}
                       </button>
                     ))}
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: 'var(--ios-border)', margin: '4px 0' }} />
                     <button
                       onClick={(e) => handleDeleteHighlight(e, hl.id)}
                       style={{

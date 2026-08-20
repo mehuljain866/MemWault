@@ -11,6 +11,7 @@ import {
   openStorageFolder,
 } from '../services/api'
 import { getSettings, saveSettings } from '../services/settings'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { 
   Camera, Play, List, User as UserIcon, RefreshCcw, RefreshCw, LogOut, 
   Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu,

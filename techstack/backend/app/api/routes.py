@@ -1773,7 +1773,7 @@ async def replace_post_media_raw(
     Replace a slide with its uncompressed 48MP RAW / Master file.
     Automatically detects Google/Samsung Motion Photos or pairs Apple Live Photo .mov video.
     """
-    from app.media.motion_photo import extract_embedded_motion_video
+    from app.media.motion_photo import extract_embedded_motion_video, extract_image_metadata
     s3 = get_storage()
 
     result = await db.execute(
@@ -1792,10 +1792,16 @@ async def replace_post_media_raw(
     # Upload Master RAW file
     s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "application/octet-stream")
 
+    # Extract EXIF metadata
+    img_meta = extract_image_metadata(file_bytes)
+
     media.s3_key_raw_master = raw_s3_key
     media.raw_file_name = file.filename
     media.raw_file_size = len(file_bytes)
     media.raw_mime_type = file.content_type
+    media.raw_width = img_meta.get("width")
+    media.raw_height = img_meta.get("height")
+    media.crop_data = img_meta
     media.has_raw_master = True
     media.default_version = "raw"
 
@@ -1943,10 +1949,15 @@ async def upload_portal_files(
 
     s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "application/octet-stream")
 
+    img_meta = extract_image_metadata(file_bytes)
+
     media.s3_key_raw_master = raw_s3_key
     media.raw_file_name = file.filename
     media.raw_file_size = len(file_bytes)
     media.raw_mime_type = file.content_type
+    media.raw_width = img_meta.get("width")
+    media.raw_height = img_meta.get("height")
+    media.crop_data = img_meta
     media.has_raw_master = True
     media.default_version = "raw"
 

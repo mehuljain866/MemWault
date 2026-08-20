@@ -42,7 +42,8 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
     setIsPlayingLive(false)
     setIsVideoPlaying(false)
     const media = mediaItems[currentIndex]
-    setActiveVersion(media?.has_raw_master ? (media.default_version || 'raw') : 'instagram')
+    // Always default to Higher Quality uncompressed RAW if available
+    setActiveVersion(media?.has_raw_master ? 'raw' : 'instagram')
   }, [currentIndex])
 
   const nextSlide = (e) => {
@@ -69,19 +70,30 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [currentIndex, mediaItems.length])
 
-  // Wheel and trackpad pinch-to-zoom
-  const handleWheel = (e) => {
-    if (currentMedia?.media_type === 2) return // skip video slides
-    e.preventDefault()
-    
-    // Ctrl+wheel is trackpad pinch gesture on Chrome/Safari/Firefox
-    const zoomFactor = e.ctrlKey ? -e.deltaY * 0.015 : -e.deltaY * 0.002
-    setScale(prev => {
-      const newScale = Math.min(Math.max(prev + zoomFactor, 1), 5)
-      if (newScale === 1) setPosition({ x: 0, y: 0 })
-      return newScale
-    })
-  }
+  // Non-passive wheel and pinch-to-zoom listener to strictly prevent browser page zoom
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheelNative = (e) => {
+      if (currentMedia?.media_type === 2) return // skip video slides
+      // Stop native browser page zoom completely
+      e.preventDefault()
+      e.stopPropagation()
+      
+      const zoomFactor = e.ctrlKey ? -e.deltaY * 0.015 : -e.deltaY * 0.002
+      setScale(prev => {
+        const newScale = Math.min(Math.max(prev + zoomFactor, 1), 5)
+        if (newScale === 1) setPosition({ x: 0, y: 0 })
+        return newScale
+      })
+    }
+
+    container.addEventListener('wheel', handleWheelNative, { passive: false })
+    return () => {
+      container.removeEventListener('wheel', handleWheelNative)
+    }
+  }, [currentMedia])
 
   // Double-click zoom
   const handleDoubleClick = (e) => {
@@ -212,10 +224,10 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
               padding: '6px 12px', borderRadius: '18px', fontSize: '12px', fontWeight: 700,
               backdropFilter: 'blur(8px)', cursor: 'pointer', transition: 'all 0.2s',
             }}
-            title="Toggle between Instagram Processed and Uncompressed RAW Master"
+            title="Toggle between High Quality (Original) and Instagram Processed version"
           >
-            <Layers size={14} />
-            <span>{activeVersion === 'raw' ? 'RAW Master' : 'Instagram 1080p'}</span>
+            {activeVersion === 'raw' ? <Sparkles size={14} color="#ffd700" /> : <Layers size={14} />}
+            <span>{activeVersion === 'raw' ? 'High Quality (Original)' : 'Instagram (1080p)'}</span>
           </button>
         )}
 

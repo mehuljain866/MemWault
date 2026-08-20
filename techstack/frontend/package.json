@@ -1,6 +1,6 @@
 {
   "name": "memwault-pwa",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "MemWault — A portable, user-owned digital memory archive PWA",
   "private": true,
   "type": "module",

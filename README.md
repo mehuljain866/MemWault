@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-v2.5-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.5" />
+  <img src="https://img.shields.io/badge/Version-v2.6-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.6" />
   <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React 19" />
   <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
@@ -23,17 +23,10 @@
 
 ## Table of Contents
 
-- [Why MemWault?](#why-memwault)
-- [Key Features](#key-features)
-- [Engineering Highlights](#engineering-highlights)
-- [What MemWault Preserves](#what-memwault-preserves)
-- [Visual Tour](#visual-tour)
+- [Features Overview](#features-overview)
+- [Architecture & Data Model](#architecture--data-model)
+- [Quick Start & Installation](#quick-start--installation)
 - [Changelog & Evolution](#changelog--evolution)
-- [Developer Documentation](#-developer-documentation)
-  - [Architecture & System Flow](#architecture--system-flow)
-  - [Memory Object Model](#memory-object-model)
-  - [Authentication & Session Isolation](#authentication--session-isolation)
-  - [Storage & Media Model](#storage--media-model)
   - [Repository Structure](#repository-structure)
   - [Quickstart & Development](#quickstart--development)
   - [Docker Setup](#docker-setup)

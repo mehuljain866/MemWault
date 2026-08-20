@@ -283,7 +283,7 @@ export default function PostDetail() {
                       Slide {idx + 1}
                     </span>
                     <span style={{ fontSize: '12px' }}>
-                      {slide.has_raw_master ? (slide.raw_file_name || 'UNCOMPRESSED RAW') : 'Instagram 1080p version'}
+                      {slide.has_raw_master ? (slide.raw_file_name || 'UNCOMPRESSED MASTER') : 'Instagram 1080p version'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -308,6 +308,60 @@ export default function PostDetail() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Dual Metadata Inspector (Original vs Instagram) */}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '16px', padding: '16px',
+            border: '1px solid var(--ios-border, rgba(255,255,255,0.06))',
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-secondary, #8e8e93)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Dual-Version Metadata
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: currentMedia?.has_raw_master ? '1fr 1fr' : '1fr', gap: '16px' }}>
+              {/* Instagram Side */}
+              <div style={{
+                background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
+              }}>
+                <div style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Layers size={14} color="var(--ios-accent, #007aff)" />
+                  <span>Instagram Processed</span>
+                </div>
+                <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
+                  <div><strong style={{ color: '#ccc' }}>Uploaded:</strong> {new Date(post.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                  <div><strong style={{ color: '#ccc' }}>Quality:</strong> 1080 × {Math.round(1080 / (post.aspect_ratio || 1))} (Web compressed)</div>
+                  <div><strong style={{ color: '#ccc' }}>Stats:</strong> {post.like_count || 0} likes • {post.comment_count || 0} comments</div>
+                </div>
+              </div>
+
+              {/* Original Master Side */}
+              {currentMedia?.has_raw_master && (
+                <div style={{
+                  background: 'rgba(255, 215, 0, 0.05)', padding: '12px', borderRadius: '12px',
+                  border: '1px solid rgba(255, 215, 0, 0.2)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
+                }}>
+                  <div style={{ fontWeight: 700, color: '#ffd700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={14} color="#ffd700" />
+                    <span>Original Master File</span>
+                  </div>
+                  <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
+                    <div><strong style={{ color: '#eee' }}>Shot / Taken:</strong> {currentMedia.crop_data?.taken_at ? String(currentMedia.crop_data.taken_at) : new Date(post.taken_at).toLocaleDateString()}</div>
+                    {(currentMedia.crop_data?.camera_make || currentMedia.crop_data?.camera_model) && (
+                      <div><strong style={{ color: '#eee' }}>Camera:</strong> {[currentMedia.crop_data.camera_make, currentMedia.crop_data.camera_model].filter(Boolean).join(' ')}</div>
+                    )}
+                    {currentMedia.raw_width && (
+                      <div><strong style={{ color: '#eee' }}>Resolution:</strong> {currentMedia.raw_width} × {currentMedia.raw_height} ({Math.round((currentMedia.raw_width * currentMedia.raw_height) / 1000000)} MP)</div>
+                    )}
+                    {currentMedia.raw_file_size && (
+                      <div><strong style={{ color: '#eee' }}>File Size:</strong> {(currentMedia.raw_file_size / (1024 * 1024)).toFixed(1)} MB</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

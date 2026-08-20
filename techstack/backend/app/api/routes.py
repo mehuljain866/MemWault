@@ -407,13 +407,14 @@ async def list_stories(
     is_reel: Optional[bool] = None,
     is_memory: Optional[bool] = None,
     is_trashed: Optional[bool] = False,
+    is_close_friends: Optional[bool] = None,
     search: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List archived stories with pagination and filtering.
-    Supports filtering by media type, music, location, and date range.
+    Supports filtering by media type, music, location, date range, and Close Friends.
     """
     query = (
         select(Story)
@@ -443,6 +444,8 @@ async def list_stories(
         query = query.where(Story.is_memory == is_memory)
     if is_trashed is not None:
         query = query.where(Story.is_trashed == is_trashed)
+    if is_close_friends is not None:
+        query = query.where(Story.is_close_friends == is_close_friends)
         
     if search:
         from sqlalchemy import or_
@@ -999,6 +1002,14 @@ async def get_dashboard_stats(
     )
     total_mentions = mentions_result.scalar() or 0
 
+    # Total Close Friends stories
+    cf_result = await db.execute(
+        select(func.count())
+        .select_from(Story)
+        .where(Story.user_id == user.id, Story.is_close_friends == True, Story.is_trashed == False)
+    )
+    total_close_friends = cf_result.scalar() or 0
+
     # Storage used
     try:
         storage = get_storage()
@@ -1035,6 +1046,7 @@ async def get_dashboard_stats(
         total_with_music=total_with_music,
         total_with_location=total_with_location,
         total_mentions=total_mentions,
+        total_close_friends=total_close_friends,
         storage_used_mb=storage_used_mb,
         last_scrape=ScrapeLogRead.model_validate(last_scrape) if last_scrape else None,
         ig_session_valid=ig_session_valid,

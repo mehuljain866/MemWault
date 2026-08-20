@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Maximize } from 'lucide-react'
+import { Maximize, Star, Users, X } from 'lucide-react'
 import { getSettings } from '../services/settings'
 import {
   MentionSticker,
@@ -215,6 +215,8 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
     setIsPlaying(!isPlaying)
   }
 
+  const [showAudienceModal, setShowAudienceModal] = useState(false)
+
   if (!story) return null
 
   const isVideo = story.media_type === 2
@@ -246,9 +248,92 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
         backgroundColor: '#000',
         borderRadius: '16px',
         overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        boxShadow: story.is_close_friends ? '0 8px 32px rgba(0,210,106,0.25)' : '0 8px 32px rgba(0,0,0,0.3)',
+        border: story.is_close_friends ? '2px solid rgba(0,210,106,0.5)' : 'none',
       }}
     >
+      {/* ── Close Friends Header Indicator ─────────────────── */}
+      {story.is_close_friends && (
+        <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 35 }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAudienceModal(true);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 12px', borderRadius: '20px',
+              background: 'linear-gradient(135deg, #00D26A, #00A854)',
+              color: '#fff', fontSize: '12px', fontWeight: 800,
+              border: 'none', cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(0,210,106,0.5)',
+            }}
+            title="View Close Friends Audience Snapshot"
+          >
+            <Star size={13} fill="#fff" /> Close Friends
+          </button>
+        </div>
+      )}
+
+      {/* ── Audience Snapshot Modal ──────────────────────────── */}
+      {showAudienceModal && (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowAudienceModal(false);
+          }}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+            padding: '16px',
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--ios-bg-card, #1c1c1e)',
+              borderRadius: '20px', padding: '20px',
+              color: 'var(--ios-text-primary, #fff)',
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.4)',
+              maxHeight: '80%', overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '16px', color: '#00D26A' }}>
+                <Star size={18} fill="#00D26A" /> Close Friends Snapshot
+              </div>
+              <button 
+                onClick={() => setShowAudienceModal(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--ios-text-secondary, #aaa)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary, #aaa)', marginBottom: '12px', lineHeight: 1.4 }}>
+              This memory was shared exclusively with your Close Friends list at the time of posting.
+            </div>
+            {story.audience_snapshot && story.audience_snapshot.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--ios-text-secondary, #aaa)' }}>
+                  Audience Members ({story.audience_snapshot.length}):
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {story.audience_snapshot.map((u, i) => (
+                    <span key={i} style={{ background: 'rgba(0,210,106,0.15)', color: '#00D26A', padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 600 }}>
+                      @{u}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary, #aaa)', fontStyle: 'italic', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '10px' }}>
+                Audience Snapshot captured with Close Friends privacy protection.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* ── Base Media Layer ────────────────────────────────────── */}
       <div 
         style={{

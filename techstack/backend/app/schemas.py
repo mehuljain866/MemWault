@@ -199,6 +199,8 @@ class StoryRead(BaseModel):
     is_reel: bool
     is_memory: bool
     is_trashed: bool = False
+    is_close_friends: bool = False
+    audience_snapshot: Optional[list[str]] = None
     primary_view: str
     og_reel_media_id: Optional[str] = None
     og_reel_url: Optional[str] = None  # Pre-signed S3 URL for OG Reel
@@ -223,6 +225,8 @@ class StoryUpdate(BaseModel):
     is_memory: Optional[bool] = None
     is_trashed: Optional[bool] = None
     is_reel: Optional[bool] = None
+    is_close_friends: Optional[bool] = None
+    audience_snapshot: Optional[list[str]] = None
     primary_view: Optional[str] = None
     journal_note: Optional[str] = None
 
@@ -232,6 +236,7 @@ class StoryBulkUpdate(BaseModel):
     is_trashed: Optional[bool] = None
     is_memory: Optional[bool] = None
     is_reel: Optional[bool] = None
+    is_close_friends: Optional[bool] = None
 
 
 class StoryListRead(BaseModel):
@@ -293,6 +298,7 @@ class DashboardStats(BaseModel):
     total_with_music: int
     total_with_location: int
     total_mentions: int
+    total_close_friends: int = 0
     storage_used_mb: float
     last_scrape: Optional[ScrapeLogRead] = None
     ig_session_valid: bool

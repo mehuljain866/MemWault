@@ -9,7 +9,8 @@ import { useOutletContext } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, 
-  ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers
+  ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers,
+  Star, Users, Globe
 } from 'lucide-react'
 
 // Helper for Year/Month cluster preview
@@ -51,7 +52,7 @@ export default function Timeline({ isReelView = false }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [hasNext, setHasNext] = useState(false)
-  const [filters, setFilters] = useState({ mediaType: null })
+  const [filters, setFilters] = useState({ mediaType: null, isCloseFriends: null })
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const { onMenuClick } = useOutletContext() || {}
@@ -76,6 +77,7 @@ export default function Timeline({ isReelView = false }) {
         page: pageNum,
         pageSize: PAGE_SIZE,
         mediaType: filters.mediaType,
+        isCloseFriends: filters.isCloseFriends !== null ? filters.isCloseFriends : undefined,
         search: searchQuery.trim() || undefined
       }
       
@@ -298,14 +300,42 @@ export default function Timeline({ isReelView = false }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {!isSelectMode && (
             <>
+              {/* Audience Filter (All / CF / Public) */}
+              <div style={{
+                display: 'flex', background: 'var(--ios-border)', padding: '2px',
+                borderRadius: '9px', width: '210px'
+              }}>
+                <SegmentButton 
+                  active={filters.isCloseFriends === null} 
+                  onClick={() => setFilters(f => ({ ...f, isCloseFriends: null }))} 
+                  icon={Globe} 
+                  label="All" 
+                  layoutId="audience-filter-pill"
+                />
+                <SegmentButton 
+                  active={filters.isCloseFriends === true} 
+                  onClick={() => setFilters(f => ({ ...f, isCloseFriends: true }))} 
+                  icon={Star} 
+                  label="CF" 
+                  layoutId="audience-filter-pill"
+                />
+                <SegmentButton 
+                  active={filters.isCloseFriends === false} 
+                  onClick={() => setFilters(f => ({ ...f, isCloseFriends: false }))} 
+                  icon={Users} 
+                  label="Public" 
+                  layoutId="audience-filter-pill"
+                />
+              </div>
+
               {/* Media Filter */}
               <div style={{
                 display: 'flex', background: 'var(--ios-border)', padding: '2px',
                 borderRadius: '9px', width: '220px'
               }}>
-                <SegmentButton active={!filters.mediaType} onClick={() => setFilters({ mediaType: null })} icon={BoxSelect} label="All" />
-                <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters({ mediaType: 1 })} icon={ImageIcon} label="Photos" />
-                <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters({ mediaType: 2 })} icon={Video} label="Videos" />
+                <SegmentButton active={!filters.mediaType} onClick={() => setFilters(f => ({ ...f, mediaType: null }))} icon={BoxSelect} label="All" />
+                <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters(f => ({ ...f, mediaType: 1 }))} icon={ImageIcon} label="Photos" />
+                <SegmentButton active={filters.mediaType === 2} onClick={() => setFilters(f => ({ ...f, mediaType: 2 }))} icon={Video} label="Videos" />
               </div>
 
               <input

@@ -149,6 +149,8 @@ class Story(Base):
     is_reel: Mapped[bool] = mapped_column(Boolean, default=False)
     is_memory: Mapped[bool] = mapped_column(Boolean, default=True)
     is_trashed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_close_friends: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    audience_snapshot: Mapped[list | None] = mapped_column(JSON, nullable=True)
     primary_view: Mapped[str] = mapped_column(String(32), default="story")
 
     # ── Original Reel Data ───────────────────────────────

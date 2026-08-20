@@ -282,6 +282,8 @@ def poll_stories(self, user_id: Optional[str] = None):
                         is_ai_generated=story_data.get("is_ai_generated", False),
                         is_memory=True,
                         is_reel=story_data.get("is_reel", False),
+                        is_close_friends=story_data.get("is_close_friends", False),
+                        audience_snapshot=story_data.get("audience_snapshot"),
                         og_reel_media_id=og_reel_media_id,
                         og_reel_s3_key=og_reel_s3_key,
                         og_reel_likes=og_reel_likes,
@@ -512,6 +514,8 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                             is_metadata_written=True,
                             is_uploaded_to_s3=True,
                             is_ai_generated=story_data.get("is_ai_generated", False),
+                            is_close_friends=story_data.get("is_close_friends", False),
+                            audience_snapshot=story_data.get("audience_snapshot"),
                             viewer_count=story_data.get("viewer_count", 0),
                             like_count=story_data.get("like_count", 0),
                         )

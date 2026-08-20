@@ -5,7 +5,7 @@ import { getStory, getStoryViewers, locateStoryMedia, updateStoryLocation, updat
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
 
@@ -397,8 +397,40 @@ export default function StoryDetail() {
                           } catch (err) { alert('Update failed'); e.target.checked = !val; }
                         }}
                       />
+                      <ToggleSwitch 
+                        label="Close Friends (Green Ring)"
+                        checked={story.is_close_friends}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          try {
+                            await updateStory(id, { is_close_friends: val });
+                            setStory(prev => ({ ...prev, is_close_friends: val }));
+                          } catch (err) { alert('Update failed'); e.target.checked = !val; }
+                        }}
+                      />
                     </div>
                   </InfoRow>
+
+                  {story.is_close_friends && (
+                    <InfoRow icon={Star} label="Close Friends Audience" value="">
+                      <div style={{ fontSize: '13px', color: '#00D26A', fontWeight: 600, marginTop: '4px' }}>
+                        ⭐ Shared exclusively with Close Friends
+                      </div>
+                      {story.audience_snapshot && story.audience_snapshot.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                          {story.audience_snapshot.map((u, i) => (
+                            <span key={i} style={{ background: 'rgba(0,210,106,0.15)', color: '#00D26A', padding: '3px 8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600 }}>
+                              @{u}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', marginTop: '4px' }}>
+                          Audience snapshot protected.
+                        </div>
+                      )}
+                    </InfoRow>
+                  )}
 
                   {story.og_reel_media_id && (
                     <InfoRow icon={BarChart2} label="Original Reel Stats" value="">

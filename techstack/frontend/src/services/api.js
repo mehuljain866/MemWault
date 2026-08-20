@@ -174,6 +174,7 @@ export async function getStories(params = {}) {
   if (params.isReel !== undefined) searchParams.set('is_reel', params.isReel);
   if (params.isMemory !== undefined) searchParams.set('is_memory', params.isMemory);
   if (params.isTrashed !== undefined) searchParams.set('is_trashed', params.isTrashed);
+  if (params.isCloseFriends !== undefined) searchParams.set('is_close_friends', params.isCloseFriends);
   if (params.search) searchParams.set('search', params.search);
 
   const query = searchParams.toString();

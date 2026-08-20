@@ -602,7 +602,21 @@ class InstagramScraper:
             "manifest": {},
             "is_reel": False,
             "og_reel_media_id": None,
+            "is_close_friends": False,
+            "audience_snapshot": [],
         }
+
+        # ── Close Friends (Audience) ────────────────────
+        audience = item.get("audience")
+        is_cf = (
+            audience in ("besties", "close_friends", 3)
+            or bool(item.get("is_reel_media_audience_close_friends"))
+            or item.get("story_audience") == "besties"
+            or item.get("reel_type") == "besties"
+            or bool(item.get("is_close_friends"))
+        )
+        parsed["is_close_friends"] = is_cf
+        parsed["audience_snapshot"] = item.get("audience_snapshot") or []
 
         # ── Location ────────────────────────────────────
         location = item.get("location")

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check } from 'lucide-react'
+import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check, Star } from 'lucide-react'
 
 /**
  * StoryCard
@@ -60,9 +60,25 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
         borderRadius: zoomLevel === 'year' ? '2px' : zoomLevel === 'month' ? '6px' : 'var(--ios-radius-lg)',
         outline: isSelected ? '2.5px solid var(--ios-accent)' : 'none',
         outlineOffset: '-2px',
+        border: story.is_close_friends ? '2.5px solid #00D26A' : 'none',
+        boxShadow: story.is_close_friends ? '0 0 12px rgba(0, 210, 106, 0.35)' : undefined,
         cursor: 'pointer',
       }}
     >
+      {/* Close Friends Emerald Star Badge (Top Left) */}
+      {story.is_close_friends && zoomLevel === 'day' && (
+        <div style={{
+          position: 'absolute', top: '12px', left: '12px',
+          padding: '4px 8px', borderRadius: '10px',
+          background: 'linear-gradient(135deg, #00D26A, #00A854)',
+          color: '#fff', fontSize: '11px', fontWeight: 800,
+          display: 'flex', alignItems: 'center', gap: '4px',
+          boxShadow: '0 2px 8px rgba(0,210,106,0.5)', zIndex: 6
+        }}>
+          <Star size={11} fill="#fff" /> CF
+        </div>
+      )}
+
       {/* Media Thumbnail */}
       {story.media_url ? (
         isVideo ? (

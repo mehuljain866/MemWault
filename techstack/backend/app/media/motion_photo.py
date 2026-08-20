@@ -27,6 +27,11 @@ def extract_embedded_motion_video(file_bytes: bytes):
                 abs_start = len(file_bytes) - len(scan_window) + box_start
                 video_data = file_bytes[abs_start:]
                 if len(video_data) > 4096:
+                    logger.info("Found binary MP4 container in motion photo, %d bytes", len(video_data))
+                    return video_data, "video/mp4"
+    except Exception as e:
+        pass
+
     return None, None
 
 

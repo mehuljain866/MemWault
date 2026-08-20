@@ -1921,7 +1921,7 @@ async def upload_portal_files(
     """
     Direct mobile LAN stream upload endpoint to attach uncompressed RAW / Live Photos from phone.
     """
-    from app.media.motion_photo import extract_embedded_motion_video
+    from app.media.motion_photo import extract_embedded_motion_video, extract_image_metadata
     s3 = get_storage()
 
     result = await db.execute(

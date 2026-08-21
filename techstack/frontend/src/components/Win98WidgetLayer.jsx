@@ -4,6 +4,7 @@ import {
   Images, Video, Star, Music, MapPin, Users, CheckCircle2, XCircle,
   Database, Activity, Minimize2, X
 } from 'lucide-react'
+import SevenSegmentDisplay from './SevenSegmentDisplay'
 import { getSettings, saveSettings } from '../services/settings'
 import { playWin98Click, playWin98Minimize } from '../services/win98Audio'
 
@@ -205,27 +206,26 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
           {!minimizedWidgets['memoryCounter'] && (
             <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{
-                background: '#000000',
+                background: '#050505',
                 border: '2px solid #808080',
-                boxShadow: 'inset 1px 1px #000',
+                boxShadow: 'inset 1px 1px #000, 0 2px 6px rgba(0,0,0,0.5)',
                 padding: '8px 12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                gap: '12px',
               }}>
                 <div>
-                  <div style={{ fontSize: '9px', color: '#00ff66', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <div style={{ fontSize: '9px', color: '#808080', fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
                     TOTAL ARCHIVED OBJECTS
                   </div>
-                  <div style={{ fontSize: '36px', color: '#00ff66', fontFamily: 'monospace', fontWeight: 900, textShadow: '0 0 8px rgba(0,255,102,0.6)', lineHeight: 1 }}>
-                    {String(stats?.total_stories || 0).padStart(4, '0')}
-                  </div>
+                  <SevenSegmentDisplay value={stats?.total_stories || 0} digits={4} size={32} />
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '9px', color: '#ffcc00', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '9px', color: '#808080', fontFamily: 'monospace', fontWeight: 800 }}>
                     VAULT STATUS
                   </div>
-                  <div style={{ fontSize: '11px', color: '#ffffff', fontWeight: 'bold' }}>
+                  <div style={{ fontSize: '11px', color: '#00ff66', fontWeight: 'bold', textShadow: '0 0 6px rgba(0,255,102,0.6)' }}>
                     ONLINE
                   </div>
                 </div>

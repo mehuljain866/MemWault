@@ -53,6 +53,7 @@ export default function StreetViewModal({
   const [currentName, setCurrentName] = useState(locationName || '')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showRadar, setShowRadar] = useState(true)
+  const [isRadarMinimized, setIsRadarMinimized] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updatedSuccess, setUpdatedSuccess] = useState(false)
   const [miniMapZoom, setMiniMapZoom] = useState(15)
@@ -328,7 +329,7 @@ export default function StreetViewModal({
             />
 
             {/* ── Iconic Bottom-Left Pegman Mini-Map Radar Box ── */}
-            {showRadar && (
+            {showRadar && !isRadarMinimized && (
               <div style={{
                 position: 'absolute',
                 bottom: '12px',
@@ -337,7 +338,7 @@ export default function StreetViewModal({
                 height: '160px',
                 backgroundColor: '#ffffff',
                 border: '2px solid #000000',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
                 zIndex: 50,
                 overflow: 'hidden',
@@ -354,17 +355,34 @@ export default function StreetViewModal({
                   fontSize: '9px',
                   fontWeight: 'bold',
                   color: '#000',
+                  userSelect: 'none',
                 }}>
-                  <span>🗺️ Pegman Radar</span>
-                  <div style={{ display: 'flex', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span>🗺️ Pegman Radar</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                     <button
                       onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))}
-                      style={{ padding: '0 4px', fontSize: '9px', cursor: 'pointer' }}
+                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '10px' }}
+                      title="Zoom In"
                     >+</button>
                     <button
                       onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))}
-                      style={{ padding: '0 4px', fontSize: '9px', cursor: 'pointer' }}
+                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '10px' }}
+                      title="Zoom Out"
                     >-</button>
+                    {/* Minimize Radar Button */}
+                    <button
+                      onClick={() => { playWin98Click(); setIsRadarMinimized(true); }}
+                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '8px', fontWeight: 'bold' }}
+                      title="Minimize Radar"
+                    >_</button>
+                    {/* Close Radar Button */}
+                    <button
+                      onClick={() => { playWin98Click(); setShowRadar(false); }}
+                      style={{ padding: '0 3px', fontSize: '8px', cursor: 'pointer', height: '14px', lineHeight: '10px', fontWeight: 'bold' }}
+                      title="Close Radar"
+                    >✕</button>
                   </div>
                 </div>
                 
@@ -384,6 +402,33 @@ export default function StreetViewModal({
                 <div style={{ backgroundColor: '#fff', fontSize: '8px', textAlign: 'center', padding: '1px', color: '#555' }}>
                   Click road to jump Pegman
                 </div>
+              </div>
+            )}
+
+            {/* Minimized Pegman Radar Dock (Win98) */}
+            {showRadar && isRadarMinimized && (
+              <div
+                onClick={() => { playWin98Click(); setIsRadarMinimized(false); }}
+                title="Click to restore Pegman Radar"
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  backgroundColor: '#c0c0c0',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 8px rgba(0,0,0,0.5)',
+                  padding: '3px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  zIndex: 50,
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                }}
+              >
+                <span>🗺️ Pegman Radar</span>
+                <span style={{ fontSize: '9px', color: '#000080' }}>▲ Expand</span>
               </div>
             )}
           </div>
@@ -412,22 +457,34 @@ export default function StreetViewModal({
               <span>360° Street View & Walkaround Active • Click roads to navigate</span>
             </div>
 
-            <button
-              onClick={toggleFullscreen}
-              className="segment-btn"
-              style={{
-                height: '100%',
-                padding: '0 8px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginLeft: '4px',
-              }}
-            >
-              {isFullscreen ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
-              <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen View'}</span>
-            </button>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              {!showRadar && (
+                <button
+                  onClick={() => { playWin98Click(); setShowRadar(true); setIsRadarMinimized(false); }}
+                  className="segment-btn"
+                  style={{ height: '100%', padding: '0 6px', fontSize: '10px', fontWeight: 'bold' }}
+                >
+                  🗺️ Show Radar
+                </button>
+              )}
+
+              <button
+                onClick={toggleFullscreen}
+                className="segment-btn"
+                style={{
+                  height: '100%',
+                  padding: '0 8px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginLeft: '4px',
+                }}
+              >
+                {isFullscreen ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+                <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen View'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -569,7 +626,7 @@ export default function StreetViewModal({
           />
 
           {/* Pegman Mini-Map Box */}
-          {showRadar && (
+          {showRadar && !isRadarMinimized && (
             <div style={{
               position: 'absolute',
               bottom: '16px',
@@ -596,9 +653,11 @@ export default function StreetViewModal({
                 backgroundColor: 'rgba(255,255,255,0.05)',
               }}>
                 <span>📍 Mini-Map Radar</span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>+</button>
-                  <button onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>-</button>
+                <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                  <button onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>+</button>
+                  <button onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>-</button>
+                  <button onClick={() => setIsRadarMinimized(true)} title="Minimize" style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>_</button>
+                  <button onClick={() => setShowRadar(false)} title="Close" style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>✕</button>
                 </div>
               </div>
               <div style={{ flex: 1 }}>
@@ -616,6 +675,36 @@ export default function StreetViewModal({
               </div>
             </div>
           )}
+
+          {/* Minimized Pegman Radar Pill (Modern) */}
+          {showRadar && isRadarMinimized && (
+            <button
+              onClick={() => setIsRadarMinimized(false)}
+              className="ios-glass"
+              title="Click to expand Pegman Radar"
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                left: '16px',
+                zIndex: 50,
+                padding: '8px 14px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                border: '1px solid var(--ios-border)',
+                color: 'var(--ios-text-primary)',
+                fontSize: '12px',
+                fontWeight: 600,
+                backgroundColor: 'rgba(28, 28, 30, 0.85)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <span>🗺️ Pegman Radar</span>
+              <Maximize2 size={12} />
+            </button>
+          )}
         </div>
 
         {/* Bottom Bar */}
@@ -631,22 +720,34 @@ export default function StreetViewModal({
             Drag to look around 360° • Click arrows to move • Click Mini-Map to reposition Pegman
           </span>
 
-          <button
-            onClick={toggleFullscreen}
-            className="ios-btn"
-            style={{
-              padding: '6px 16px',
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {!showRadar && (
+              <button
+                onClick={() => { setShowRadar(true); setIsRadarMinimized(false); }}
+                className="ios-btn-secondary"
+                style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px' }}
+              >
+                🗺️ Show Radar
+              </button>
+            )}
+
+            <button
+              onClick={toggleFullscreen}
+              className="ios-btn"
+              style={{
+                padding: '6px 16px',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

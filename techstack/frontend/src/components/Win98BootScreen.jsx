@@ -1,46 +1,51 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { playWin98Startup } from '../services/win98Audio'
 
 export default function Win98BootScreen({ onComplete }) {
   const [progress, setProgress] = useState(0)
+  const [started, setStarted] = useState(false)
+  const intervalRef = useRef(null)
 
-  useEffect(() => {
-    // Play startup chime
-    try {
-      playWin98Startup()
-    } catch (e) {
-      console.warn('Audio play prevented', e)
-    }
+  const handleStartBoot = () => {
+    if (started) return
+    setStarted(true)
+    playWin98Startup()
 
-    // Progress bar animation
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setProgress(p => {
         if (p >= 100) {
-          clearInterval(interval)
-          setTimeout(onComplete, 350)
+          clearInterval(intervalRef.current)
+          setTimeout(onComplete, 400)
           return 100
         }
-        return p + 8
+        return p + 10
       })
-    }, 120)
+    }, 100)
+  }
 
-    const timer = setTimeout(() => {
-      onComplete()
-    }, 2500)
+  useEffect(() => {
+    // Attempt automatic playback if browser allows it
+    const autoTimer = setTimeout(() => {
+      handleStartBoot()
+    }, 100)
+
+    const keyListener = () => handleStartBoot()
+    window.addEventListener('keydown', keyListener, { once: true })
 
     return () => {
-      clearInterval(interval)
-      clearTimeout(timer)
+      clearTimeout(autoTimer)
+      clearInterval(intervalRef.current)
+      window.removeEventListener('keydown', keyListener)
     }
-  }, [onComplete])
+  }, [])
 
   return (
     <motion.div
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-      onClick={onComplete}
+      transition={{ duration: 0.3 }}
+      onClick={handleStartBoot}
       style={{
         position: 'fixed',
         inset: 0,
@@ -50,19 +55,19 @@ export default function Win98BootScreen({ onComplete }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '40px 20px',
+        padding: '30px 20px',
         color: '#ffffff',
         fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
         cursor: 'pointer',
         userSelect: 'none',
       }}
     >
-      {/* Top spacing */}
+      {/* Top BIOS Banner */}
       <div style={{ fontSize: '11px', color: '#808080', letterSpacing: '0.05em' }}>
-        MemWault BIOS v3.0 ACPI-Compliant
+        MemWault Modular BIOS v3.0 (C) 1998 Microsoft Corporation & MemWault Team
       </div>
 
-      {/* Main Logo & Clouds Banner */}
+      {/* Main Authentic Windows 98 Boot Banner */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -101,7 +106,7 @@ export default function Win98BootScreen({ onComplete }) {
 
           <div>
             <div style={{
-              fontSize: '32px',
+              fontSize: '34px',
               fontWeight: 900,
               letterSpacing: '-1px',
               color: '#ffffff',
@@ -118,47 +123,56 @@ export default function Win98BootScreen({ onComplete }) {
               textTransform: 'uppercase',
               marginTop: '4px',
             }}>
-              Personal Archive Edition
+              Personal Digital Archive Edition
             </div>
           </div>
         </div>
 
-        <div style={{ fontSize: '13px', color: '#cccccc' }}>
-          Starting MemWault 98 Operating Environment...
+        {/* Nostalgic Segmented 3D Progress Bar */}
+        <div style={{ width: '100%', maxWidth: '360px' }}>
+          <div style={{
+            height: '18px',
+            backgroundColor: '#000000',
+            border: '2px solid #808080',
+            boxShadow: 'inset 2px 2px #000000, inset -1px -1px #ffffff',
+            padding: '2px',
+            display: 'flex',
+            gap: '2px',
+            boxSizing: 'border-box',
+          }}>
+            {Array.from({ length: 20 }).map((_, i) => {
+              const active = (i / 20) * 100 <= progress
+              return (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    backgroundColor: active ? '#0000ff' : '#000030',
+                    background: active ? 'linear-gradient(180deg, #6090ff 0%, #0000c0 100%)' : 'none',
+                    borderRadius: '1px',
+                    transition: 'background-color 0.1s ease',
+                  }}
+                />
+              )
+            })}
+          </div>
+
+          <div style={{
+            marginTop: '10px',
+            fontSize: '11px',
+            color: '#a0a0a0',
+            display: 'flex',
+            justifyContent: 'space-between',
+          }}>
+            <span>Starting MemWault 98...</span>
+            <span style={{ color: '#ffcc00' }}>{started ? 'Loading System...' : 'Click to start'}</span>
+          </div>
         </div>
       </div>
 
-      {/* Bottom Progress Bar */}
-      <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-        <div style={{
-          width: '100%',
-          height: '18px',
-          backgroundColor: '#000000',
-          border: '1px solid #808080',
-          boxShadow: 'inset 1px 1px 0px #404040',
-          padding: '2px',
-          display: 'flex',
-          gap: '2px',
-        }}>
-          {Array.from({ length: 18 }).map((_, i) => {
-            const active = (i / 18) * 100 <= progress
-            return (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  backgroundColor: active ? '#0000ff' : 'transparent',
-                  background: active ? 'linear-gradient(180deg, #6699ff 0%, #0033cc 60%, #000088 100%)' : 'transparent',
-                  borderRadius: '1px',
-                }}
-              />
-            )
-          })}
-        </div>
-        <div style={{ fontSize: '10px', color: '#666666' }}>
-          Click anywhere to skip
-        </div>
+      {/* Bottom Hint */}
+      <div style={{ fontSize: '10px', color: '#606060' }}>
+        Press any key or click anywhere to skip
       </div>
     </motion.div>
   )

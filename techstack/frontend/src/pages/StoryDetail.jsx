@@ -8,7 +8,7 @@ import MusicPlayer from '../components/MusicPlayer'
 import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
 import StreetViewModal from '../components/StreetViewModal'
 import MDEditor, { commands } from '@uiw/react-md-editor'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3, Images, FileText } from 'lucide-react'
 import { getSettings } from '../services/settings'
 
 export default function StoryDetail() {
@@ -252,31 +252,182 @@ export default function StoryDetail() {
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', alignItems: 'flex-start' }}>
-        {/* ── Media Player ──────────────────── */}
+        {/* ── Media Player (Windowed Application Frame) ──────────────────── */}
         <div style={{ flex: '1 1 350px', maxWidth: '400px', margin: '0 auto', position: 'relative' }}>
-          <div style={{
-            borderRadius: '24px', overflow: 'hidden',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.4), 0 0 20px rgba(10, 132, 255, 0.1)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backgroundColor: '#000', position: 'relative'
-          }}>
-            {story.is_ai_generated && settings.showAITags && (
+          {isWin98 ? (
+            /* Windows 98 MediaPlayer.exe / ImageViewer.exe Window */
+            <div style={{
+              backgroundColor: '#c0c0c0',
+              border: '1px solid #000000',
+              boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 3px 3px 12px rgba(0,0,0,0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxSizing: 'border-box',
+              fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+            }}>
+              {/* Win98 App Title Bar */}
               <div style={{
-                position: 'absolute', top: '16px', right: '16px', zIndex: 50,
-                background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-                color: '#fff', fontSize: '12px', fontWeight: 600, padding: '4px 10px',
-                borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px',
-                border: '1px solid rgba(255,255,255,0.2)', pointerEvents: 'none'
+                background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+                userSelect: 'none',
               }}>
-                ✨ AI
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                  {isVideo ? <Video size={12} color="#ffffff" /> : <Images size={12} color="#ffffff" />}
+                  <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    {isVideo ? `MediaPlayer.exe - [STORY_${story.id?.slice(0, 8).toUpperCase()}.MP4]` : `ImageViewer.exe - [STORY_${story.id?.slice(0, 8).toUpperCase()}.JPG]`}
+                  </span>
+                </div>
+                <div className="win98-title-controls" style={{ display: 'flex', gap: '2px' }}>
+                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>_</button>
+                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>□</button>
+                  <button className="win98-title-btn is-close" style={{ fontSize: '10px', color: '#000' }}>✕</button>
+                </div>
               </div>
-            )}
-            {story.primary_view === 'reel' && story.og_reel_url ? (
-               <StoryPlayer story={{ ...story, media_url: story.og_reel_url, media_type: 2 }} isMusicPlaying={isMusicPlaying} />
-            ) : (
-               <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
-            )}
-          </div>
+
+              {/* Classic Win98 Menu Bar */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                padding: '2px 6px',
+                backgroundColor: '#c0c0c0',
+                borderBottom: '1px solid #808080',
+                boxShadow: '0 1px 0 #ffffff',
+                fontSize: '11px',
+                color: '#000000',
+                userSelect: 'none',
+              }}>
+                <span><u>F</u>ile</span>
+                <span><u>E</u>dit</span>
+                <span><u>V</u>iew</span>
+                <span><u>P</u>lay</span>
+                <span><u>H</u>elp</span>
+              </div>
+
+              {/* 3D Sunken Black Canvas Viewport */}
+              <div style={{
+                backgroundColor: '#000000',
+                margin: '2px',
+                border: '1px solid #000000',
+                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+                position: 'relative',
+                overflow: 'hidden',
+              }}>
+                {story.is_ai_generated && settings.showAITags && (
+                  <div style={{
+                    position: 'absolute', top: '8px', right: '8px', zIndex: 50,
+                    background: 'rgba(0,0,0,0.6)', border: '1px solid #00ff66',
+                    color: '#00ff66', fontSize: '10px', fontWeight: 800, padding: '2px 6px',
+                    fontFamily: 'monospace',
+                  }}>
+                    ✨ AI MEDIA
+                  </div>
+                )}
+                {story.primary_view === 'reel' && story.og_reel_url ? (
+                   <StoryPlayer story={{ ...story, media_url: story.og_reel_url, media_type: 2 }} isMusicPlaying={isMusicPlaying} />
+                ) : (
+                   <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
+                )}
+              </div>
+
+              {/* Classic Bottom Status Ribbon */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '2px 4px',
+                backgroundColor: '#c0c0c0',
+                fontSize: '11px',
+                color: '#000000',
+                gap: '4px',
+              }}>
+                <div style={{
+                  flex: 1,
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                  padding: '1px 6px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontSize: '10px',
+                }}>
+                  {isVideo ? '▶ Stream Active' : '🖼️ Static Frame'}
+                </div>
+                <div style={{
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                  padding: '1px 6px',
+                  fontWeight: 'bold',
+                  fontFamily: 'monospace',
+                  fontSize: '10px',
+                }}>
+                  {story.width && story.height ? `${story.width}x${story.height}` : '720x1280'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Modern Theme Application Window Frame */
+            <div style={{
+              borderRadius: '20px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
+              border: '1px solid var(--ios-border)',
+              backgroundColor: '#000',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              {/* Sleek App Window Header */}
+              <div style={{
+                padding: '8px 14px',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid var(--ios-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--ios-text-secondary)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56' }}></span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e' }}></span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f' }}></span>
+                  </div>
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--ios-text-primary)' }}>
+                    {isVideo ? 'Video Player' : 'Photo Viewer'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                  {story.width && story.height ? `${story.width}×${story.height}` : 'HD'}
+                </span>
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                {story.is_ai_generated && settings.showAITags && (
+                  <div style={{
+                    position: 'absolute', top: '16px', right: '16px', zIndex: 50,
+                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+                    color: '#fff', fontSize: '12px', fontWeight: 600, padding: '4px 10px',
+                    borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px',
+                    border: '1px solid rgba(255,255,255,0.2)', pointerEvents: 'none'
+                  }}>
+                    ✨ AI
+                  </div>
+                )}
+                {story.primary_view === 'reel' && story.og_reel_url ? (
+                   <StoryPlayer story={{ ...story, media_url: story.og_reel_url, media_type: 2 }} isMusicPlaying={isMusicPlaying} />
+                ) : (
+                   <StoryPlayer story={story} isMusicPlaying={isMusicPlaying} />
+                )}
+              </div>
+            </div>
+          )}
           
           {(story.is_reel || story.og_reel_media_id) && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
@@ -744,103 +895,222 @@ export default function StoryDetail() {
               {/* ── Journal Tab ───────────────── */}
               {activeTab === 'journal' && (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
-                      Meaning-Making Journal
-                    </div>
-                    <button 
-                      onClick={handleSaveJournal}
-                      disabled={savingJournal || journalNote === story.journal_note}
-                      style={{
-                        background: (journalNote === story.journal_note) ? 'var(--ios-bg)' : 'var(--ios-accent)',
-                        color: (journalNote === story.journal_note) ? 'var(--ios-text-muted)' : '#fff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '16px',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: (journalNote === story.journal_note) ? 'default' : 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {journalNote === story.journal_note && story.journal_note ? <Check size={16} /> : <Save size={16} />}
-                      {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
-                    </button>
-                  </div>
-                  
-                  {settings.editorStyle === 'modern' ? (
+                  {isWin98 ? (
+                    /* Windows 98 Notepad / WordPad Window Style */
                     <div style={{
-                      flex: 1,
-                      background: 'var(--ios-bg-card)',
-                      borderRadius: '16px',
-                      padding: '16px',
-                      border: '1px solid var(--ios-border)',
                       display: 'flex',
                       flexDirection: 'column',
+                      backgroundColor: '#c0c0c0',
+                      border: '1px solid #000000',
+                      boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                      fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+                      fontSize: '11px',
+                      color: '#000000',
                     }}>
-                      <textarea
-                        value={journalNote}
-                        onChange={(e) => setJournalNote(e.target.value)}
-                        placeholder="Reflect on this memory... where were you, how did you feel, what made this moment special?"
-                        style={{
-                          width: '100%',
-                          flex: 1,
-                          minHeight: '350px',
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          color: 'var(--ios-text-primary)',
-                          fontSize: '14px',
-                          lineHeight: 1.6,
-                          resize: 'none',
-                          fontFamily: 'inherit',
-                        }}
-                      />
+                      {/* Notepad Title Bar */}
+                      <div style={{
+                        background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        padding: '2px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '11px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <FileText size={12} color="#ffffff" />
+                          <span>Notepad.exe - [JOURNAL_NOTE.TXT]</span>
+                        </div>
+                        <button
+                          onClick={handleSaveJournal}
+                          disabled={savingJournal || journalNote === story.journal_note}
+                          style={{
+                            backgroundColor: '#c0c0c0',
+                            border: '1px solid #000',
+                            boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
+                            padding: '1px 8px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            color: '#000000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {journalNote === story.journal_note && story.journal_note ? <Check size={10} color="#008000" /> : <Save size={10} />}
+                          <span>{savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}</span>
+                        </button>
+                      </div>
+
+                      {/* Notepad Menu Bar */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '12px',
+                        padding: '2px 6px',
+                        backgroundColor: '#c0c0c0',
+                        borderBottom: '1px solid #808080',
+                        boxShadow: '0 1px 0 #ffffff',
+                        fontSize: '11px',
+                        color: '#000000',
+                        userSelect: 'none',
+                      }}>
+                        <span><u>F</u>ile</span>
+                        <span><u>E</u>dit</span>
+                        <span><u>F</u>ormat</span>
+                        <span><u>H</u>elp</span>
+                      </div>
+
+                      {/* Sunken Notepad Paper Area */}
+                      <div style={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #000000',
+                        boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+                        margin: '2px',
+                        padding: '8px',
+                        minHeight: '360px',
+                        display: 'flex',
+                      }}>
+                        <textarea
+                          value={journalNote}
+                          onChange={(e) => setJournalNote(e.target.value)}
+                          placeholder="Reflect on this memory... where were you, how did you feel, what made this moment special?"
+                          style={{
+                            width: '100%',
+                            flex: 1,
+                            minHeight: '340px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            color: '#000000',
+                            fontFamily: '"Lucida Console", "Courier New", Courier, monospace',
+                            fontSize: '12px',
+                            lineHeight: 1.5,
+                            resize: 'none',
+                          }}
+                        />
+                      </div>
+
+                      {/* Status Bar */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '2px 6px',
+                        backgroundColor: '#c0c0c0',
+                        fontSize: '10px',
+                        color: '#000',
+                      }}>
+                        <div style={{ flex: 1, boxShadow: 'inset 1px 1px #808080, inset -1px -1px #fff', padding: '1px 6px' }}>
+                          Characters: {journalNote?.length || 0}
+                        </div>
+                        <div style={{ marginLeft: '4px', boxShadow: 'inset 1px 1px #808080, inset -1px -1px #fff', padding: '1px 6px', fontFamily: 'monospace' }}>
+                          ANSI Windows
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div 
-                      data-color-mode={document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'} 
-                      style={{ 
-                        flex: 1, 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        minHeight: '400px', 
-                        borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
-                        overflow: 'hidden', 
-                        border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
-                        backgroundColor: 'var(--ios-bg-card)'
-                      }}
-                    >
-                      <MDEditor
-                        value={journalNote}
-                        onChange={setJournalNote}
-                        height="100%"
-                        visibleDragbar={false}
-                        preview={settings.editorSplitPane ? 'live' : 'edit'}
-                        commands={
-                          settings.editorRibbonMode === 'advanced' 
-                            ? undefined 
-                            : [
-                                commands.bold,
-                                commands.italic,
-                                commands.strikethrough,
-                                commands.divider,
-                                ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
-                                ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
-                                ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
-                                ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
-                                ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
-                              ]
-                        }
-                        style={{ 
-                          backgroundColor: 'transparent',
-                          boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
-                        }}
-                      />
-                    </div>
+                    /* Modern Theme Journal View */
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--ios-text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
+                          Meaning-Making Journal
+                        </div>
+                        <button 
+                          onClick={handleSaveJournal}
+                          disabled={savingJournal || journalNote === story.journal_note}
+                          style={{
+                            background: (journalNote === story.journal_note) ? 'var(--ios-bg)' : 'var(--ios-accent)',
+                            color: (journalNote === story.journal_note) ? 'var(--ios-text-muted)' : '#fff',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '16px',
+                            fontWeight: 600,
+                            fontSize: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: (journalNote === story.journal_note) ? 'default' : 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {journalNote === story.journal_note && story.journal_note ? <Check size={16} /> : <Save size={16} />}
+                          {savingJournal ? 'Saving...' : (journalNote === story.journal_note && story.journal_note ? 'Saved' : 'Save Note')}
+                        </button>
+                      </div>
+                      
+                      {settings.editorStyle === 'modern' ? (
+                        <div style={{
+                          flex: 1,
+                          background: 'var(--ios-bg-card)',
+                          borderRadius: '16px',
+                          padding: '16px',
+                          border: '1px solid var(--ios-border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                        }}>
+                          <textarea
+                            value={journalNote}
+                            onChange={(e) => setJournalNote(e.target.value)}
+                            placeholder="Reflect on this memory... where were you, how did you feel, what made this moment special?"
+                            style={{
+                              width: '100%',
+                              flex: 1,
+                              minHeight: '350px',
+                              background: 'transparent',
+                              border: 'none',
+                              outline: 'none',
+                              color: 'var(--ios-text-primary)',
+                              fontSize: '14px',
+                              lineHeight: 1.6,
+                              resize: 'none',
+                              fontFamily: 'inherit',
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div 
+                          data-color-mode={document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'} 
+                          style={{ 
+                            flex: 1, 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            minHeight: '400px', 
+                            borderRadius: settings.editorStyle === 'invisible' ? '0' : '12px', 
+                            overflow: 'hidden', 
+                            border: settings.editorStyle === 'invisible' ? 'none' : '1px solid var(--ios-border)',
+                            backgroundColor: 'var(--ios-bg-card)'
+                          }}
+                        >
+                          <MDEditor
+                            value={journalNote}
+                            onChange={setJournalNote}
+                            height="100%"
+                            visibleDragbar={false}
+                            preview={settings.editorSplitPane ? 'live' : 'edit'}
+                            commands={
+                              settings.editorRibbonMode === 'advanced' 
+                                ? undefined 
+                                : [
+                                    commands.bold,
+                                    commands.italic,
+                                    commands.strikethrough,
+                                    commands.divider,
+                                    ...(settings.editorCustomTools || []).includes('image') ? [commands.image] : [],
+                                    ...(settings.editorCustomTools || []).includes('link') ? [commands.link] : [],
+                                    ...(settings.editorCustomTools || []).includes('code') ? [commands.codeBlock] : [],
+                                    ...(settings.editorCustomTools || []).includes('quote') ? [commands.quote] : [],
+                                    ...(settings.editorCustomTools || []).includes('unordered-list') ? [commands.unorderedListCommand] : [],
+                                  ]
+                            }
+                            style={{ 
+                              backgroundColor: 'transparent',
+                              boxShadow: settings.editorStyle === 'invisible' ? 'none' : undefined,
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

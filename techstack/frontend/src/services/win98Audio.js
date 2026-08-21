@@ -22,23 +22,29 @@ function getAudioContext() {
 /**
  * Play authentic Windows 98 Startup Chime (Lush 90s polyphonic pad & chord)
  */
-export function playWin98Startup() {
+export async function playWin98Startup() {
   const ctx = getAudioContext()
   if (!ctx) return
 
-  const now = ctx.currentTime
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume()
+    } catch (e) {}
+  }
 
-  // Chord: Ambient E-major / A-maj9 foundation
+  const now = ctx.currentTime + 0.02
+
+  // Immediate full-bodied chord strike with shimmering bloom
   const frequencies = [
-    { freq: 164.81, time: 0.0, dur: 4.5, gain: 0.25, type: 'sawtooth' }, // E3
-    { freq: 220.00, time: 0.1, dur: 4.5, gain: 0.30, type: 'sine' },     // A3
-    { freq: 277.18, time: 0.2, dur: 4.2, gain: 0.35, type: 'sine' },     // C#4
-    { freq: 329.63, time: 0.3, dur: 4.0, gain: 0.30, type: 'triangle' }, // E4
-    { freq: 440.00, time: 0.6, dur: 3.8, gain: 0.35, type: 'sine' },     // A4
-    { freq: 554.37, time: 0.9, dur: 3.5, gain: 0.35, type: 'sine' },     // C#5
-    { freq: 659.25, time: 1.2, dur: 3.2, gain: 0.40, type: 'sine' },     // E5
-    { freq: 880.00, time: 1.5, dur: 2.8, gain: 0.25, type: 'sine' },     // A5
-    { freq: 1108.73, time: 1.8, dur: 2.5, gain: 0.18, type: 'sine' },    // C#6
+    { freq: 164.81, time: 0.00, dur: 4.0, gain: 0.28, type: 'sawtooth' }, // E3 bass
+    { freq: 220.00, time: 0.02, dur: 4.0, gain: 0.32, type: 'sine' },     // A3
+    { freq: 277.18, time: 0.04, dur: 3.8, gain: 0.35, type: 'sine' },     // C#4
+    { freq: 329.63, time: 0.08, dur: 3.8, gain: 0.32, type: 'triangle' }, // E4
+    { freq: 440.00, time: 0.12, dur: 3.5, gain: 0.36, type: 'sine' },     // A4
+    { freq: 554.37, time: 0.18, dur: 3.2, gain: 0.38, type: 'sine' },     // C#5
+    { freq: 659.25, time: 0.25, dur: 3.0, gain: 0.40, type: 'sine' },     // E5
+    { freq: 880.00, time: 0.35, dur: 2.6, gain: 0.28, type: 'sine' },     // A5
+    { freq: 1108.73, time: 0.45, dur: 2.2, gain: 0.20, type: 'sine' },    // C#6
   ]
 
   frequencies.forEach(note => {
@@ -51,12 +57,12 @@ export function playWin98Startup() {
 
     // Warm vintage lowpass filter
     filter.type = 'lowpass'
-    filter.frequency.setValueAtTime(2400, now + note.time)
-    filter.frequency.exponentialRampToValueAtTime(800, now + note.time + note.dur)
+    filter.frequency.setValueAtTime(2800, now + note.time)
+    filter.frequency.exponentialRampToValueAtTime(700, now + note.time + note.dur)
 
-    // Smooth envelope with ethereal decay
+    // Smooth snappy envelope
     gain.gain.setValueAtTime(0.0001, now + note.time)
-    gain.gain.exponentialRampToValueAtTime(note.gain * 0.4, now + note.time + 0.15)
+    gain.gain.exponentialRampToValueAtTime(note.gain * 0.45, now + note.time + 0.08)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.dur)
 
     osc.connect(filter)

@@ -224,24 +224,74 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* ── Stats Grid (Bento) ──────────────────────── */}
+      {/* ── Categorized Stats: Memories vs Posts ──────── */}
       <motion.div 
         variants={containerVariants}
         style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
-          gap: '12px', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+          gap: '16px', 
           marginBottom: '20px' 
         }}
       >
-        <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
-        <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
-        <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
-        <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
-        <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
-        <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
-        <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
-        <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
+        {/* 1. Stories & Memories Section */}
+        <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '13px', color: 'var(--ios-text-primary)' }}>
+              <Clock size={16} color="var(--ios-accent)" />
+              <span>Stories & Memories</span>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#000080',
+              background: '#ffffff',
+              padding: '1px 10px',
+              border: '1px solid #000000',
+              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+              fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
+              letterSpacing: '0.02em',
+            }}>
+              {stats.total_stories || 0} Total
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+            <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
+            <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
+            <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
+            <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
+            <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
+            <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
+          </div>
+        </div>
+
+        {/* 2. Feed Posts & Carousels Section */}
+        <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '13px', color: 'var(--ios-text-primary)' }}>
+              <Layers size={16} color="#5856d6" />
+              <span>Feed Posts & Carousels</span>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#000080',
+              background: '#ffffff',
+              padding: '1px 10px',
+              border: '1px solid #000000',
+              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+              fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
+              letterSpacing: '0.02em',
+            }}>
+              {stats.total_feed_posts || 0} Total
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+            <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
+            <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
+            <BentoStat icon={Images} color="#34c759" label="High-Res Media" value={stats.total_post_media || stats.total_feed_posts || 0} />
+          </div>
+        </div>
       </motion.div>
 
       {/* ── Action & Status Split ───────────────────── */}

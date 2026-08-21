@@ -47,14 +47,15 @@ export default function JournalApp() {
   const loadStories = async () => {
     try {
       setLoading(true)
-      const data = await getStories({ limit: 100 })
-      const list = data.items || data || []
+      const data = await getStories({ pageSize: 100 })
+      const list = Array.isArray(data) ? data : (data?.stories || data?.items || [])
       setStories(list)
       if (list.length > 0) {
         selectStoryItem(list[0])
       }
     } catch (err) {
       console.error('Failed to load stories:', err)
+      setStories([])
     } finally {
       setLoading(false)
     }
@@ -131,9 +132,10 @@ export default function JournalApp() {
     localStorage.setItem('memwault_places_to_visit', JSON.stringify(updated))
   }
 
-  const filteredStories = stories.filter(s => 
+  const filteredStories = (Array.isArray(stories) ? stories : []).filter(s => 
     (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase()))
+    (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (!searchQuery)
   )
 
   return (

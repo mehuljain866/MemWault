@@ -2092,9 +2092,7 @@ async def upload_portal_files(
 
 
 @router.post("/system/shutdown")
-async def shutdown_system(
-    user: User = Depends(get_current_user),
-):
+async def shutdown_system():
     """
     Safely power down all MemWault background services:
     - Vite frontend dev server (port 5173)

@@ -5,6 +5,7 @@ Implements the Memory Object Model (MOM) schema.
 
 import uuid
 from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
 
 from sqlalchemy import (
     Boolean,

@@ -13,6 +13,7 @@ import ShutdownModal from '../ShutdownModal';
 import Win98DisplayProperties from '../Win98DisplayProperties';
 import Win98BootScreen from '../Win98BootScreen';
 import Win98WidgetLayer from '../Win98WidgetLayer';
+import AboutMemWaultModal from '../AboutMemWaultModal';
 import { playWin98Click, playWin98Minimize, playWin98Maximize, playWin98Startup } from '../../services/win98Audio';
 
 const APPS_LIST = [
@@ -86,6 +87,7 @@ export default function Win98Shell({ children }) {
   const [currentTime, setCurrentTime] = useState('');
   const [shutdownModalOpen, setShutdownModalOpen] = useState(false);
   const [displayPropsOpen, setDisplayPropsOpen] = useState(false);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   // Boot Screen state (run once per session if enabled)
@@ -243,7 +245,7 @@ export default function Win98Shell({ children }) {
       { label: 'Toggle Full Screen Window', action: () => { playWin98Maximize(); setIsMaximized(!isMaximized); } }
     ],
     Help: [
-      { label: 'About MemWault 98...', action: () => alert('MemWault 98 Personal Edition v3.0\nSystem Memory: 64.0 MB RAM\nDatabase: SQLite 3.x\nCopyright © 1998-2026 MemWault Corp.') }
+      { label: 'About MemWault 98...', action: () => { playWin98Click(); setAboutModalOpen(true); } }
     ]
   };
 
@@ -663,12 +665,12 @@ export default function Win98Shell({ children }) {
               onClick={() => {
                 playWin98Click();
                 setIsStartMenuOpen(false);
-                alert('MemWault 98 Help & Documentation\n\n- Memories Vault: View and playback archived stories.\n- Feed Viewer: View photo posts & carousels.\n- World Atlas: Browse geo-tagged memories.\n- Display Properties: Customize wallpapers and widgets.');
+                setAboutModalOpen(true);
               }}
             >
               <div className="win98-start-menu-item-left">
                 <HelpCircle size={18} color="#000080" />
-                <span><u>H</u>elp</span>
+                <span><u>A</u>bout MemWault...</span>
               </div>
             </div>
 
@@ -823,6 +825,13 @@ export default function Win98Shell({ children }) {
           onApply={(updated) => setSettings(updated)}
         />
       )}
+
+      {/* About MemWault Modal (Apple About This Mac inspired) */}
+      <AboutMemWaultModal
+        isOpen={aboutModalOpen}
+        onClose={() => setAboutModalOpen(false)}
+        stats={stats}
+      />
 
       {/* Shutdown Modal */}
       <ShutdownModal 

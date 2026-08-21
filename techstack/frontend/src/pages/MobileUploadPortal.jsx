@@ -472,11 +472,18 @@ export default function MobileUploadPortal() {
                         marginBottom: '6px', position: 'relative'
                       }}>
                         {slidePreviewUrl ? (
-                          <img 
-                            src={slidePreviewUrl} 
-                            alt={`Slide ${idx + 1}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
+                          slide.media_type === 2 ? (
+                            <video
+                              src={slidePreviewUrl}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <img 
+                              src={slidePreviewUrl} 
+                              alt={`Slide ${idx + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          )
                         ) : (
                           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-secondary)' }}>
                             <ImageIcon size={18} />
@@ -545,18 +552,38 @@ export default function MobileUploadPortal() {
               overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.3)',
               marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              {(activeSlideData?.display_url || activeSlideData?.media_url || activeSlideData?.instagram_media_url || activeSlideData?.raw_media_url) ? (
-                <img 
-                  src={activeSlideData.display_url || activeSlideData.media_url || activeSlideData.instagram_media_url || activeSlideData.raw_media_url} 
-                  alt={`Slide ${selectedSlide + 1} Current`}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--ios-text-secondary)' }}>
-                  <ImageIcon size={32} />
-                  <span style={{ fontSize: '11px' }}>Slide {selectedSlide + 1}</span>
-                </div>
-              )}
+              <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedSlide}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {(activeSlideData?.display_url || activeSlideData?.media_url || activeSlideData?.instagram_media_url || activeSlideData?.raw_media_url) ? (
+                      activeSlideData?.media_type === 2 ? (
+                        <video 
+                          src={activeSlideData.display_url || activeSlideData.media_url || activeSlideData.instagram_media_url || activeSlideData.raw_media_url} 
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          controls
+                          playsInline
+                        />
+                      ) : (
+                        <img 
+                          src={activeSlideData.display_url || activeSlideData.media_url || activeSlideData.instagram_media_url || activeSlideData.raw_media_url} 
+                          alt={`Slide ${selectedSlide + 1} Current`}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      )
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--ios-text-secondary)' }}>
+                        <ImageIcon size={32} />
+                        <span style={{ fontSize: '11px' }}>Slide {selectedSlide + 1}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
             </div>
 
             <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', lineHeight: 1.5 }}>

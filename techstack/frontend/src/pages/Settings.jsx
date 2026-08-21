@@ -698,6 +698,26 @@ export default function Settings() {
               onChange={(e) => handleSettingChange('crtMode', e.target.checked)}
             />
           </div>
+
+          {/* Desktop Assistant (Clippy) Toggle */}
+          <div className="settings-row-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', padding: '10px 14px', background: 'var(--ios-bg-app)', borderRadius: '12px', border: '1px solid var(--ios-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ fontSize: '18px' }}>📎</div>
+              <div>
+                <div className="settings-item-title" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Desktop Assistant (Clippy)</div>
+                <div className="settings-item-val" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>Show interactive Q&A assistant in the bottom-right corner</div>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              className="ios-toggle"
+              checked={playbackSettings.enableClippy !== false}
+              onChange={(e) => {
+                handleSettingChange('enableClippy', e.target.checked);
+                window.dispatchEvent(new Event('memwault-settings-changed'));
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -728,10 +748,10 @@ export default function Settings() {
                     backgroundColor: isSelected ? 'var(--ios-accent)' : 'transparent',
                     color: isSelected ? '#ffffff' : 'var(--ios-text-secondary)',
                     padding: '5px 12px',
-                    fontWeight: isSelected ? 700 : 500,
                     fontSize: '12px',
+                    fontWeight: isSelected ? 700 : 500,
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.2s',
                   }}
                 >
                   {label}
@@ -741,15 +761,15 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Preferred Music App */}
-        <div className="settings-row-panel" style={{ padding: '14px 16px', borderBottom: '1px solid var(--ios-border)' }}>
-          <div className="settings-item-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: 'var(--ios-text-primary)' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: '#e89e38', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Preferred Music Streaming App */}
+        <div className="settings-row-panel" style={{ padding: '14px 16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="settings-item-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: '#ff2d55', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <MusicIcon size={16} />
             </div>
             Preferred Music App
           </div>
-          <div className="segmented-container segment-group" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="segmented-container segment-group" style={{ display: 'flex', background: 'var(--ios-bg-app)', border: '1px solid var(--ios-border)', borderRadius: '10px', padding: '3px', gap: '3px' }}>
             {[
               { 
                 id: 'spotify', 
@@ -757,7 +777,7 @@ export default function Settings() {
                 color: '#1DB954', 
                 icon: (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.494 17.306c-.215.352-.676.464-1.028.249-2.817-1.722-6.363-2.111-10.539-1.157-.402.092-.803-.16-.895-.562-.092-.403.159-.804.562-.896 4.571-1.045 8.492-.595 11.651 1.338.353.215.464.676.249 1.028zm1.464-3.262c-.27.44-.847.577-1.287.307-3.225-1.982-8.142-2.557-11.958-1.398-.498.151-1.026-.135-1.177-.633-.151-.498.135-1.026.633-1.177 4.364-1.324 9.789-.684 13.482 1.587.44.27.577.847.307 1.314zm.126-3.41c-3.868-2.296-10.248-2.508-13.941-1.387-.593.18-1.22-.164-1.4-.757-.18-.593.164-1.22.757-1.4 4.245-1.288 11.286-1.038 15.73 1.601.533.317.708 1.011.392 1.544-.317.534-1.012.709-1.538.4z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.494 17.308c-.216.353-.675.467-1.028.25-2.817-1.721-6.36-2.111-10.536-1.157-.404.093-.807-.16-.9-.564-.093-.404.16-.807.564-.9 4.568-1.044 8.487-.597 11.65 1.343.353.217.467.676.25 1.028zm1.467-3.26c-.272.441-.849.582-1.29.31-3.224-1.981-8.14-2.556-11.954-1.398-.498.151-1.024-.132-1.176-.63-.151-.498.132-1.024.63-1.176 4.364-1.324 9.789-.684 13.48 1.597.441.272.582.849.31 1.29zm.125-3.398C15.228 8.354 8.878 8.146 5.17 9.272c-.6-.182-1.233-.162-1.415-.762-.182-.6.162-1.233.762-1.415 4.254-1.292 11.267-1.05 15.688 1.574.542.321.719 1.027.398 1.569-.321.542-1.027.719-1.569.398z"/>
                   </svg>
                 )
               },
@@ -767,7 +787,7 @@ export default function Settings() {
                 color: '#FA243C', 
                 icon: (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.38c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.63 1.35-.57.66-.99 1.73-.85 2.76 1 .08 2.03-.51 2.55-1.26z"/>
+                    <path d="M23.997 6.124v11.752a6.124 6.124 0 11-4.083-5.787V6.862l-10.207 2.31v10.038a6.124 6.124 0 11-4.083-5.787V4.083L23.997 1.36v4.764z"/>
                   </svg>
                 )
               },
@@ -787,7 +807,7 @@ export default function Settings() {
                 color: '#00A8E1', 
                 icon: (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M13.882 17.127c-3.834 2.827-9.351 1.344-12.87-1.127-.268-.188-.047-.539.255-.387 3.328 1.674 8.271 2.378 11.758-.456.452-.367.973.167.857.97zm1.37-1.611c-.244-.316-1.617-.15-2.235-.075-.188.023-.217-.137-.048-.255 1.096-.77 2.894-.548 3.104-.282.21.265-.058 2.062-1.09 2.919-.159.132-.309.061-.239-.112.23-.568.752-1.879.508-2.195zm-3.41-5.187c0-1.748-.093-3.219-1.92-3.219-2.25 0-2.394 1.866-2.394 3.42 0 1.547.234 3.238 2.253 3.238 1.948 0 2.061-1.747 2.061-3.439zm2.443 6.079h-2.19v-.933c-.663.784-1.579 1.157-2.611 1.157-2.368 0-4.223-1.685-4.223-4.464 0-3.085 2.14-4.524 4.549-4.524 1.026 0 1.684.341 2.285.932v-1.96c0-1.401-.587-2.15-2.222-2.15-1.199 0-2.387.625-2.585 1.777-.038.217-.204.372-.424.372h-2.07c-.24 0-.422-.207-.376-.443.468-2.428 2.65-3.69 5.568-3.69 3.036 0 4.385 1.583 4.385 4.417v6.62c0 1.258.077 2.128.291 2.895.045.163-.075.32-.243.32h-2.189c-.198 0-.323-.153-.377-.327-.086-.279-.176-.782-.246-1.393z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.8 13.9c-3.14 0-5.7-2.56-5.7-5.7s2.56-5.7 5.7-5.7 5.7 2.56 5.7 5.7c0 .35-.04.69-.1 1.02h-1.86c.04-.33.06-.67.06-1.02 0-2.09-1.71-3.8-3.8-3.8s-3.8 1.71-3.8 3.8 1.71 3.8 3.8 3.8c1.03 0 1.96-.42 2.64-1.09l1.34 1.34c-1.03 1.03-2.43 1.65-3.98 1.65zm7.3 1.8c-3.17 1.84-7.56 1.11-10.43-.7-.22-.14-.04-.41.21-.29 2.66 1.25 6.64 1.8 9.55-.35.37-.28.82.11.67.74v.6z"/>
                   </svg>
                 )
               },

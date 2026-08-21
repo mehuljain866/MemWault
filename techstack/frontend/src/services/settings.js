@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS = {
   win98DashboardMode: 'dashboard', // 'dashboard' | 'widget'
   win98Wallpaper: null, // Custom image URL/base64 or null for classic teal
   win98WallpaperMode: 'stretch', // 'stretch' | 'tile' | 'center'
+  win98IconBackdrop: false, // true = show retro beveled backdrop boxes behind desktop icons
   win98WidgetVisibility: {
     memoryCounter: true,
     statGrid: true,
@@ -64,6 +65,7 @@ const DEFAULT_SETTINGS = {
   win98WidgetPositions: {},
   win98SoundEnabled: true,
   win98BootScreen: true,
+  enableClippy: true, // true = show floating Clippy Assistant in bottom-right corner
   customQRCodes: true, // true = styled era frames & dots, false = classic high-contrast B&W
 };
 

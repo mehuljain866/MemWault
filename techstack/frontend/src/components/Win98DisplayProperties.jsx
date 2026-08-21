@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Monitor } from 'lucide-react'
+import { Win98DisplayPropertiesIcon } from './win98/Win98Icons'
 import { getSettings, saveSettings } from '../services/settings'
 import { playWin98Startup, playWin98Chord, playWin98Shutdown, playWin98Click, playWin98Ding } from '../services/win98Audio'
 import QRUploadModal from './QRUploadModal'
@@ -102,7 +102,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
         {/* Title Bar */}
         <div className="win98-dialog-titlebar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Monitor size={13} color="#ffffff" />
+            <Win98DisplayPropertiesIcon size={14} />
             <span>Display Properties</span>
           </div>
           <button
@@ -177,7 +177,33 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      position: 'relative',
                     }}>
+                      {/* Mini preview desktop icons with dynamic box */}
+                      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {[
+                          { color: '#000080', id: '1' },
+                          { color: '#C49A45', id: '2' },
+                          { color: '#008000', id: '3' }
+                        ].map(item => (
+                          <div
+                            key={item.id}
+                            style={{
+                              width: '13px',
+                              height: '10px',
+                              backgroundColor: currentSettings.win98IconBackdrop ? 'rgba(192,192,192,0.9)' : 'transparent',
+                              border: currentSettings.win98IconBackdrop ? '1px solid #000000' : 'none',
+                              boxShadow: currentSettings.win98IconBackdrop ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <div style={{ width: '5px', height: '5px', backgroundColor: item.color }} />
+                          </div>
+                        ))}
+                      </div>
+
                       {!currentSettings.win98Wallpaper && (
                         <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '8px', fontWeight: 'bold' }}>
                           Teal (#008080)
@@ -229,11 +255,11 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
               {/* Wallpaper Selection Controls */}
               <fieldset className="win98-fieldset">
-                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Wallpaper</legend>
+                <legend>Wallpaper</legend>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '8px' }}>
                   {/* Listbox */}
-                  <div className="win98-listbox" style={{ height: '96px', overflowY: 'auto' }}>
+                  <div className="win98-listbox" style={{ height: '90px', overflowY: 'auto' }}>
                     <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#555', padding: '1px 3px', borderBottom: '1px solid #d0d0d0', backgroundColor: '#e4e4e4' }}>
                       ── SYSTEM PRESETS ──
                     </div>
@@ -334,6 +360,23 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                   style={{ display: 'none' }}
                 />
               </fieldset>
+
+              {/* Desktop Icons Appearance / Box Toggle */}
+              <fieldset className="win98-fieldset" style={{ marginTop: '2px' }}>
+                <legend>Icon Appearance & Readability</legend>
+                <div style={{ padding: '2px 2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={currentSettings.win98IconBackdrop === true}
+                      onChange={(e) => handleUpdate('win98IconBackdrop', e.target.checked)}
+                    />
+                    <span style={{ fontSize: '11px', color: '#000000' }}>
+                      <b>Show retro backdrop boxes around desktop icons</b> (ensures icons stay clear on busy/bright wallpapers)
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
             </div>
           )}
 
@@ -341,7 +384,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           {activeTab === 'widgets' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
-                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Desktop Paradigm</legend>
+                <legend>Desktop Paradigm</legend>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 2px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -368,8 +411,42 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                 </div>
               </fieldset>
 
+              {/* Icon Appearance in Widgets & Desktop tab as well */}
               <fieldset className="win98-fieldset">
-                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Active Desktop Items</legend>
+                <legend>Desktop Icon Appearance</legend>
+                <div style={{ padding: '2px 2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={currentSettings.win98IconBackdrop === true}
+                      onChange={(e) => handleUpdate('win98IconBackdrop', e.target.checked)}
+                    />
+                    <span style={{ fontSize: '11px', color: '#000000' }}>
+                      Show backdrop boxes around desktop shortcut icons
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+
+              {/* Desktop Assistant (Clippy) */}
+              <fieldset className="win98-fieldset">
+                <legend>Desktop Assistant</legend>
+                <div style={{ padding: '2px 2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={currentSettings.enableClippy !== false}
+                      onChange={(e) => handleUpdate('enableClippy', e.target.checked)}
+                    />
+                    <span style={{ fontSize: '11px', color: '#000000' }}>
+                      Enable interactive Clippy Assistant in bottom-right corner
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="win98-fieldset">
+                <legend>Active Desktop Items</legend>
 
                 <div style={{ fontSize: '11px', color: '#222222', marginBottom: '6px' }}>
                   Select the individual gadget boxes displayed on the wallpaper:
@@ -428,7 +505,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           {activeTab === 'sounds' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
-                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Sound Scheme & Visuals</legend>
+                <legend>Sound Scheme & Visuals</legend>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 2px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -452,7 +529,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
               </fieldset>
 
               <fieldset className="win98-fieldset">
-                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Audio Event Preview</legend>
+                <legend>Audio Event Preview</legend>
 
                 <div style={{ fontSize: '11px', color: '#222222', marginBottom: '8px' }}>
                   Test bit-for-bit official 1998 Microsoft Windows WAV samples:

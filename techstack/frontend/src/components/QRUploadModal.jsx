@@ -125,7 +125,8 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
               Upload Original Media
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--ios-text-secondary, #8e8e93)', margin: 0, lineHeight: 1.4 }}>
-              Scan this QR code with your phone camera on local Wi-Fi to upload your original, uncompressed photos and videos.
+              Scan this QR code with your phone camera on local Wi-Fi to upload your original, uncompressed photos and videos.<br/>
+              <b>Important: Keep this window open until transfer is complete.</b>
             </p>
           </div>
 

@@ -52,7 +52,9 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 
 ## Key Features
 
-- 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories and Reels reposted to Stories as a distinct archival classification problem.
+- 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories, Carousels, and Video Posts as distinct archival classification problems.
+- 📱 **Mobile QR Upload Portal:** Stream uncompressed full-resolution RAW photos, 4K videos, and custom wallpapers directly from your smartphone to your PC desktop vault via local Wi-Fi.
+- 🖼️ **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
 - 📊 **Archived Engagement Metrics:** Preserve Story viewer counts and like counts captured at archival time alongside media and metadata.
 - 📝 **Sidecar Markdown Journaling:** Write rich notes auto-synced as human-readable `.md` files right next to `photo.jpg` on disk so your thoughts are never trapped inside a database.
 - 🎒 **Portable Metadata & EXIF:** Option to embed archival context directly into media files so memories remain meaningful even outside MemWault.
@@ -93,151 +95,34 @@ Single Archived Memory Object
 
 ---
 
-## Visual Tour
+## Themes & Visual Tour
 
-> **MemWault is designed around the idea that an archive should be explored spatially and temporally—not simply browsed as a folder of files.**  
-> **Zoom from years to months to days, jump through time with FastScrollbar, open a memory, inspect its metadata, journal it, view its location, or replay it as originally experienced.**
+MemWault is designed around the idea that an archive should be explored spatially and temporally—not simply browsed as a folder of files. To complement this, we've built a **Multi-Era Design Architecture** allowing you to explore your memories in the aesthetic of your choice.
 
-### 1. Dashboard & Continuous Timeline
+Rather than cluttering this document with dozens of screenshots, we have dedicated showcase pages for each of our handcrafted UI themes. **Click on a theme below to view its complete visual tour:**
 
-<table align="center" width="100%">
-  <tr>
-    <td width="50%" align="center">
-      <b>Dashboard & Analytics Overview</b><br/>
-      <img src="screenshots/dashboard_home.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Live stats, total story counts, storage consumption, and system status</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Dedicated Reels Gallery</b><br/>
-      <img src="screenshots/reels_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Automatically segregated reels view with date headers and duration badges</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>Memories Timeline (Months Zoom)</b><br/>
-      <img src="screenshots/memories_month_view.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Clean grid layout morphing with spring-based 3-pill zoom control</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Memories Timeline (Days Zoom)</b><br/>
-      <img src="screenshots/memories_days_view.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Granular day-by-day view with high-res aspect ratio media cards</sub>
-    </td>
-  </tr>
-</table>
+- 📱 [**iOS HIG (Modern) Theme**](docs/themes/iOS_HIG.md) - The default, highly polished modern interface built around Apple's Human Interface Guidelines.
+- 🪟 [**Windows 98 Theme**](docs/themes/Win98.md) - A bit-for-bit recreation of the classic 1998 Microsoft Windows desktop environment, complete with active desktop gadgets and authentic property sheets.
+- 💿 [**Y2K Theme**](docs/themes/Y2K.md) - Inspired by the turn of the millennium, featuring brushed metal textures and the optimistic tech-bubble aesthetic.
+- 💧 [**Aqua Theme**](docs/themes/Aqua.md) - Inspired by early macOS X, featuring glossy buttons and pinstriped backgrounds.
 
----
-
-### 2. Memory Studio & Sidecar Journaling
-
-<table align="center" width="100%">
-  <tr>
-    <td width="50%" align="center">
-      <b>Sidecar Markdown Journal Editor</b><br/>
-      <img src="screenshots/memory_journal_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Write rich markdown notes auto-synced as .md sidecar files next to media on disk</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Memory Info & EXIF Metadata</b><br/>
-      <img src="screenshots/memory_info_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Detailed EXIF metadata, capture timestamp, duration, and local file paths</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>iTunes Music Preview Player</b><br/>
-      <img src="screenshots/memory_music_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Stream 30-second audio previews for soundtrack attached to your memory</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Data Manifest & JSON Export</b><br/>
-      <img src="screenshots/memory_data_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Inspect raw JSON payload, story ID, and system data properties</sub>
-    </td>
-  </tr>
-</table>
-
----
-
-### 3. Custom Highlight Albums & Spatial Map
-
-<table align="center" width="100%">
-  <tr>
-    <td width="50%" align="center">
-      <b>Highlight Albums Gallery</b><br/>
-      <img src="screenshots/highlights_tab.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Curated collections with dynamic 4-image grid covers and album titles</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Highlight Player & Audio Stream</b><br/>
-      <img src="screenshots/highlight_music_stream.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Full-screen story playback inside custom highlight albums with music</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>Opened Highlight Collection</b><br/>
-      <img src="screenshots/highlight_open_player.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Explore stories inside a specific highlight album</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Album Options & Controls</b><br/>
-      <img src="screenshots/highlight_options_menu.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Quick management actions, cover edits, and story additions</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>Spatial Map (Split Grid View)</b><br/>
-      <img src="screenshots/map_split_grid.png" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Interactive spatial map with location pins and bento place cards</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Spatial Map (Fullscreen View)</b><br/>
-      <img src="screenshots/map_fullscreen.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Immersive full-screen geographic map view</sub>
-    </td>
-  </tr>
-</table>
-
----
-
-### 4. Settings, Maintenance & Archives
-
-<table align="center" width="100%">
-  <tr>
-    <td width="50%" align="center">
-      <b>Settings & Instagram Connection</b><br/>
-      <img src="screenshots/settings_overview.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Instagram session management, theme controls, and map style toggles</sub>
-    </td>
-    <td width="50%" align="center">
-      <b>Scrape Logs & Maintenance</b><br/>
-      <img src="screenshots/settings_scrape_history.jpg" width="100%" style="border-radius: 8px;" /><br/>
-      <sub>Scrape execution history, local folder opener, and metadata rescanning</sub>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">
-      <b>Archives & Trash Recovery</b><br/>
-      <img src="screenshots/archives_tab.jpg" width="80%" style="border-radius: 8px;" /><br/>
-      <sub>Soft-delete trash manager for restoring or permanently deleting archived stories</sub>
-    </td>
-  </tr>
-</table>
+*(All new features—including the new Post Tab, Mobile QR Uploads, and RAW replacement functionality—are highlighted in these dedicated showcases!)*
 
 ---
 
 ## Changelog & Evolution
 
-### Version 3.2 — Windows 98 Design System Perfection & Architecture
+### Version 3.2 — Windows 98 Design System Perfection & Interactive Assistant
+- **Authentic Windows 98 Icon Library:** 18 handcrafted pixel-perfect SVG reproductions of authentic 16-color/256-color Windows 98 shortcuts (`MemWault.exe`, `FeedViewer.exe`, `Memories.exe`, `Journal.exe`, `StoryReels.exe`, `Collections.exe`, `WorldAtlas.exe`, `Cabinet.exe`, `Setup.exe`, `Display.exe`, `RecycleBin.exe`).
+- **Desktop Icon Backdrop Boxes:** Dynamic toggle in Display Properties allowing 3D beveled silver backdrop boxes around desktop icons for high contrast and readability over any custom wallpaper.
+- **Interactive MemWault Assistant (Clippy):** Nostalgic animated assistant in the bottom-right corner with search Q&A knowledge base, step-by-step guidance, collision avoidance, and direct navigation links.
 - **Authentic Windows 98 Property Sheet Engine:** Continuous 3D tab strip, black legends, and compact vertical rhythm.
 - **Halftone Dithered Segmented Controls:** System-wide Windows 98 3D sunken containers with authentic 2x2 halftone dither pattern and 1px pressed offset.
 - **Windows 98 Notepad / DevStudio Syntax Code Viewer:** Built-in retro syntax-highlighted JSON viewer with line numbering and 1998 Microsoft Visual Studio color palette.
 - **Categorized Dashboard & Widget Architecture:** Segregated Stories/Memories and Feed Posts/Carousels into clean, distinct groupboxes and desktop gadgets.
-- **Official Microsoft 1998 WAV Sound Suite:** Bundled bit-for-bit authentic 1998 Microsoft WAV audio samples (Brian Eno startup sound, shutdown chord, navigation clicks) with zero boot delay.
+- **Official 1998 WAV Sound Suite:** Bundled bit-for-bit authentic 1998 WAV audio samples (Brian Eno startup sound, shutdown chord, navigation clicks) with zero boot delay.
 - **Authentic Shutdown Modal:** 3D outset Windows 98 dialog with "It's now safe to turn off your computer" screen.
+- **Multi-Service Music Integration:** Dynamic branded audio player integration supporting Spotify, Apple Music, YouTube Music, and Amazon Music.
 
 ### Version 3.1 — Mobile QR Wallpaper Portal & Performance Engine
 - **Dynamic Mobile QR Wallpaper Portal:** Generate responsive QR codes for direct mobile-to-desktop photo upload with live camera previews.

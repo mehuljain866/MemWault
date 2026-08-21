@@ -3,10 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { triggerScrape, getDashboardStats } from '../../services/api';
 import { getSettings, saveSettings } from '../../services/settings';
 import { 
-  Monitor, Image as ImageIcon, Video, Folder, Settings, Map as MapIcon, 
-  RotateCcw, Package, Grid, Layers, Sparkles, Volume2, HardDrive,
-  Power, HelpCircle, Search, FileText, ChevronRight, Terminal, Trash2, CheckCircle2,
-  Sliders, LayoutGrid, BookOpen, Eye, EyeOff
+  RotateCcw, ChevronRight, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
 
 import ShutdownModal from '../ShutdownModal';
@@ -14,67 +11,88 @@ import Win98DisplayProperties from '../Win98DisplayProperties';
 import Win98BootScreen from '../Win98BootScreen';
 import Win98WidgetLayer from '../Win98WidgetLayer';
 import AboutMemWaultModal from '../AboutMemWaultModal';
+import ClippyAssistant from '../win98/ClippyAssistant';
 import { playWin98Click, playWin98Minimize, playWin98Maximize, playWin98Startup } from '../../services/win98Audio';
+import {
+  Win98VaultMainIcon,
+  Win98FeedViewerIcon,
+  Win98MemoriesIcon,
+  Win98JournalIcon,
+  Win98StoryReelsIcon,
+  Win98CollectionsIcon,
+  Win98WorldAtlasIcon,
+  Win98CabinetIcon,
+  Win98SetupIcon,
+  Win98DisplayPropertiesIcon,
+  Win98RecycleBinIcon,
+  Win98FolderIcon,
+  Win98FindIcon,
+  Win98HelpIcon,
+  Win98ShutDownIcon,
+  Win98HardDriveIcon,
+  Win98VolumeSpeakerIcon,
+  Win98ShowDesktopIcon,
+} from '../win98/Win98Icons';
 
 const APPS_LIST = [
-  { path: '/', name: 'MemWault.exe', label: 'Vault Main', icon: Monitor },
-  { path: '/posts', name: 'FeedViewer.exe', label: 'Feed Posts', icon: Grid },
-  { path: '/timeline', name: 'Memories.exe', label: 'Memories', icon: ImageIcon },
-  { path: '/journal', name: 'Journal.exe', label: 'Journal', icon: BookOpen },
-  { path: '/reels', name: 'StoryReels.exe', label: 'Reel Player', icon: Video },
-  { path: '/highlights', name: 'Collections.exe', label: 'Highlights', icon: Layers },
-  { path: '/map', name: 'WorldAtlas.exe', label: 'Geo Map', icon: MapIcon },
-  { path: '/archives', name: 'Cabinet.exe', label: 'Archives', icon: Package },
-  { path: '/settings', name: 'Setup.exe', label: 'Control Panel', icon: Settings }
+  { path: '/', name: 'MemWault.exe', label: 'Vault Main', icon: Win98VaultMainIcon },
+  { path: '/posts', name: 'FeedViewer.exe', label: 'Feed Posts', icon: Win98FeedViewerIcon },
+  { path: '/timeline', name: 'Memories.exe', label: 'Memories', icon: Win98MemoriesIcon },
+  { path: '/journal', name: 'Journal.exe', label: 'Journal', icon: Win98JournalIcon },
+  { path: '/reels', name: 'StoryReels.exe', label: 'Reel Player', icon: Win98StoryReelsIcon },
+  { path: '/highlights', name: 'Collections.exe', label: 'Highlights', icon: Win98CollectionsIcon },
+  { path: '/map', name: 'WorldAtlas.exe', label: 'Geo Map', icon: Win98WorldAtlasIcon },
+  { path: '/archives', name: 'Cabinet.exe', label: 'Archives', icon: Win98CabinetIcon },
+  { path: '/settings', name: 'Setup.exe', label: 'Control Panel', icon: Win98SetupIcon }
 ];
 
 function resolveAppInfo(pathname) {
   if (pathname === '/') {
-    return { name: 'MemWault.exe', label: 'Vault Main', title: 'MemWault 98 - [Dashboard]', icon: Monitor };
+    return { name: 'MemWault.exe', label: 'Vault Main', title: 'MemWault 98 - [Dashboard]', icon: Win98VaultMainIcon };
   }
   if (pathname === '/journal') {
-    return { name: 'Journal.exe', label: 'Journal', title: 'MemWault 98 - [Journal.exe : Personal Memory & Travel Log]', icon: BookOpen };
+    return { name: 'Journal.exe', label: 'Journal', title: 'MemWault 98 - [Journal.exe : Personal Memory & Travel Log]', icon: Win98JournalIcon };
   }
   if (pathname.startsWith('/story/') || pathname.startsWith('/stories/')) {
     const parts = pathname.split('/');
     const id = parts[parts.length - 1] || '';
-    return { name: 'StoryViewer.exe', label: 'Story Inspector', title: `MemWault 98 - [StoryViewer.exe : Memory #${id}]`, icon: ImageIcon };
+    return { name: 'StoryViewer.exe', label: 'Story Inspector', title: `MemWault 98 - [StoryViewer.exe : Memory #${id}]`, icon: Win98MemoriesIcon };
   }
   if (pathname.startsWith('/post/') || pathname.startsWith('/posts/')) {
     const parts = pathname.split('/');
     const id = parts[parts.length - 1] || '';
-    return { name: 'PostInspector.exe', label: 'Post Detail', title: `MemWault 98 - [PostInspector.exe : Post #${id}]`, icon: Grid };
+    return { name: 'PostInspector.exe', label: 'Post Detail', title: `MemWault 98 - [PostInspector.exe : Post #${id}]`, icon: Win98FeedViewerIcon };
   }
   if (pathname.startsWith('/highlight/') || pathname.startsWith('/highlights/')) {
     const parts = pathname.split('/');
     const id = parts[parts.length - 1] || '';
-    return { name: 'AlbumViewer.exe', label: 'Album Viewer', title: `MemWault 98 - [AlbumViewer.exe : Collection #${id}]`, icon: Layers };
+    return { name: 'AlbumViewer.exe', label: 'Album Viewer', title: `MemWault 98 - [AlbumViewer.exe : Collection #${id}]`, icon: Win98CollectionsIcon };
   }
   if (pathname === '/posts') {
-    return { name: 'FeedViewer.exe', label: 'Feed Posts', title: 'MemWault 98 - [FeedViewer.exe]', icon: Grid };
+    return { name: 'FeedViewer.exe', label: 'Feed Posts', title: 'MemWault 98 - [FeedViewer.exe]', icon: Win98FeedViewerIcon };
   }
   if (pathname === '/timeline') {
-    return { name: 'Memories.exe', label: 'Memories', title: 'MemWault 98 - [Memories.exe]', icon: ImageIcon };
+    return { name: 'Memories.exe', label: 'Memories', title: 'MemWault 98 - [Memories.exe]', icon: Win98MemoriesIcon };
   }
   if (pathname === '/reels') {
-    return { name: 'StoryReels.exe', label: 'Reel Player', title: 'MemWault 98 - [StoryReels.exe]', icon: Video };
+    return { name: 'StoryReels.exe', label: 'Reel Player', title: 'MemWault 98 - [StoryReels.exe]', icon: Win98StoryReelsIcon };
   }
   if (pathname === '/highlights') {
-    return { name: 'Collections.exe', label: 'Highlights', title: 'MemWault 98 - [Collections.exe]', icon: Layers };
+    return { name: 'Collections.exe', label: 'Highlights', title: 'MemWault 98 - [Collections.exe]', icon: Win98CollectionsIcon };
   }
   if (pathname === '/map') {
-    return { name: 'WorldAtlas.exe', label: 'Geo Map', title: 'MemWault 98 - [WorldAtlas.exe]', icon: MapIcon };
+    return { name: 'WorldAtlas.exe', label: 'Geo Map', title: 'MemWault 98 - [WorldAtlas.exe]', icon: Win98WorldAtlasIcon };
   }
   if (pathname === '/archives') {
-    return { name: 'Cabinet.exe', label: 'Archives', title: 'MemWault 98 - [Cabinet.exe]', icon: Package };
+    return { name: 'Cabinet.exe', label: 'Archives', title: 'MemWault 98 - [Cabinet.exe]', icon: Win98CabinetIcon };
   }
   if (pathname === '/settings') {
-    return { name: 'Setup.exe', label: 'Control Panel', title: 'MemWault 98 - [Setup.exe : Control Panel]', icon: Settings };
+    return { name: 'Setup.exe', label: 'Control Panel', title: 'MemWault 98 - [Setup.exe : Control Panel]', icon: Win98SetupIcon };
   }
   if (pathname.startsWith('/portal') || pathname.startsWith('/upload')) {
-    return { name: 'MobileSync.exe', label: 'Mobile Sync', title: 'MemWault 98 - [MobileSync.exe]', icon: HardDrive };
+    return { name: 'MobileSync.exe', label: 'Mobile Sync', title: 'MemWault 98 - [MobileSync.exe]', icon: Win98HardDriveIcon };
   }
-  return { name: 'Explorer.exe', label: 'Explorer', title: `MemWault 98 - [${pathname}]`, icon: Package };
+  return { name: 'Explorer.exe', label: 'Explorer', title: `MemWault 98 - [${pathname}]`, icon: Win98CabinetIcon };
 }
 
 export default function Win98Shell({ children }) {
@@ -88,6 +106,7 @@ export default function Win98Shell({ children }) {
   const [shutdownModalOpen, setShutdownModalOpen] = useState(false);
   const [displayPropsOpen, setDisplayPropsOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [showClippy, setShowClippy] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   // Boot Screen state (run once per session if enabled)
@@ -372,7 +391,7 @@ export default function Win98Shell({ children }) {
             className="win98-context-item"
             style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            <Monitor size={12} color="#000080" />
+            <Win98DisplayPropertiesIcon size={14} />
             <span>Properties</span>
           </div>
         </div>
@@ -389,14 +408,14 @@ export default function Win98Shell({ children }) {
       )}
 
       {/* ── Desktop Icons (Visible on Desktop Workspace) ── */}
-      <div className="win98-desktop-shortcuts">
+      <div className={`win98-desktop-shortcuts ${settings.win98IconBackdrop ? 'has-icon-backdrops' : ''}`}>
         {APPS_LIST.map((app) => {
           const Icon = app.icon;
           const isSelected = location.pathname === app.path && !isMinimized;
           return (
             <div
               key={app.path}
-              className={`win98-desktop-icon ${isSelected ? 'is-selected' : ''}`}
+              className={`win98-desktop-icon ${isSelected ? 'is-selected' : ''} ${settings.win98IconBackdrop ? 'has-box' : ''}`}
               onClick={() => handleDesktopIconClick(app.path)}
               onDoubleClick={() => handleDesktopIconClick(app.path)}
               title={`Open ${app.name}`}
@@ -411,24 +430,24 @@ export default function Win98Shell({ children }) {
 
         {/* Win98 Display Properties Shortcut */}
         <div
-          className="win98-desktop-icon"
+          className={`win98-desktop-icon ${settings.win98IconBackdrop ? 'has-box' : ''}`}
           onClick={() => { playWin98Click(); setDisplayPropsOpen(true); }}
           title="Display Properties & Wallpaper Customizer"
         >
           <div className="win98-desktop-icon-img">
-            <Monitor size={32} color="#000080" />
+            <Win98DisplayPropertiesIcon size={32} />
           </div>
           <span className="win98-desktop-icon-label">Display</span>
         </div>
 
         {/* Recycle Bin */}
         <div
-          className="win98-desktop-icon"
+          className={`win98-desktop-icon ${settings.win98IconBackdrop ? 'has-box' : ''}`}
           onClick={() => { playWin98Click(); navigate('/archives'); setIsMinimized(false); }}
           title="Recycle Bin (Deleted Memories)"
         >
           <div className="win98-desktop-icon-img">
-            <Trash2 size={32} />
+            <Win98RecycleBinIcon size={32} />
           </div>
           <span className="win98-desktop-icon-label">Recycle Bin</span>
         </div>
@@ -505,22 +524,22 @@ export default function Win98Shell({ children }) {
           {settings.win98ShowToolbar && (
             <div className="win98-toolbar">
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); navigate('/'); }} title="Dashboard">
-                <Monitor size={16} /><span>Dashboard</span>
+                <Win98VaultMainIcon size={16} /><span>Dashboard</span>
               </button>
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); navigate('/posts'); }} title="Posts">
-                <Grid size={16} /><span>Feed</span>
+                <Win98FeedViewerIcon size={16} /><span>Feed</span>
               </button>
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); navigate('/timeline'); }} title="Memories">
-                <ImageIcon size={16} /><span>Memories</span>
+                <Win98MemoriesIcon size={16} /><span>Memories</span>
               </button>
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); navigate('/map'); }} title="Map">
-                <MapIcon size={16} /><span>Map</span>
+                <Win98WorldAtlasIcon size={16} /><span>Map</span>
               </button>
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); setDisplayPropsOpen(true); }} title="Display Properties">
-                <Sliders size={16} /><span>Display</span>
+                <Win98DisplayPropertiesIcon size={16} /><span>Display</span>
               </button>
               <button className="win98-toolbar-btn" onClick={() => { playWin98Click(); navigate('/settings'); }} title="Settings">
-                <Settings size={16} /><span>Setup</span>
+                <Win98SetupIcon size={16} /><span>Setup</span>
               </button>
               <div style={{ width: '1px', height: '18px', background: '#808080', borderRight: '1px solid #ffffff', margin: '0 4px' }} />
               <button className="win98-toolbar-btn" onClick={handleSync} title="Sync Archive">
@@ -565,7 +584,7 @@ export default function Win98Shell({ children }) {
               onMouseEnter={() => { setShowProgramsMenu(true); setShowSettingsMenu(false); }}
             >
               <div className="win98-start-menu-item-left">
-                <Folder size={18} color="#000080" />
+                <Win98FolderIcon size={18} />
                 <span><u>P</u>rograms</span>
               </div>
               <ChevronRight size={14} />
@@ -605,7 +624,7 @@ export default function Win98Shell({ children }) {
               }}
             >
               <div className="win98-start-menu-item-left">
-                <Package size={18} color="#000080" />
+                <Win98CabinetIcon size={18} />
                 <span><u>D</u>ocuments & Archives</span>
               </div>
             </div>
@@ -616,7 +635,7 @@ export default function Win98Shell({ children }) {
               onMouseEnter={() => { setShowSettingsMenu(true); setShowProgramsMenu(false); }}
             >
               <div className="win98-start-menu-item-left">
-                <Settings size={18} color="#000080" />
+                <Win98SetupIcon size={18} />
                 <span><u>S</u>ettings</span>
               </div>
               <ChevronRight size={14} />
@@ -631,7 +650,7 @@ export default function Win98Shell({ children }) {
                       setIsStartMenuOpen(false);
                     }}
                   >
-                    <Sliders size={16} />
+                    <Win98DisplayPropertiesIcon size={16} />
                     <span>Display Properties...</span>
                   </div>
                   <div 
@@ -643,7 +662,7 @@ export default function Win98Shell({ children }) {
                       setIsStartMenuOpen(false);
                     }}
                   >
-                    <Settings size={16} />
+                    <Win98SetupIcon size={16} />
                     <span>Control Panel</span>
                   </div>
                 </div>
@@ -661,7 +680,7 @@ export default function Win98Shell({ children }) {
               }}
             >
               <div className="win98-start-menu-item-left">
-                <Search size={18} color="#000080" />
+                <Win98FindIcon size={18} />
                 <span><u>F</u>ind Stories...</span>
               </div>
             </div>
@@ -676,8 +695,23 @@ export default function Win98Shell({ children }) {
               }}
             >
               <div className="win98-start-menu-item-left">
-                <HelpCircle size={18} color="#000080" />
+                <Win98HelpIcon size={18} />
                 <span><u>A</u>bout MemWault...</span>
+              </div>
+            </div>
+
+            {/* Office Assistant (Clippy) */}
+            <div 
+              className="win98-start-menu-item"
+              onClick={() => {
+                playWin98Click();
+                setIsStartMenuOpen(false);
+                setShowClippy(true);
+              }}
+            >
+              <div className="win98-start-menu-item-left">
+                <span style={{ fontSize: '15px', marginRight: '2px' }}>📎</span>
+                <span><u>C</u>lippy Assistant...</span>
               </div>
             </div>
 
@@ -694,7 +728,7 @@ export default function Win98Shell({ children }) {
               }}
             >
               <div className="win98-start-menu-item-left">
-                <Power size={18} color="#cc0000" />
+                <Win98ShutDownIcon size={18} />
                 <span><u>S</u>hut Down...</span>
               </div>
             </div>
@@ -711,7 +745,7 @@ export default function Win98Shell({ children }) {
           {/* Mini Title Bar */}
           <div className="win98-title-bar" style={{ height: '18px', padding: '1px 3px' }}>
             <div className="win98-title-text" style={{ fontSize: '11px' }}>
-              <HardDrive size={12} style={{ marginRight: '5px' }} />
+              <Win98HardDriveIcon size={12} style={{ marginRight: '5px' }} />
               <span>System Resource Monitor</span>
             </div>
             <button 
@@ -792,7 +826,7 @@ export default function Win98Shell({ children }) {
                 onClick={() => handleTaskbarAppClick(app)}
                 title={app.name}
               >
-                <AppIcon size={14} />
+                <AppIcon size={16} />
                 <span>{app.label}</span>
               </button>
             );
@@ -805,9 +839,9 @@ export default function Win98Shell({ children }) {
             onClick={toggleShowDesktop}
             className="win98-title-btn"
             title="Show Desktop (Minimize/Restore All Windows)"
-            style={{ width: '18px', height: '16px', fontSize: '10px', marginRight: '4px', cursor: 'pointer', padding: 0 }}
+            style={{ width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '4px', cursor: 'pointer', padding: 0 }}
           >
-            🗔
+            <Win98ShowDesktopIcon size={14} />
           </button>
           <div 
             className="win98-tray-resource-btn"
@@ -816,9 +850,11 @@ export default function Win98Shell({ children }) {
             title="Click to view System Resources & Connectivity"
             style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '1px 2px' }}
           >
-            <HardDrive size={13} style={{ color: '#000', opacity: 0.9 }} />
+            <Win98HardDriveIcon size={14} />
           </div>
-          <Volume2 size={14} style={{ color: '#000', opacity: 0.8 }} title="Sound Blaster 16 Ready" />
+          <div title="Sound Blaster 16 Ready" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <Win98VolumeSpeakerIcon size={14} />
+          </div>
           <div className="win98-tray-divider" />
           <span className="win98-tray-clock">{currentTime || '12:00 PM'}</span>
         </div>
@@ -844,6 +880,17 @@ export default function Win98Shell({ children }) {
       <ShutdownModal 
         isOpen={shutdownModalOpen}
         onClose={() => setShutdownModalOpen(false)}
+      />
+
+      {/* ── MemWault Assistant (Clippy) ── */}
+      <ClippyAssistant
+        isOpen={showClippy ? true : undefined}
+        onClose={() => setShowClippy(false)}
+        isResourcePopupOpen={showResourcePopup}
+        onOpenDisplayProps={() => {
+          setDisplayPropsOpen(true);
+          setShowClippy(false);
+        }}
       />
     </div>
   );

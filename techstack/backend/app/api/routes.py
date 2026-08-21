@@ -1600,7 +1600,7 @@ def get_local_lan_ip() -> str:
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
+        s.connect(("10.255.255.255", 1))
         ip = s.getsockname()[0]
         s.close()
         return ip

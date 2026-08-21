@@ -20,6 +20,7 @@ import JournalApp from './pages/JournalApp'
 import MobilePaintPortal from './pages/MobilePaintPortal'
 
 import ThemeShellWrapper from './components/shells/ThemeShellWrapper'
+import ClippyAssistant from './components/win98/ClippyAssistant'
 import { applyThemeSettings, getSettings } from './services/settings'
 
 /**
@@ -85,6 +86,7 @@ function AppShell() {
           </div>
         </ThemeShellWrapper>
       </div>
+      {!isWin98 && <ClippyAssistant />}
       <ScrollRestoration />
     </div>
   )

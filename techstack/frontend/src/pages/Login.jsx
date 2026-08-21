@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, register } from '../services/api'
+import { login, register, isAuthenticated, clearToken } from '../services/api'
+import ClippyAssistant from '../components/win98/ClippyAssistant'
 
 function MemWaultVaultIcon({ size = 48 }) {
   return (
@@ -19,12 +20,19 @@ function MemWaultVaultIcon({ size = 48 }) {
 
 export default function Login() {
   const navigate = useNavigate()
+  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(() => isAuthenticated())
   const [isRegister, setIsRegister] = useState(false)
   const [form, setForm] = useState({ username: '', password: '' })
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      setAlreadyLoggedIn(true)
+    }
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -91,6 +99,37 @@ export default function Login() {
               {isRegister ? 'Create your account' : 'Your portable memory archive'}
             </div>
           </div>
+
+          {alreadyLoggedIn && (
+            <div style={{
+              background: 'rgba(52, 199, 89, 0.12)',
+              border: '1px solid rgba(52, 199, 89, 0.3)',
+              borderRadius: '16px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#34c759' }}>
+                  ✓ Active Session Detected
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>
+                  You are already logged in.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="ios-btn"
+                onClick={() => navigate('/')}
+                style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '10px' }}
+              >
+                Go to App →
+              </button>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -306,6 +345,22 @@ export default function Login() {
           MemWault · Your memories, forever yours.
         </div>
       </div>
+
+      {/* ── Microsoft Office Assistant (Clippy) ── */}
+      {alreadyLoggedIn && (
+        <ClippyAssistant
+          isOpen={alreadyLoggedIn}
+          onClose={() => setAlreadyLoggedIn(false)}
+          message="It looks like you are already logged in to MemWault! All your memories, archives, and settings are ready."
+          primaryActionLabel="Go to Dashboard"
+          onPrimaryAction={() => navigate('/')}
+          secondaryActionLabel="Sign Out"
+          onSecondaryAction={() => {
+            clearToken();
+            setAlreadyLoggedIn(false);
+          }}
+        />
+      )}
 
       <style>{`
         @keyframes slideUp {

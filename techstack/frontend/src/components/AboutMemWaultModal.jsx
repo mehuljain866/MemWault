@@ -560,10 +560,18 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
             borderTop: '1px solid #f2f2f7',
             backgroundColor: '#ffffff',
           }}>
-            ™ and © 2026 Mehul Jain & MemWault Corp. All Rights Reserved. &nbsp;&nbsp;
-            <span style={{ color: '#0071e3', cursor: 'pointer' }} onClick={() => { playWin98Click(); onClose(); }}>
+            ™ and © 2026 Mehul Jain. All Rights Reserved. &nbsp;•&nbsp;
+            <a
+              href="https://github.com/mehuljain866/MemWault/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => playWin98Click()}
+              style={{ color: '#0071e3', textDecoration: 'none', fontWeight: 500 }}
+              onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+            >
               License Agreement
-            </span>
+            </a>
           </div>
         </motion.div>
       </div>

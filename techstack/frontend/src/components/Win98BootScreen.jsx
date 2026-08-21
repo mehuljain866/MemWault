@@ -64,7 +64,7 @@ export default function Win98BootScreen({ onComplete }) {
     >
       {/* Top BIOS Banner */}
       <div style={{ fontSize: '11px', color: '#808080', letterSpacing: '0.05em' }}>
-        MemWault Modular BIOS v3.0 (C) 1998 Microsoft Corporation & MemWault Team
+        MemWault Modular BIOS v3.0 (C) 2026 Mehul Jain & MemWault Team
       </div>
 
       {/* Main Authentic Windows 98 Boot Banner */}

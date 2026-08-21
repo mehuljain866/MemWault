@@ -560,7 +560,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
             borderTop: '1px solid #f2f2f7',
             backgroundColor: '#ffffff',
           }}>
-            ™ and © 1998–2026 Mehul Jain & MemWault Corp. All Rights Reserved. &nbsp;&nbsp;
+            ™ and © 2026 Mehul Jain & MemWault Corp. All Rights Reserved. &nbsp;&nbsp;
             <span style={{ color: '#0071e3', cursor: 'pointer' }} onClick={() => { playWin98Click(); onClose(); }}>
               License Agreement
             </span>

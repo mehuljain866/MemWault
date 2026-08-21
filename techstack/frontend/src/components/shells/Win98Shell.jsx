@@ -492,6 +492,16 @@ export default function Win98Shell({ children }) {
                 )}
               </div>
             ))}
+
+            {/* Direct About Button on the Menu Ribbon */}
+            <button
+              className="win98-menu-item-btn"
+              onClick={() => { playWin98Click(); setAboutModalOpen(true); }}
+              title="About MemWault Overview"
+              style={{ fontWeight: 600 }}
+            >
+              <u>A</u>bout
+            </button>
           </div>
 
           {/* ── Quick Action Toolbar (if enabled in settings) ── */}

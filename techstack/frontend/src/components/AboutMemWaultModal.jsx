@@ -12,14 +12,29 @@ import { Github, ExternalLink, ShieldCheck, Database, HardDrive, CheckCircle2 } 
  */
 export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
   const [activeTab, setActiveTab] = useState('Overview')
-  const [igSession, setIgSession] = useState(null)
+  const [igSession, setIgSession] = useState(() => {
+    try {
+      const cached = localStorage.getItem('memwault_ig_session')
+      return cached ? JSON.parse(cached) : null
+    } catch {
+      return null
+    }
+  })
 
   useEffect(() => {
-    if (isOpen) {
-      getInstagramSession()
-        .then(setIgSession)
-        .catch(() => {})
-    }
+    getInstagramSession()
+      .then((session) => {
+        if (session) {
+          setIgSession(session)
+          try {
+            localStorage.setItem('memwault_ig_session', JSON.stringify(session))
+            if (session.profile_pic_url) {
+              localStorage.setItem('memwault_profile_pic', session.profile_pic_url)
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {})
   }, [isOpen])
 
   useEffect(() => {
@@ -34,9 +49,8 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
 
   if (!isOpen) return null
 
-  const profilePic = igSession?.profile_pic_url 
-    ? `/api/v1/proxy/image?url=${encodeURIComponent(igSession.profile_pic_url)}`
-    : null
+  const rawPic = igSession?.profile_pic_url || localStorage.getItem('memwault_profile_pic')
+  const profilePic = rawPic ? (rawPic.startsWith('http') ? `/api/v1/proxy/image?url=${encodeURIComponent(rawPic)}` : rawPic) : null
 
   const username = igSession?.full_name || igSession?.ig_username || 'Mehul Jain'
 
@@ -207,7 +221,11 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                           src={profilePic}
                           alt={username}
                           onError={(e) => {
-                            e.target.src = '/win98-memwault-logo.png'
+                            if (rawPic && e.target.src.includes('/proxy/')) {
+                              e.target.src = rawPic
+                            } else {
+                              e.target.src = '/logos/memwault_app_logo.png'
+                            }
                           }}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />

@@ -164,24 +164,23 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
               <span>{mode === 'search' ? 'Edit Location - Search Address' : 'Edit Location - Interactive Map Pin'}</span>
             </div>
             <button
+              className="win98-title-btn is-close"
               onClick={onClose}
               title="Close"
               style={{
                 width: '16px',
                 height: '14px',
-                backgroundColor: '#c0c0c0',
-                border: '1px solid #000',
-                boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: '#000000',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
+                backgroundColor: '#c0c0c0',
               }}
             >
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <path d="M1 1L7 7M7 1L1 7" stroke="#000000" strokeWidth="1.8" strokeLinecap="square" />
-              </svg>
+              ✕
             </button>
           </div>
 

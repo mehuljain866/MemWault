@@ -191,57 +191,47 @@ export default function StreetViewModal({
               </span>
             </div>
             
-            <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <div className="win98-title-controls" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               {/* Maximize / Restore */}
               <button
+                className="win98-title-btn"
                 onClick={toggleFullscreen}
                 title={isFullscreen ? "Restore" : "Maximize"}
                 style={{
                   width: '16px',
                   height: '14px',
-                  backgroundColor: '#c0c0c0',
-                  border: '1px solid #000000',
-                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  color: '#000000',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
+                  backgroundColor: '#c0c0c0',
                 }}
               >
-                {isFullscreen ? (
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                    <rect x="2" y="0" width="6" height="6" stroke="#000000" strokeWidth="1.2" fill="none" />
-                    <rect x="0" y="2" width="6" height="6" stroke="#000000" strokeWidth="1.2" fill="#c0c0c0" />
-                  </svg>
-                ) : (
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                    <rect x="0.5" y="0.5" width="8" height="8" stroke="#000000" strokeWidth="1.2" fill="none" />
-                    <line x1="0" y1="2" x2="9" y2="2" stroke="#000000" strokeWidth="1.5" />
-                  </svg>
-                )}
+                {isFullscreen ? '❐' : '□'}
               </button>
 
               {/* Close Button */}
               <button
+                className="win98-title-btn is-close"
                 onClick={onClose}
                 title="Close"
                 style={{
                   width: '16px',
                   height: '14px',
-                  backgroundColor: '#c0c0c0',
-                  border: '1px solid #000000',
-                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  color: '#000000',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
+                  backgroundColor: '#c0c0c0',
                 }}
               >
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path d="M1 1L7 7M7 1L1 7" stroke="#000000" strokeWidth="1.8" strokeLinecap="square" />
-                </svg>
+                ✕
               </button>
             </div>
           </div>

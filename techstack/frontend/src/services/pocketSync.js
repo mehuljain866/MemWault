@@ -1,9 +1,4 @@
-/**
- * Pocket PC / Windows Phone Live Sync Engine
- * Handles bidirectional synchronization with progress tracking and offline storage.
- */
-
-import { getStories, getPosts, uploadToPortal } from './api';
+import { getStories, getPosts, uploadToPortal, createQRSession, isAuthenticated } from './api';
 import { 
   saveMemoriesOffline, getOfflineMemories, 
   savePostsOffline, getOfflinePosts,
@@ -13,25 +8,39 @@ import {
 
 export { getOfflineMemories, getOfflinePosts, getStorageStats };
 
-/**
- * Get sync metadata
- */
+function dataURLtoBlob(dataurl) {
+  try {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (e) {
+    console.error('Failed to convert dataURL to Blob:', e);
+    return null;
+  }
+}
+
 export async function getPocketSyncMeta() {
   return await getSyncMeta('pocket_sync_meta', {
     lastSync: null,
     storyCount: 0,
     postCount: 0,
-    serverIp: '192.168.29.50',
+    serverIp: window.location.hostname || '192.168.29.50',
     status: 'idle'
   });
 }
 
-/**
- * Perform a full live sync with the laptop vault with progress callback
- * @param {Function} onProgress - callback({ step, percent, current, total, status })
- */
 export async function syncPocketWithLaptop(onProgress = () => {}) {
   try {
+    if (!isAuthenticated()) {
+      throw new Error('Mobile device is not paired with laptop. Please scan the QR code from Connect Phone on your laptop.');
+    }
+
     onProgress({ step: 'Connecting to Laptop Vault...', percent: 10, status: 'connecting' });
 
     // Step 1: Sync pending mobile uploads first (photos added on phone)
@@ -46,61 +55,87 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
       for (let i = 0; i < pending.length; i++) {
         const item = pending[i];
         try {
-          if (item.fileBlob) {
-            // Upload to general portal
-            const res = await fetch('/api/v1/upload/qr-session', { method: 'POST' });
-            const session = await res.json();
+          const blobToUpload = item.fileBlob || (item.dataUrl ? dataURLtoBlob(item.dataUrl) : null);
+          if (blobToUpload) {
+            const session = await createQRSession();
             if (session && session.token) {
-              await uploadToPortal(session.token, 0, item.fileBlob);
+              await uploadToPortal(session.token, 0, blobToUpload);
+              await removePendingUpload(item.id);
             }
+          } else {
+            await removePendingUpload(item.id);
           }
-          await removePendingUpload(item.id);
         } catch (e) {
           console.warn('Failed to upload pending item:', e);
         }
       }
     }
 
-    // Step 2: Fetch Stories from Laptop Backend
+    // Step 2: Fetch Stories with full pagination
     onProgress({ step: 'Downloading memories from Laptop Vault...', percent: 45, status: 'downloading' });
-    const storyData = await getStories({ pageSize: 500 });
-    const stories = Array.isArray(storyData) ? storyData : (storyData?.stories || storyData?.items || []);
+    let allStories = [];
+    let page = 1;
+    let hasMoreStories = true;
+
+    while (hasMoreStories) {
+      const storyData = await getStories({ page, pageSize: 500 });
+      const batch = Array.isArray(storyData) ? storyData : (storyData?.stories || storyData?.items || []);
+      allStories.push(...batch);
+      if (storyData?.has_next && batch.length > 0) {
+        page++;
+      } else {
+        hasMoreStories = false;
+      }
+    }
 
     onProgress({ 
-      step: `Downloaded ${stories.length} memories. Saving to phone storage...`, 
+      step: `Downloaded ${allStories.length} memories. Saving to phone storage...`, 
       percent: 75, 
       status: 'saving' 
     });
-    await saveMemoriesOffline(stories);
+    await saveMemoriesOffline(allStories);
 
-    // Step 3: Fetch Posts & Carousels
+    // Step 3: Fetch Posts with full pagination
     onProgress({ step: 'Downloading feed posts & carousels...', percent: 85, status: 'downloading' });
-    const postData = await getPosts({ pageSize: 100 });
-    const posts = Array.isArray(postData) ? postData : (postData?.posts || postData?.items || []);
-    await savePostsOffline(posts);
+    let allPosts = [];
+    let postPage = 1;
+    let hasMorePosts = true;
+
+    while (hasMorePosts) {
+      const postData = await getPosts({ page: postPage, pageSize: 100 });
+      const batch = Array.isArray(postData) ? postData : (postData?.posts || postData?.items || []);
+      allPosts.push(...batch);
+      if (postData?.has_next && batch.length > 0) {
+        postPage++;
+      } else {
+        hasMorePosts = false;
+      }
+    }
+    await savePostsOffline(allPosts);
 
     // Step 4: Finalize Sync
     const meta = {
       lastSync: new Date().toISOString(),
-      storyCount: stories.length,
-      postCount: posts.length,
-      status: 'synced'
+      storyCount: allStories.length,
+      postCount: allPosts.length,
+      status: 'synced',
+      serverIp: window.location.hostname
     };
     await saveSyncMeta('pocket_sync_meta', meta);
 
     const stats = await getStorageStats();
 
     onProgress({ 
-      step: `✓ Synced ${stories.length} Memories & ${posts.length} Posts (${stats.storageMb} MB offline)`, 
+      step: `✓ Synced ${allStories.length} Memories & ${allPosts.length} Posts (${stats.storageMb} MB offline)`, 
       percent: 100, 
       status: 'completed',
-      stories,
-      posts,
+      stories: allStories,
+      posts: allPosts,
       meta,
       stats
     });
 
-    return { success: true, stories, posts, meta, stats };
+    return { success: true, stories: allStories, posts: allPosts, meta, stats };
   } catch (err) {
     console.warn('Sync failed (offline or unreachable):', err);
     
@@ -130,22 +165,4 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
       stats
     };
   }
-}
-
-/**
- * Find "On This Day" flashback memory
- */
-export function getOnThisDayMemory(stories) {
-  if (!stories || stories.length === 0) return null;
-  const today = new Date();
-  const todayMonth = today.getMonth();
-  const todayDate = today.getDate();
-
-  const match = stories.find(s => {
-    if (!s.taken_at) return false;
-    const d = new Date(s.taken_at);
-    return d.getMonth() === todayMonth && d.getDate() === todayDate && d.getFullYear() !== today.getFullYear();
-  });
-
-  return match || stories[0] || null;
 }

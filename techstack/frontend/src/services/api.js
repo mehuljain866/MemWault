@@ -58,7 +58,7 @@ async function apiFetch(endpoint, options = {}) {
   if (response.status === 401) {
     clearToken();
     // Only redirect if we're not already on the login page (avoids infinite spinner bug)
-    if (!window.location.pathname.includes('/login')) {
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/pocket')) {
       window.location.href = '/login';
     }
     const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));

@@ -15,12 +15,14 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
     const host = window.location.hostname
     const port = window.location.port ? `:${window.location.port}` : ''
     const protocol = window.location.protocol
+    const token = localStorage.getItem('sv_token') || ''
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
 
     // Fetch the real LAN IP from backend if hostname is localhost
     fetch('/api/v1/upload/qr-session', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('sv_token') || ''}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -31,18 +33,18 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
             const urlObj = new URL(data.qr_url)
             const resolvedIp = urlObj.hostname
             setLanIp(resolvedIp)
-            setLanUrl(`${protocol}//${resolvedIp}${port}/pocket`)
+            setLanUrl(`${protocol}//${resolvedIp}${port}/pocket${tokenQuery}`)
           } catch (e) {
-            setLanUrl(`${protocol}//${host}${port}/pocket`)
+            setLanUrl(`${protocol}//${host}${port}/pocket${tokenQuery}`)
           }
         } else {
-          setLanUrl(`${protocol}//${host}${port}/pocket`)
+          setLanUrl(`${protocol}//${host}${port}/pocket${tokenQuery}`)
         }
       })
       .catch(() => {
         const fallbackIp = host !== 'localhost' && host !== '127.0.0.1' ? host : '192.168.29.50'
         setLanIp(fallbackIp)
-        setLanUrl(`${protocol}//${fallbackIp}${port}/pocket`)
+        setLanUrl(`${protocol}//${fallbackIp}${port}/pocket${tokenQuery}`)
       })
   }, [isOpen])
 

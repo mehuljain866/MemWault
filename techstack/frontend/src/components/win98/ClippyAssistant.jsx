@@ -108,6 +108,18 @@ const CLIPPY_KNOWLEDGE_BASE = [
     actionRoute: '/settings',
   },
   {
+    id: 'pocket_companion',
+    keywords: ['phone', 'mobile', 'pocket', 'companion', 'pwa', 'offline', 'sync', 'iphone', 'android', 'app'],
+    question: 'How do I use MemWault on my smartphone (Pocket PC PWA)?',
+    answer: `You can use MemWault on your phone as a full-screen Pocket PC (Windows Mobile 2003) companion app:
+1. Double-click the **"Connect Phone"** icon on the desktop (or choose Start -> Settings -> Connect to Phone).
+2. Connect your smartphone to the same local Wi-Fi and scan the QR code.
+3. On iPhone (Safari), tap **Share ⎋ -> Add to Home Screen ⊞**. On Android (Chrome), tap **Menu ⋮ -> Install App 📥**.
+4. The Pocket MemWault app will open in standalone full-screen mode, caching your memories, posts, and journals so you can browse them offline anywhere!`,
+    actionLabel: 'Open Pocket Companion',
+    actionRoute: '/pocket',
+  },
+  {
     id: 'feed_posts_carousels',
     keywords: ['feed', 'posts', 'carousel', 'post', 'slides', 'photos', 'videos', 'camera'],
     question: 'How do I view multi-slide Carousels and Feed Posts?',

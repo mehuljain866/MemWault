@@ -11,6 +11,7 @@ import Win98DisplayProperties from '../Win98DisplayProperties';
 import Win98BootScreen from '../Win98BootScreen';
 import Win98WidgetLayer from '../Win98WidgetLayer';
 import AboutMemWaultModal from '../AboutMemWaultModal';
+import ConnectPhoneModal from '../ConnectPhoneModal';
 import ClippyAssistant from '../win98/ClippyAssistant';
 import { playWin98Click, playWin98Minimize, playWin98Maximize, playWin98Startup } from '../../services/win98Audio';
 import {
@@ -32,6 +33,7 @@ import {
   Win98HardDriveIcon,
   Win98VolumeSpeakerIcon,
   Win98ShowDesktopIcon,
+  Win98PhoneSyncIcon,
 } from '../win98/Win98Icons';
 
 const APPS_LIST = [
@@ -106,6 +108,7 @@ export default function Win98Shell({ children }) {
   const [shutdownModalOpen, setShutdownModalOpen] = useState(false);
   const [displayPropsOpen, setDisplayPropsOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [isConnectPhoneOpen, setIsConnectPhoneOpen] = useState(false);
   const [showClippy, setShowClippy] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -440,6 +443,18 @@ export default function Win98Shell({ children }) {
           <span className="win98-desktop-icon-label">Display</span>
         </div>
 
+        {/* Connect Phone / Mobile Sync Shortcut */}
+        <div
+          className={`win98-desktop-icon ${settings.win98IconBackdrop ? 'has-box' : ''}`}
+          onClick={() => { playWin98Click(); setIsConnectPhoneOpen(true); }}
+          title="Connect to Phone (ActiveSync / Mobile PWA Companion)"
+        >
+          <div className="win98-desktop-icon-img">
+            <Win98PhoneSyncIcon size={32} />
+          </div>
+          <span className="win98-desktop-icon-label">Connect Phone</span>
+        </div>
+
         {/* Recycle Bin */}
         <div
           className={`win98-desktop-icon ${settings.win98IconBackdrop ? 'has-box' : ''}`}
@@ -665,6 +680,17 @@ export default function Win98Shell({ children }) {
                     <Win98SetupIcon size={16} />
                     <span>Control Panel</span>
                   </div>
+                  <div 
+                    className="win98-start-menu-item"
+                    onClick={() => {
+                      playWin98Click();
+                      setIsConnectPhoneOpen(true);
+                      setIsStartMenuOpen(false);
+                    }}
+                  >
+                    <Win98PhoneSyncIcon size={16} />
+                    <span>Connect to Phone (PWA)...</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -880,6 +906,12 @@ export default function Win98Shell({ children }) {
       <ShutdownModal 
         isOpen={shutdownModalOpen}
         onClose={() => setShutdownModalOpen(false)}
+      />
+
+      {/* Connect Phone / Mobile Companion Modal */}
+      <ConnectPhoneModal
+        isOpen={isConnectPhoneOpen}
+        onClose={() => setIsConnectPhoneOpen(false)}
       />
 
       {/* ── MemWault Assistant (Clippy) ── */}

@@ -18,6 +18,7 @@ import PostDetail from './pages/PostDetail'
 import MobileUploadPortal from './pages/MobileUploadPortal'
 import JournalApp from './pages/JournalApp'
 import MobilePaintPortal from './pages/MobilePaintPortal'
+import PocketCompanion from './pages/PocketCompanion'
 
 import ThemeShellWrapper from './components/shells/ThemeShellWrapper'
 import ClippyAssistant from './components/win98/ClippyAssistant'
@@ -145,6 +146,11 @@ const router = createBrowserRouter([
   {
     path: "/mobile-paint",
     element: <MobilePaintPortal />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/pocket",
+    element: <PocketCompanion />,
     errorElement: <RouteErrorBoundary />,
   },
   {

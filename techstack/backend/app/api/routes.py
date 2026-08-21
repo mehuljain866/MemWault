@@ -1598,14 +1598,29 @@ async def toggle_trash_story(
 
 def get_local_lan_ip() -> str:
     import socket
+    # Method 1: Connect to public DNS to find default outgoing LAN IP
+    for target in [("8.8.8.8", 80), ("1.1.1.1", 80), ("192.168.1.1", 80)]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.5)
+            s.connect(target)
+            ip = s.getsockname()[0]
+            s.close()
+            if ip and not ip.startswith("127."):
+                return ip
+        except Exception:
+            pass
+
+    # Method 2: Hostname resolution fallback
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("10.255.255.255", 1))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127.") and not ip.startswith("169.254."):
+                return ip
     except Exception:
-        return "127.0.0.1"
+        pass
+
+    return "127.0.0.1"
 
 
 def _format_post_media(media: PostMedia, s3) -> dict:

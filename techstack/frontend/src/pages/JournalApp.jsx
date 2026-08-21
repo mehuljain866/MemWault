@@ -14,11 +14,13 @@ import { useNavigate } from 'react-router-dom'
 
 export default function JournalApp() {
   const [activeTab, setActiveTab] = useState('memories') // 'memories' | 'places'
-  const [stories, setStories] = useState([])
+  const [allStories, setAllStories] = useState([])
   const [selectedStory, setSelectedStory] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [isPaintOpen, setIsPaintOpen] = useState(false)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
   const [journalText, setJournalText] = useState('')
   const [doodles, setDoodles] = useState([])
   const [saving, setSaving] = useState(false)
@@ -47,15 +49,25 @@ export default function JournalApp() {
   const loadStories = async () => {
     try {
       setLoading(true)
-      const data = await getStories({ pageSize: 100 })
+      const data = await getStories({ pageSize: 200 })
       const list = Array.isArray(data) ? data : (data?.stories || data?.items || [])
-      setStories(list)
-      if (list.length > 0) {
-        selectStoryItem(list[0])
+      setAllStories(list)
+
+      // Filter only stories that have journal notes or doodles
+      const journalItems = list.filter(s => 
+        (s.journal_note && s.journal_note.trim().length > 0) || 
+        Boolean(localStorage.getItem(`memwault_doodles_${s.id}`))
+      )
+
+      if (journalItems.length > 0) {
+        selectStoryItem(journalItems[0])
+      } else if (list.length > 0) {
+        // If none have journals, don't force select, leave ready for "+ New Entry"
+        setSelectedStory(null)
       }
     } catch (err) {
       console.error('Failed to load stories:', err)
-      setStories([])
+      setAllStories([])
     } finally {
       setLoading(false)
     }
@@ -70,7 +82,7 @@ export default function JournalApp() {
       const savedDoodles = localStorage.getItem(`memwault_doodles_${story.id}`)
       setDoodles(savedDoodles ? JSON.parse(savedDoodles) : [])
     } catch (e) {
-      setJournalText('')
+      setJournalText(story.journal_note || '')
       setDoodles([])
     }
   }
@@ -83,6 +95,10 @@ export default function JournalApp() {
       await updateStory(selectedStory.id, { journal_note: journalText })
       // Save doodles
       localStorage.setItem(`memwault_doodles_${selectedStory.id}`, JSON.stringify(doodles))
+      
+      // Update local allStories item
+      setAllStories(prev => prev.map(s => s.id === selectedStory.id ? { ...s, journal_note: journalText } : s))
+      setSelectedStory(prev => prev ? { ...prev, journal_note: journalText } : null)
       alert('Journal saved successfully!')
     } catch (err) {
       alert('Failed to save journal note: ' + err.message)
@@ -132,10 +148,24 @@ export default function JournalApp() {
     localStorage.setItem('memwault_places_to_visit', JSON.stringify(updated))
   }
 
-  const filteredStories = (Array.isArray(stories) ? stories : []).filter(s => 
+  // Active journal stories (only those with notes or doodles, plus selectedStory if currently being drafted)
+  const activeJournalStories = allStories.filter(s => 
+    (s.journal_note && s.journal_note.trim().length > 0) || 
+    Boolean(localStorage.getItem(`memwault_doodles_${s.id}`)) ||
+    (selectedStory && selectedStory.id === s.id)
+  )
+
+  const filteredJournalStories = activeJournalStories.filter(s => 
     (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (s.journal_note && s.journal_note.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (!searchQuery)
+  )
+
+  const filteredPickerStories = allStories.filter(s =>
+    (s.location_name && s.location_name.toLowerCase().includes(pickerSearch.toLowerCase())) ||
+    (s.caption_text && s.caption_text.toLowerCase().includes(pickerSearch.toLowerCase())) ||
+    (!pickerSearch)
   )
 
   return (
@@ -202,15 +232,49 @@ export default function JournalApp() {
             flexDirection: 'column',
             overflow: 'hidden',
           }}>
-            {/* Search Input */}
-            <div style={{ padding: '8px', borderBottom: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: isWin98 ? '#fff' : 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: isWin98 ? '0' : '8px' }}>
+            {/* Header with Search and "+ New Entry" button */}
+            <div style={{
+              padding: '8px',
+              borderBottom: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: isWin98 ? '11px' : '12px', fontWeight: 700, color: 'var(--ios-text-secondary)' }}>
+                  Journal Entries ({filteredJournalStories.length})
+                </span>
+                <button
+                  onClick={() => {
+                    if (isWin98) playWin98Click()
+                    setIsPickerOpen(true)
+                  }}
+                  className={isWin98 ? "win98-standard-btn" : "ios-btn"}
+                  style={{
+                    padding: isWin98 ? '2px 8px' : '4px 10px',
+                    fontSize: isWin98 ? '10px' : '11px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-accent)',
+                    color: isWin98 ? '#000' : '#fff'
+                  }}
+                  title="Pick a memory to create a new journal entry"
+                >
+                  <Plus size={12} />
+                  <span>New Entry</span>
+                </button>
+              </div>
+
+              {/* Search Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: isWin98 ? '#fff' : 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: isWin98 ? '0' : '8px', border: isWin98 ? '1px solid #808080' : 'none' }}>
                 <Search size={13} color="#888" style={{ marginRight: '6px' }} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter memories..."
+                  placeholder="Search journal entries..."
                   style={{
                     border: 'none',
                     outline: 'none',
@@ -225,41 +289,63 @@ export default function JournalApp() {
 
             {/* List Viewport */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
-              {filteredStories.map(story => {
-                const isSelected = selectedStory?.id === story.id
-                return (
-                  <div
-                    key={story.id}
+              {filteredJournalStories.length === 0 ? (
+                <div style={{ padding: '36px 14px', textAlign: 'center', color: '#888' }}>
+                  <Edit3 size={28} style={{ margin: '0 auto 10px auto', opacity: 0.5 }} />
+                  <div style={{ fontSize: isWin98 ? '11px' : '12px', fontWeight: 600, marginBottom: '4px', color: isWin98 ? '#000' : 'inherit' }}>
+                    No Journal Entries
+                  </div>
+                  <div style={{ fontSize: '10px', marginBottom: '12px', lineHeight: 1.4 }}>
+                    Click "+ New Entry" to select any memory and add your thoughts.
+                  </div>
+                  <button
                     onClick={() => {
                       if (isWin98) playWin98Click()
-                      selectStoryItem(story)
+                      setIsPickerOpen(true)
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px',
-                      marginBottom: '4px',
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? (isWin98 ? '#000080' : 'var(--ios-accent)') : 'transparent',
-                      color: isSelected ? '#ffffff' : 'inherit',
-                      borderRadius: isWin98 ? '0' : '8px',
-                    }}
+                    className={isWin98 ? "win98-standard-btn" : "ios-btn"}
+                    style={{ padding: '4px 10px', fontSize: '11px' }}
                   >
-                    <div style={{ width: '38px', height: '50px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#333', flexShrink: 0 }}>
-                      <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: isWin98 ? '11px' : '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {story.location_name || new Date(story.taken_at).toLocaleDateString()}
+                    + Pick a Memory
+                  </button>
+                </div>
+              ) : (
+                filteredJournalStories.map(story => {
+                  const isSelected = selectedStory?.id === story.id
+                  return (
+                    <div
+                      key={story.id}
+                      onClick={() => {
+                        if (isWin98) playWin98Click()
+                        selectStoryItem(story)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px',
+                        marginBottom: '4px',
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? (isWin98 ? '#000080' : 'var(--ios-accent)') : 'transparent',
+                        color: isSelected ? '#ffffff' : 'inherit',
+                        borderRadius: isWin98 ? '0' : '8px',
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '50px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#333', flexShrink: 0 }}>
+                        <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
-                      <div style={{ fontSize: isWin98 ? '10px' : '11px', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {story.caption_text || `${new Date(story.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: isWin98 ? '11px' : '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {story.location_name || new Date(story.taken_at).toLocaleDateString()}
+                        </div>
+                        <div style={{ fontSize: isWin98 ? '10px' : '11px', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {story.journal_note || story.caption_text || `${new Date(story.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
 
@@ -398,12 +484,259 @@ export default function JournalApp() {
               </div>
             </div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
-              Select a memory to read or write its journal.
+            <div style={{
+              flex: 1,
+              backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+              border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
+              boxShadow: isWin98 ? 'inset 1px 1px #fff, inset -1px -1px #808080' : 'none',
+              borderRadius: isWin98 ? '0' : '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '32px',
+              textAlign: 'center',
+              color: 'var(--ios-text-secondary, #666)'
+            }}>
+              <BookOpen size={48} strokeWidth={1.5} color="var(--ios-accent, #007aff)" style={{ marginBottom: '16px', opacity: 0.8 }} />
+              <div style={{ fontSize: isWin98 ? '14px' : '18px', fontWeight: 700, color: isWin98 ? '#000' : 'var(--ios-text-primary)', marginBottom: '8px' }}>
+                Personal Memory Journal
+              </div>
+              <div style={{ fontSize: isWin98 ? '11px' : '13px', maxWidth: '380px', lineHeight: 1.5, marginBottom: '20px' }}>
+                Select an existing journal entry from the left, or click below to pick any memory and write a new Markdown journal note.
+              </div>
+              <button
+                onClick={() => {
+                  if (isWin98) playWin98Click()
+                  setIsPickerOpen(true)
+                }}
+                className={isWin98 ? "win98-standard-btn" : "ios-btn"}
+                style={{
+                  padding: isWin98 ? '4px 14px' : '10px 20px',
+                  fontSize: isWin98 ? '11px' : '14px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Plus size={16} />
+                <span>Pick a Memory to Journal</span>
+              </button>
             </div>
           )}
         </div>
       )}
+
+      {/* ── Story / Memory Picker Modal Grid ─────────────────── */}
+      <AnimatePresence>
+        {isPickerOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              backgroundColor: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+            onClick={() => setIsPickerOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '740px',
+                maxWidth: '95vw',
+                maxHeight: '85vh',
+                backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+                border: isWin98 ? '2px solid #ffffff' : '1px solid var(--ios-border)',
+                boxShadow: isWin98 
+                  ? 'inset 1px 1px #dfdfdf, inset -1px -1px #000, 4px 4px 16px rgba(0,0,0,0.5)' 
+                  : '0 20px 50px rgba(0,0,0,0.4)',
+                borderRadius: isWin98 ? '0' : '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                fontFamily: isWin98 ? '"MS Sans Serif", Tahoma, Arial, sans-serif' : 'inherit',
+              }}
+            >
+              {/* Modal Titlebar */}
+              <div
+                style={{
+                  padding: isWin98 ? '3px 6px' : '16px 20px',
+                  backgroundColor: isWin98 ? 'var(--win98-title-bg, #000080)' : 'transparent',
+                  color: isWin98 ? '#ffffff' : 'var(--ios-text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: isWin98 ? 'none' : '1px solid var(--ios-border)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BookOpen size={isWin98 ? 14 : 20} color={isWin98 ? '#ffffff' : 'var(--ios-accent)'} />
+                  <span style={{ fontWeight: 700, fontSize: isWin98 ? '12px' : '16px' }}>
+                    Select a Memory to Journal
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (isWin98) playWin98Click()
+                    setIsPickerOpen(false)
+                  }}
+                  style={{
+                    background: isWin98 ? '#c0c0c0' : 'transparent',
+                    border: isWin98 ? '1px solid #000' : 'none',
+                    boxShadow: isWin98 ? 'inset 1px 1px #fff, inset -1px -1px #808080' : 'none',
+                    color: isWin98 ? '#000' : 'var(--ios-text-secondary)',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    padding: isWin98 ? '1px 6px' : '4px 8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Search Header */}
+              <div style={{ padding: '12px 16px', borderBottom: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: isWin98 ? '#fff' : 'var(--ios-bg-app)', padding: '6px 10px', borderRadius: isWin98 ? '0' : '10px', border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)' }}>
+                  <Search size={14} color="#888" style={{ marginRight: '8px' }} />
+                  <input
+                    type="text"
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Search memories by caption, date, or location..."
+                    autoFocus
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      width: '100%',
+                      fontSize: isWin98 ? '11px' : '13px',
+                      color: 'inherit',
+                    }}
+                  />
+                  {pickerSearch && (
+                    <button onClick={() => setPickerSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>✕</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Memory Grid */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', maxHeight: '55vh' }}>
+                {filteredPickerStories.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
+                    No memories found matching "{pickerSearch}".
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))',
+                    gap: '12px',
+                  }}>
+                    {filteredPickerStories.map((story) => {
+                      const hasJournal = story.journal_note && story.journal_note.trim().length > 0
+                      return (
+                        <div
+                          key={story.id}
+                          onClick={() => {
+                            if (isWin98) playWin98Click()
+                            selectStoryItem(story)
+                            setIsPickerOpen(false)
+                          }}
+                          style={{
+                            backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-bg-app)',
+                            border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                            borderRadius: isWin98 ? '0' : '10px',
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: isWin98 ? 'inset 1px 1px #dfdfdf, inset -1px -1px #808080' : '0 2px 8px rgba(0,0,0,0.1)',
+                            transition: 'transform 0.1s ease',
+                            position: 'relative',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000', position: 'relative' }}>
+                            {story.media_type === 2 ? (
+                              <video src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            ) : (
+                              <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+
+                            {hasJournal && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '4px',
+                                  right: '4px',
+                                  backgroundColor: '#000080',
+                                  color: '#fff',
+                                  fontSize: '9px',
+                                  fontWeight: 'bold',
+                                  padding: '2px 5px',
+                                  borderRadius: '4px',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                                }}
+                              >
+                                📓 Has Note
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ padding: '6px', fontSize: '10px' }}>
+                            <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {story.location_name || new Date(story.taken_at).toLocaleDateString()}
+                            </div>
+                            <div style={{ opacity: 0.7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {story.caption_text || new Date(story.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div
+                style={{
+                  padding: '10px 16px',
+                  borderTop: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: isWin98 ? '#404040' : 'var(--ios-text-secondary)',
+                }}
+              >
+                <span>{filteredPickerStories.length} memories available</span>
+                <button
+                  onClick={() => {
+                    if (isWin98) playWin98Click()
+                    setIsPickerOpen(false)
+                  }}
+                  className={isWin98 ? "win98-standard-btn" : "ios-btn"}
+                  style={{ padding: '4px 14px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── Tab 2: Places to Visit & Bucket List ───────────── */}
       {activeTab === 'places' && (

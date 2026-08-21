@@ -53,10 +53,11 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 ## Key Features
 
 - 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories, Carousels, and Video Posts as distinct archival classification problems.
+- 📱 **Pocket PC Mobile Companion (PWA):** Authentic Windows Mobile 2003 companion app with Today screen, offline storage cache, bidirectional Wi-Fi sync, and standalone PWA installation.
 - 📱 **Mobile QR Upload Portal:** Stream uncompressed full-resolution RAW photos, 4K videos, and custom wallpapers directly from your smartphone to your PC desktop vault via local Wi-Fi.
 - 🖼️ **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
 - 📊 **Archived Engagement Metrics:** Preserve Story viewer counts and like counts captured at archival time alongside media and metadata.
-- 📝 **Sidecar Markdown Journaling:** Write rich notes auto-synced as human-readable `.md` files right next to `photo.jpg` on disk so your thoughts are never trapped inside a database.
+- 📝 **Sidecar Markdown Journaling & Memory Picker:** Clean journal feed showing active entries with a visual "+ New Entry" memory picker modal to easily attach notes to any moment.
 - 🎒 **Portable Metadata & EXIF:** Option to embed archival context directly into media files so memories remain meaningful even outside MemWault.
 - 📅 **Continuous Semantic Zoom Timeline:** Transition smoothly between **Years**, **Months**, and **Days** views using Framer Motion spring-based animations.
 - 🗺️ **Spatial Story Map:** Explore your memories geographically on an interactive Leaflet map featuring spatial clustering and bounding-box search.
@@ -112,7 +113,11 @@ Rather than cluttering this document with dozens of screenshots, we have dedicat
 
 ## Changelog & Evolution
 
-### Version 3.2 — Windows 98 Design System Perfection & Interactive Assistant
+### Version 3.2 — Windows 98 Design System Perfection & Pocket PC Companion PWA
+- **Pocket PC Mobile Companion App (PWA):** Authentic Windows Mobile 2003 companion app (`/pocket`) with Today screen, offline storage cache, bidirectional Wi-Fi sync, and standalone PWA installation.
+- **Uncluttered Journal App & Memory Picker Grid:** Clean journal sidebar displaying only active memory journals, with an interactive "+ New Entry" visual memory picker modal.
+- **Desktop "Connect Phone" ActiveSync Wizard:** Instant pairing modal with dynamic local Wi-Fi QR code and standalone installation instructions.
+- **Multi-Route Outbound LAN IP Resolver:** Multi-target connection fallback guaranteeing accurate Wi-Fi IP address resolution for all mobile device connections.
 - **Authentic Windows 98 Icon Library:** 18 handcrafted pixel-perfect SVG reproductions of authentic 16-color/256-color Windows 98 shortcuts (`MemWault.exe`, `FeedViewer.exe`, `Memories.exe`, `Journal.exe`, `StoryReels.exe`, `Collections.exe`, `WorldAtlas.exe`, `Cabinet.exe`, `Setup.exe`, `Display.exe`, `RecycleBin.exe`).
 - **Desktop Icon Backdrop Boxes:** Dynamic toggle in Display Properties allowing 3D beveled silver backdrop boxes around desktop icons for high contrast and readability over any custom wallpaper.
 - **Interactive MemWault Assistant (Clippy):** Nostalgic animated assistant in the bottom-right corner with search Q&A knowledge base, step-by-step guidance, collision avoidance, and direct navigation links.

@@ -550,3 +550,35 @@ export const Win98ShowDesktopIcon = createIcon(
     <line x1="8" y1="20" x2="6" y2="21" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" />
   </>
 );
+
+/**
+ * 19. Connect Phone / Mobile Sync (Pocket PC & ActiveSync Icon)
+ */
+export const Win98PhoneSyncIcon = createIcon(
+  <>
+    {/* PDA / Smartphone Casing */}
+    <rect x="7" y="2" width="18" height="28" rx="2" fill="#808080" stroke="#000000" strokeWidth="1" />
+    <rect x="9" y="5" width="14" height="18" fill="#008080" stroke="#000000" strokeWidth="0.75" />
+    
+    {/* Stylus Antenna & Button */}
+    <circle cx="16" cy="26" r="2" fill="#C0C0C0" stroke="#000000" strokeWidth="0.75" />
+    <line x1="12" y1="26" x2="14" y2="26" stroke="#FFFFFF" strokeWidth="1" />
+    <line x1="18" y1="26" x2="20" y2="26" stroke="#FFFFFF" strokeWidth="1" />
+    
+    {/* ActiveSync Circular Sync Arrows Badge */}
+    <circle cx="23" cy="9" r="7" fill="#000080" stroke="#FFFFFF" strokeWidth="1" />
+    <path d="M20 9C20 7.34 21.34 6 23 6C24.3 6 25.4 6.8 25.8 8M26 8H23.5M26 9C26 10.66 24.66 12 23 12C21.7 12 20.6 11.2 20.2 10M20 10H22.5" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+  </>
+);
+
+/**
+ * 20. Windows Mobile 4-Color Wave Flag
+ */
+export const PocketWindowsFlagIcon = createIcon(
+  <>
+    <path d="M4 6L14 4V13H4V6Z" fill="#E81123" />
+    <path d="M16 3.6L28 2V13H16V3.6Z" fill="#00B294" />
+    <path d="M4 15H14V24L4 22V15Z" fill="#0078D7" />
+    <path d="M16 15H28V26L16 24.4V15Z" fill="#FFB900" />
+  </>
+);

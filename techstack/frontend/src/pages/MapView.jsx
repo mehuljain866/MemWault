@@ -10,7 +10,9 @@ import { format } from 'date-fns'
 import { getStories } from '../services/api'
 import { getSettings } from '../services/settings'
 import FastScrollbar from '../components/FastScrollbar'
-import { ChevronDown, RotateCw, Map as MapIcon, Maximize2, Minimize2 } from 'lucide-react'
+import LocationExplorerModal from '../components/LocationExplorerModal'
+import StreetViewModal from '../components/StreetViewModal'
+import { ChevronDown, RotateCw, Map as MapIcon, Maximize2, Minimize2, MapPin, Compass, Globe } from 'lucide-react'
 
 // Fix default leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -174,6 +176,10 @@ export default function MapView() {
     setVisibleLocations(visible)
   }, [locations])
 
+  const [isExplorerOpen, setIsExplorerOpen] = useState(false)
+  const [streetViewTarget, setStreetViewTarget] = useState(null)
+  const [mapInstance, setMapInstance] = useState(null)
+
   // Split Screen Render
   if (!isImmersive) {
     return (
@@ -184,7 +190,13 @@ export default function MapView() {
           {/* MAP */}
           <div style={{ flexBasis: `${splitRatio}%`, flexGrow: 0, flexShrink: 0, position: 'relative', zIndex: 1, borderRadius: 'var(--ios-radius-lg)', border: '1px solid var(--ios-border)', overflow: 'hidden', background: 'var(--ios-bg-card)' }}>
             {loading ? <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div> : (
-              <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%', background: '#1a1a1a' }} worldCopyJump={true}>
+              <MapContainer 
+                center={[20, 0]} 
+                zoom={2} 
+                style={{ height: '100%', width: '100%', background: '#1a1a1a' }} 
+                worldCopyJump={true}
+                ref={setMapInstance}
+              >
                 <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles-dark" />
                 <MapEvents onBoundsChange={handleBoundsChange} />
                 <MapResizer />
@@ -192,9 +204,29 @@ export default function MapView() {
                   {locations.map(loc => (
                     <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
                       <Popup className="ios-map-popup">
-                        <div style={{ textAlign: 'center' }}>
+                        <div style={{ textAlign: 'center', padding: '4px' }}>
                           <strong>{loc.location_name}</strong><br/>
-                          <Link to={`/story/${loc.id}`} style={{ display: 'inline-block', marginTop: '4px' }}>View Story</Link>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
+                            <Link to={`/story/${loc.id}`} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ios-accent)' }}>View Memory</Link>
+                            {loc.location_lat && loc.location_lng && (
+                              <button
+                                onClick={() => setStreetViewTarget({ name: loc.location_name, lat: loc.location_lat, lng: loc.location_lng })}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--ios-accent)',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '2px'
+                                }}
+                              >
+                                🚶‍♂️ Street View
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -222,9 +254,34 @@ export default function MapView() {
             display: 'flex', flexDirection: 'column', position: 'relative'
           }}>
             <FastScrollbar items={visibleLocations} getDate={(loc) => new Date(loc.taken_at)} scrollContainerSelector="#map-split-scroll" />
-            <div style={{ padding: '20px 20px 12px 20px' }}>
-              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>Places</h3>
-              <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+            <div style={{ padding: '16px 20px 12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Places</h3>
+                <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+              </div>
+
+              {/* Pin Icon - Locations Directory Explorer Button */}
+              <button
+                onClick={() => setIsExplorerOpen(true)}
+                className="segment-btn"
+                title="Browse All Visited Locations (by Country/City)"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--ios-bg-card)',
+                  color: 'var(--ios-text-primary)',
+                  border: '1px solid var(--ios-border)'
+                }}
+              >
+                <MapPin size={14} color="var(--ios-accent)" />
+                <span>Places Directory</span>
+              </button>
             </div>
             
             <div style={{ flex: 1, padding: '0 20px 20px 20px' }}>
@@ -299,8 +356,8 @@ export default function MapView() {
       transition={{ type: 'spring', damping: 26, stiffness: 220 }}
       style={containerStyle}
     >
-      {/* Back Button and Full Screen Toggle */}
-      <div style={{ position: 'absolute', top: immersiveFullScreen ? '40px' : '20px', left: '20px', zIndex: 1010, display: 'flex', gap: '12px' }}>
+      {/* Back Button and Full Screen & Explorer Toggle */}
+      <div style={{ position: 'absolute', top: immersiveFullScreen ? '40px' : '20px', left: '20px', zIndex: 1010, display: 'flex', gap: '10px', alignItems: 'center' }}>
         {immersiveFullScreen && (
           <button className="ios-glass" onClick={() => navigate('/timeline')} style={{ background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
             <ChevronDown size={24} color="#000" style={{ transform: 'rotate(90deg)' }} />
@@ -318,17 +375,61 @@ export default function MapView() {
         >
           {immersiveFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </button>
+
+        {/* Pin Explorer Action */}
+        <button
+          className="ios-glass"
+          onClick={() => setIsExplorerOpen(true)}
+          style={{
+            background: 'rgba(255,255,255,0.85)',
+            border: 'none',
+            borderRadius: '24px',
+            height: '44px',
+            padding: '0 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            color: '#000',
+            fontWeight: 700,
+            fontSize: '13px',
+          }}
+          title="Explore All Visited Locations"
+        >
+          <MapPin size={18} color="#007aff" />
+          <span>Places Directory</span>
+        </button>
       </div>
 
-      <MapContainer center={[20, 0]} zoom={3} style={{ height: '100%', width: '100%' }} worldCopyJump={true} zoomControl={false}>
+      <MapContainer 
+        center={[20, 0]} 
+        zoom={3} 
+        style={{ height: '100%', width: '100%' }} 
+        worldCopyJump={true} 
+        zoomControl={false}
+        ref={setMapInstance}
+      >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles-dark" />
         <MapEvents onBoundsChange={handleBoundsChange} />
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
           {locations.map(loc => (
             <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
               <Popup>
-                <strong>{loc.location_name}</strong><br/>
-                <Link to={`/story/${loc.id}${loc.location_name ? `?location=${encodeURIComponent(loc.location_name)}` : ''}`}>View</Link>
+                <div style={{ textAlign: 'center', padding: '4px' }}>
+                  <strong>{loc.location_name}</strong><br/>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
+                    <Link to={`/story/${loc.id}${loc.location_name ? `?location=${encodeURIComponent(loc.location_name)}` : ''}`} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ios-accent)' }}>View</Link>
+                    {loc.location_lat && loc.location_lng && (
+                      <button
+                        onClick={() => setStreetViewTarget({ name: loc.location_name, lat: loc.location_lat, lng: loc.location_lng })}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        🚶‍♂️ Street View
+                      </button>
+                    )}
+                  </div>
+                </div>
               </Popup>
             </Marker>
           ))}
@@ -358,9 +459,29 @@ export default function MapView() {
           <div style={{ width: '36px', height: '5px', background: 'rgba(150,150,150,0.5)', borderRadius: '3px' }} />
         </div>
         
-        <div style={{ padding: '0 20px 12px 20px' }}>
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Places</h2>
-          <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+        <div style={{ padding: '0 20px 12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Places</h2>
+            <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>{visibleLocations.length} memories in this area</div>
+          </div>
+
+          <button
+            onClick={() => setIsExplorerOpen(true)}
+            className="segment-btn"
+            style={{
+              padding: '6px 12px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            <Globe size={14} color="var(--ios-accent)" />
+            <span>Directory</span>
+          </button>
         </div>
 
         <div id="map-sheet-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 20px 40px 20px', position: 'relative' }}>
@@ -410,6 +531,34 @@ export default function MapView() {
           ))}
         </div>
       </div>
+
+      {/* ── Locations Explorer Modal ── */}
+      <LocationExplorerModal
+        isOpen={isExplorerOpen}
+        onClose={() => setIsExplorerOpen(false)}
+        locations={locations}
+        onSelectLocation={(loc) => {
+          if (mapInstance && loc.location_lat && loc.location_lng) {
+            mapInstance.flyTo([loc.location_lat, loc.location_lng], 14)
+          }
+        }}
+        onOpenStreetView={(loc) => {
+          setStreetViewTarget({
+            name: loc.location_name,
+            lat: loc.location_lat || loc.lat,
+            lng: loc.location_lng || loc.lng
+          })
+        }}
+      />
+
+      {/* ── Street View Modal ── */}
+      <StreetViewModal
+        isOpen={!!streetViewTarget}
+        onClose={() => setStreetViewTarget(null)}
+        locationName={streetViewTarget?.name}
+        lat={streetViewTarget?.lat}
+        lng={streetViewTarget?.lng}
+      />
     </motion.div>
   )
 }

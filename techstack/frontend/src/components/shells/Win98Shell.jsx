@@ -6,7 +6,7 @@ import {
   Monitor, Image as ImageIcon, Video, Folder, Settings, Map as MapIcon, 
   RotateCcw, Package, Grid, Layers, Sparkles, Volume2, HardDrive,
   Power, HelpCircle, Search, FileText, ChevronRight, Terminal, Trash2, CheckCircle2,
-  Sliders, LayoutGrid
+  Sliders, LayoutGrid, BookOpen
 } from 'lucide-react';
 
 import ShutdownModal from '../ShutdownModal';
@@ -19,6 +19,7 @@ const APPS_LIST = [
   { path: '/', name: 'MemWault.exe', label: 'Vault Main', icon: Monitor },
   { path: '/posts', name: 'FeedViewer.exe', label: 'Feed Posts', icon: Grid },
   { path: '/timeline', name: 'Memories.exe', label: 'Memories', icon: ImageIcon },
+  { path: '/journal', name: 'Journal.exe', label: 'Journal', icon: BookOpen },
   { path: '/reels', name: 'StoryReels.exe', label: 'Reel Player', icon: Video },
   { path: '/highlights', name: 'Collections.exe', label: 'Highlights', icon: Layers },
   { path: '/map', name: 'WorldAtlas.exe', label: 'Geo Map', icon: MapIcon },
@@ -29,6 +30,9 @@ const APPS_LIST = [
 function resolveAppInfo(pathname) {
   if (pathname === '/') {
     return { name: 'MemWault.exe', label: 'Vault Main', title: 'MemWault 98 - [Dashboard]', icon: Monitor };
+  }
+  if (pathname === '/journal') {
+    return { name: 'Journal.exe', label: 'Journal', title: 'MemWault 98 - [Journal.exe : Personal Memory & Travel Log]', icon: BookOpen };
   }
   if (pathname.startsWith('/story/') || pathname.startsWith('/stories/')) {
     const parts = pathname.split('/');

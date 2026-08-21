@@ -7,6 +7,7 @@ import {
   RefreshCcw, RefreshCw, DownloadCloud, Menu, Star, Layers, Sparkles,
   CheckCircle2, XCircle, Clock, ArrowDown
 } from 'lucide-react'
+import SevenSegmentDisplay from '../components/SevenSegmentDisplay'
 
 // Animated Cloud Download Icon
 function AnimatedCloudDownload({ isImporting }) {
@@ -191,16 +192,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* LED Archival Counter */}
+        {/* 7-Segment LED Archival Counter */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          backgroundColor: '#000000',
-          padding: '6px 14px',
+          backgroundColor: '#050505',
+          padding: '6px 12px',
           borderRadius: '8px',
           border: '1px solid var(--win98-dark-shadow, #808080)',
-          boxShadow: 'inset 1px 1px #000'
+          boxShadow: 'inset 1px 1px #000, 0 2px 8px rgba(0,0,0,0.5)'
         }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '9px', color: '#808080', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -210,34 +211,18 @@ export default function Dashboard() {
               ONLINE
             </div>
           </div>
-          <div style={{
-            fontSize: '32px',
-            fontWeight: 900,
-            color: '#00ff66',
-            fontFamily: 'monospace, "Courier New"',
-            letterSpacing: '2px',
-            lineHeight: 1,
-            textShadow: '0 0 8px rgba(0, 255, 102, 0.6)'
-          }}>
-            {String(stats.total_stories || 0).padStart(4, '0')}
-          </div>
+          <SevenSegmentDisplay value={stats.total_stories || 0} digits={4} size={30} />
         </div>
       </div>
       
-      {/* ── Categorized Stats: Memories vs Posts ──────── */}
+      {/* ── 1. Top Full-Width Ribbon: Stories & Memories ──────── */}
       <motion.div 
         variants={containerVariants}
-        style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: '16px', 
-          marginBottom: '20px' 
-        }}
+        style={{ marginBottom: '16px' }}
       >
-        {/* 1. Stories & Memories Section */}
         <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '13px', color: 'var(--ios-text-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
               <Clock size={16} color="var(--ios-accent)" />
               <span>Stories & Memories</span>
             </div>
@@ -255,7 +240,7 @@ export default function Dashboard() {
               {stats.total_stories || 0} Total
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
             <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
             <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
             <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
@@ -264,11 +249,16 @@ export default function Dashboard() {
             <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
           </div>
         </div>
+      </motion.div>
 
-        {/* 2. Feed Posts & Carousels Section */}
+      {/* ── 2. Bottom Full-Width Ribbon: Feed Posts & Carousels ──────── */}
+      <motion.div 
+        variants={containerVariants}
+        style={{ marginBottom: '16px' }}
+      >
         <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '13px', color: 'var(--ios-text-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
               <Layers size={16} color="#5856d6" />
               <span>Feed Posts & Carousels</span>
             </div>
@@ -286,7 +276,7 @@ export default function Dashboard() {
               {stats.total_feed_posts || 0} Total
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
             <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
             <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
             <BentoStat icon={Images} color="#34c759" label="High-Res Media" value={stats.total_post_media || stats.total_feed_posts || 0} />
@@ -294,14 +284,19 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Action & Status Split ───────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
-        
-        {/* ── Quick Actions ───────────────────── */}
-        <div className="ios-card settings-section-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', boxSizing: 'border-box' }}>
-          <h3 className="settings-section-header" style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Quick Actions</h3>
+      {/* ── 3. Quick Actions (Above System Status) ───────────────────── */}
+      <motion.div variants={containerVariants} style={{ marginBottom: '16px' }}>
+        <div className="ios-card settings-section-card" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 className="settings-section-header" style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>
+              Quick Actions
+            </h3>
+            <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+              Ingestion & Cloud Tasks
+            </span>
+          </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, justifyContent: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <motion.button 
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
@@ -309,7 +304,7 @@ export default function Dashboard() {
               onClick={handleSync}
               disabled={syncing}
               style={{
-                padding: '10px 16px', fontSize: '13px', fontWeight: 700,
+                padding: '12px 18px', fontSize: '13px', fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
@@ -324,7 +319,7 @@ export default function Dashboard() {
               onClick={handleArchiveImport} 
               disabled={importing}
               style={{
-                padding: '10px 16px', fontSize: '13px', fontWeight: 700,
+                padding: '12px 18px', fontSize: '13px', fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
@@ -333,12 +328,14 @@ export default function Dashboard() {
             </motion.button>
           </div>
         </div>
+      </motion.div>
 
-        {/* ── System Status ───────────────────── */}
-        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--ios-text-primary)' }}>System Status</h3>
+      {/* ── 4. System Status (Below Quick Actions) ───────────────────── */}
+      <motion.div variants={containerVariants}>
+        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px 20px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--ios-text-primary)' }}>System Status</h3>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
             {/* Storage Metric */}
             <div className="dashboard-status-row" style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -348,7 +345,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <HardDrive size={22} color="var(--ios-accent)" />
                 <div>
-                  <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                  <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
                     Total Storage
                   </div>
                   <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
@@ -370,7 +367,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Server size={22} color={stats.ig_session_valid ? "#34c759" : "var(--ios-danger)"} />
                 <div>
-                  <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                  <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
                     Instagram Session
                   </div>
                   <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
@@ -399,7 +396,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Clock size={22} color="var(--ios-accent)" />
                   <div>
-                    <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                    <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
                       Last Sync
                     </div>
                     <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
@@ -417,7 +414,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Toast Notification */}
       <AnimatePresence>

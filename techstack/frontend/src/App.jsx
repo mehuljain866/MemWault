@@ -16,6 +16,8 @@ import Archives from './pages/Archives'
 import Posts from './pages/Posts'
 import PostDetail from './pages/PostDetail'
 import MobileUploadPortal from './pages/MobileUploadPortal'
+import JournalApp from './pages/JournalApp'
+import MobilePaintPortal from './pages/MobilePaintPortal'
 
 import ThemeShellWrapper from './components/shells/ThemeShellWrapper'
 import { applyThemeSettings, getSettings } from './services/settings'
@@ -139,6 +141,11 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
   },
   {
+    path: "/mobile-paint",
+    element: <MobilePaintPortal />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
     path: "/",
     element: (
       <ProtectedRoute>
@@ -152,6 +159,7 @@ const router = createBrowserRouter([
       { path: "/posts/:postId", element: <PostDetail />, errorElement: <RouteErrorBoundary /> },
       { path: "/timeline", element: <Timeline key="timeline" isReelView={false} />, errorElement: <RouteErrorBoundary /> },
       { path: "/reels", element: <Timeline key="reels" isReelView={true} />, errorElement: <RouteErrorBoundary /> },
+      { path: "/journal", element: <JournalApp />, errorElement: <RouteErrorBoundary /> },
       { path: "/highlights", element: <Highlights />, errorElement: <RouteErrorBoundary /> },
       { path: "/highlights/:id", element: <HighlightViewer />, errorElement: <RouteErrorBoundary /> },
       { path: "/story/:id", element: <StoryDetail />, errorElement: <RouteErrorBoundary /> },

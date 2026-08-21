@@ -6,7 +6,8 @@ import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
 import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink } from 'lucide-react'
+import StreetViewModal from '../components/StreetViewModal'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
 
@@ -23,6 +24,7 @@ export default function StoryDetail() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('metadata')
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
+  const [isStreetViewOpen, setIsStreetViewOpen] = useState(false)
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
   const [refreshingViewers, setRefreshingViewers] = useState(false)
   
@@ -380,8 +382,29 @@ export default function StoryDetail() {
                   <InfoRow icon={FileType} label="Type" value={`${isVideo ? 'Video' : 'Photo'}${story.width && story.height ? ` · ${story.width}×${story.height}` : ''}${story.duration_ms ? ` · ${(story.duration_ms / 1000).toFixed(1)}s` : ''}`} />
                   
                   <InfoRow icon={MapPin} label="Location" value={story.location_name || <span style={{ color: 'var(--ios-text-muted)' }}>No location</span>}>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer' }}>Edit Location</button>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer', fontSize: '13px' }}>Edit Location</button>
+                      
+                      {story.location_lat && story.location_lng && (
+                        <button
+                          onClick={() => setIsStreetViewOpen(true)}
+                          className="segment-btn"
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--ios-accent)'
+                          }}
+                        >
+                          <Compass size={13} />
+                          <span>🚶‍♂️ View Street View</span>
+                        </button>
+                      )}
                     </div>
                   </InfoRow>
 
@@ -815,6 +838,14 @@ export default function StoryDetail() {
         onClose={() => setIsLocationModalOpen(false)} 
         onSave={handleSaveLocation}
         initialLocation={story.location_name ? { name: story.location_name, lat: story.location_lat, lng: story.location_lng } : null}
+      />
+
+      <StreetViewModal
+        isOpen={isStreetViewOpen}
+        onClose={() => setIsStreetViewOpen(false)}
+        locationName={story.location_name}
+        lat={story.location_lat}
+        lng={story.location_lng}
       />
     </motion.div>
   )

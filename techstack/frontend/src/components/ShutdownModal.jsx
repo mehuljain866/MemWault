@@ -35,7 +35,7 @@ export default function ShutdownModal({ isOpen, onClose }) {
   // ═══════════════════════════════════════════════════════════
   if (isWin98) {
     if (isDone) {
-      // Iconic "It's now safe to turn off your computer" screen
+      // Iconic Bit-for-Bit Authentic Windows 98 "It's now safe to turn off your computer" screen
       return (
         <div style={{
           position: 'fixed',
@@ -47,53 +47,44 @@ export default function ShutdownModal({ isOpen, onClose }) {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '24px',
-          color: '#ff8800',
-          fontFamily: '"MS Serif", "Times New Roman", serif',
-          textAlign: 'center',
           userSelect: 'none',
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 2px)',
         }}>
-          <img
-            src="/win98-memwault-logo.png"
-            alt="MemWault 98"
-            style={{
-              width: '64px',
-              height: '64px',
-              imageRendering: 'pixelated',
-              marginBottom: '24px',
-              filter: 'drop-shadow(0 0 12px rgba(255, 136, 0, 0.5))',
-            }}
-          />
-
+          {/* Authentic Glowing Amber Orange Typography */}
           <h1 style={{
-            fontSize: '38px',
+            fontSize: '44px',
+            fontStyle: 'italic',
             fontWeight: 'normal',
             color: '#ff8800',
-            textShadow: '0 0 10px rgba(255, 136, 0, 0.7), 2px 2px 0px #803000',
+            fontFamily: '"Times New Roman", Times, "MS Serif", serif',
+            textShadow: '0 0 12px rgba(255, 136, 0, 0.7), 2px 2px 0px #803000',
             letterSpacing: '1px',
-            lineHeight: 1.2,
-            margin: '0 0 16px 0',
+            lineHeight: 1.3,
+            margin: '0 0 36px 0',
+            textAlign: 'center',
           }}>
             It's now safe to turn off<br/>your computer.
           </h1>
 
-          <div style={{
-            fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
-            fontSize: '12px',
-            color: '#a0a0a0',
-            maxWidth: '460px',
-            lineHeight: 1.6,
-            marginTop: '20px',
-            backgroundColor: '#111111',
-            border: '1px solid #333333',
-            padding: '12px 18px',
-            borderRadius: '4px',
-          }}>
-            <div style={{ color: '#ffcc00', fontWeight: 'bold', marginBottom: '4px' }}>
-              MemWault 98 Services Terminated
-            </div>
-            All Python processes, SQLite workers, and Vite servers have been halted.<br/>
-            To power back on, run <strong style={{ color: '#ffffff' }}>start.bat</strong> or double-click the MemWault desktop shortcut.
-          </div>
+          {/* Minimalist Retro Reboot Control */}
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              backgroundColor: '#000000',
+              border: '1px solid #ff8800',
+              color: '#ff8800',
+              padding: '6px 18px',
+              fontFamily: '"MS Sans Serif", Tahoma, monospace',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              boxShadow: '0 0 8px rgba(255, 136, 0, 0.3)',
+            }}
+          >
+            [ Restart Computer ]
+          </button>
         </div>
       );
     }

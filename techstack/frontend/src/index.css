@@ -2203,6 +2203,41 @@ ul { list-style: none; }
   font-weight: bold;
 }
 
+/* ── Win98 Toggle & Checkbox Authentic Rectification ── */
+[data-theme-id='win98'] .ios-toggle {
+  width: 13px !important;
+  height: 13px !important;
+  border-radius: 0 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #ffffff !important;
+  cursor: pointer !important;
+  position: relative !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+[data-theme-id='win98'] .ios-toggle::after {
+  display: none !important;
+  content: none !important;
+}
+
+[data-theme-id='win98'] .ios-toggle:checked {
+  background-color: #ffffff !important;
+}
+
+[data-theme-id='win98'] .ios-toggle:checked::before {
+  content: '✓' !important;
+  position: absolute !important;
+  top: -3px !important;
+  left: 1px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  color: #000000 !important;
+  font-family: 'MS Sans Serif', Tahoma, Arial, sans-serif !important;
+  line-height: 1 !important;
+}
+
 /* Universal Win98 Sunken Pressed State for Active Controls & Tabs */
 [data-theme-id='win98'] .segmented-container,
 [data-theme-id='win98'] .segment-group,

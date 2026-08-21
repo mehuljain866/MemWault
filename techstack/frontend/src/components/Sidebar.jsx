@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive, LayoutGrid, Power } from 'lucide-react'
+import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive, LayoutGrid, Power, BookOpen } from 'lucide-react'
 import ShutdownModal from './ShutdownModal'
 
 const topNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/posts', label: 'Feed Posts', icon: LayoutGrid },
   { path: '/timeline', label: 'Memories', icon: ImageIcon },
+  { path: '/journal', label: 'Journal', icon: BookOpen },
   { path: '/reels', label: 'Reels', icon: PlaySquare },
   { path: '/highlights', label: 'Highlights', icon: FolderHeart },
   { path: '/map', label: 'Map View', icon: MapIcon },

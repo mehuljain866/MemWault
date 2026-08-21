@@ -23,28 +23,13 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
           }
           setSession({ ...data, qr_url: finalQrUrl })
         } else {
-          // Fallback session
-          const fallbackToken = 'local_' + Math.random().toString(36).substring(2, 12)
-          const port = window.location.port ? `:${window.location.port}` : ''
-          const fallbackUrl = `${window.location.protocol}//${window.location.hostname}${port}/upload-link/${fallbackToken}`
-          setSession({
-            token: fallbackToken,
-            qr_url: fallbackUrl,
-            uploaded_files: []
-          })
+          setSession(null)
         }
         setLoading(false)
       })
       .catch((err) => {
-        console.warn('QR session API fallback:', err)
-        const fallbackToken = 'local_' + Math.random().toString(36).substring(2, 12)
-        const port = window.location.port ? `:${window.location.port}` : ''
-        const fallbackUrl = `${window.location.protocol}//${window.location.hostname}${port}/upload-link/${fallbackToken}`
-        setSession({
-          token: fallbackToken,
-          qr_url: fallbackUrl,
-          uploaded_files: []
-        })
+        console.error('Failed to create QR session:', err)
+        setSession(null)
         setLoading(false)
       })
   }

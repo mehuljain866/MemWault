@@ -7,8 +7,8 @@ import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
 import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
 import StreetViewModal from '../components/StreetViewModal'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3 } from 'lucide-react'
 import { getSettings } from '../services/settings'
 
 export default function StoryDetail() {
@@ -383,26 +383,43 @@ export default function StoryDetail() {
                   
                   <InfoRow icon={MapPin} label="Location" value={story.location_name || <span style={{ color: 'var(--ios-text-muted)' }}>No location</span>}>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <button onClick={() => setIsLocationModalOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', fontWeight: 600, padding: 0, cursor: 'pointer', fontSize: '13px' }}>Edit Location</button>
+                      <button 
+                        onClick={() => setIsLocationModalOpen(true)} 
+                        className="segment-btn"
+                        style={{
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          cursor: 'pointer',
+                          color: 'var(--ios-accent)'
+                        }}
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit Location</span>
+                      </button>
                       
                       {story.location_lat && story.location_lng && (
                         <button
                           onClick={() => setIsStreetViewOpen(true)}
                           className="segment-btn"
                           style={{
-                            padding: '4px 10px',
-                            borderRadius: '8px',
+                            padding: '3px 10px',
+                            borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: 600,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '4px',
+                            gap: '5px',
                             cursor: 'pointer',
                             color: 'var(--ios-accent)'
                           }}
                         >
                           <Compass size={13} />
-                          <span>🚶‍♂️ View Street View</span>
+                          <span>View Street View</span>
                         </button>
                       )}
                     </div>

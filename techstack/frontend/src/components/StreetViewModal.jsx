@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Maximize2, Minimize2, ExternalLink, MapPin, Compass, 
-  Navigation, Save, Check, Plus, Minus, Layers
+  Navigation, Save, Check, Plus, Minus, Layers, Scan
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -10,26 +10,41 @@ import L from 'leaflet'
 import { getSettings } from '../services/settings'
 import { playWin98Click } from '../services/win98Audio'
 
-// Custom Orange Pegman Icon matching real Google Maps Pegman
-const pegmanIcon = L.divIcon({
-  html: `
-    <div style="position: relative; width: 28px; height: 36px; display: flex; flex-direction: column; align-items: center;">
-      <svg width="26" height="34" viewBox="0 0 24 32" fill="none">
-        <!-- Head -->
-        <circle cx="12" cy="6" r="4.5" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
-        <!-- Torso & Arms -->
-        <path d="M7 11.5C7 10.5 8 9.5 12 9.5C16 9.5 17 10.5 17 11.5L18 20C18 21 16.5 21.5 15 21.5L15 29C15 30 13.5 30.5 12.5 30.5L12.5 22L11.5 22L11.5 30.5C10.5 30.5 9 30 9 29L9 21.5C7.5 21.5 6 21 6 20L7 11.5Z" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
-        <!-- Tie / Collar -->
-        <path d="M11 10L12 14L13 10Z" fill="#DB4437"/>
-      </svg>
-      <!-- Drop Shadow -->
-      <div style="position: absolute; bottom: 0; width: 14px; height: 4px; background: rgba(0,0,0,0.4); border-radius: 50%;"></div>
-    </div>
-  `,
-  className: 'pegman-radar-pin',
-  iconSize: [28, 36],
-  iconAnchor: [14, 34]
-})
+// Authentic Google Maps Pegman with Directional Field-Of-View Beam & Compass Cone
+const createGooglePegmanIcon = () => {
+  return L.divIcon({
+    html: `
+      <div style="position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+        <!-- Directional Field-Of-View Cone Beam (Authentic Google Maps Radar) -->
+        <svg style="position: absolute; top: 2px; left: 2px; width: 60px; height: 60px;" viewBox="0 0 60 60">
+          <!-- Circular Radar Ring -->
+          <circle cx="30" cy="30" r="26" fill="rgba(66, 133, 244, 0.08)" stroke="rgba(0, 0, 0, 0.25)" stroke-width="1" stroke-dasharray="2 2" />
+          <!-- White FOV Cone / Spotlight Beam -->
+          <path d="M30 30 L14 54 A 28 28 0 0 0 46 54 Z" fill="rgba(255, 255, 255, 0.85)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.8" />
+          <!-- Directional Heading Pointer -->
+          <polygon points="30,12 36,28 30,24 24,28" fill="#333333" />
+        </svg>
+
+        <!-- Google Orange Pegman Character -->
+        <div style="position: absolute; top: 12px; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+          <svg width="24" height="32" viewBox="0 0 24 32" fill="none">
+            <!-- Head -->
+            <circle cx="12" cy="6" r="4.5" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
+            <!-- Torso & Limbs -->
+            <path d="M7 11.5C7 10.5 8 9.5 12 9.5C16 9.5 17 10.5 17 11.5L18 20C18 21 16.5 21.5 15 21.5L15 29C15 30 13.5 30.5 12.5 30.5L12.5 22L11.5 22L11.5 30.5C10.5 30.5 9 30 9 29L9 21.5C7.5 21.5 6 21 6 20L7 11.5Z" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
+            <!-- Tie / Collar -->
+            <path d="M11 10L12 14L13 10Z" fill="#DB4437"/>
+          </svg>
+        </div>
+      </div>
+    `,
+    className: 'google-pegman-radar-pin',
+    iconSize: [64, 64],
+    iconAnchor: [32, 32]
+  })
+}
+
+const pegmanIcon = createGooglePegmanIcon()
 
 function MiniMapClickEvents({ onMapClick }) {
   useMapEvents({
@@ -54,10 +69,10 @@ export default function StreetViewModal({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showRadar, setShowRadar] = useState(true)
   const [isRadarMinimized, setIsRadarMinimized] = useState(false)
+  const [isRadarExpanded, setIsRadarExpanded] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updatedSuccess, setUpdatedSuccess] = useState(false)
   const [miniMapZoom, setMiniMapZoom] = useState(15)
-  const miniMapRef = useRef(null)
 
   const settings = getSettings()
   const isWin98 = settings.themeId === 'win98'
@@ -93,7 +108,6 @@ export default function StreetViewModal({
     if (isWin98) playWin98Click()
     setCurrentLat(latlng.lat)
     setCurrentLng(latlng.lng)
-    // Reverse geocode optionally or notify
     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`)
       .then(res => res.json())
       .then(data => {
@@ -124,7 +138,6 @@ export default function StreetViewModal({
     }
   }
 
-  // Interactive embed panorama URL
   const embedUrl = `https://maps.google.com/maps?q=${currentLat},${currentLng}&layer=c&cbll=${currentLat},${currentLng}&cbp=11,0,0,0,0&output=svembed`
   const directMapsUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${currentLat},${currentLng}`
 
@@ -147,8 +160,8 @@ export default function StreetViewModal({
       }}>
         <div
           style={{
-            width: isFullscreen ? '100vw' : '860px',
-            height: isFullscreen ? '100vh' : '620px',
+            width: isFullscreen ? '100vw' : '880px',
+            height: isFullscreen ? '100vh' : '630px',
             maxWidth: isFullscreen ? '100vw' : '96vw',
             maxHeight: isFullscreen ? '100vh' : '94vh',
             backgroundColor: '#c0c0c0',
@@ -159,7 +172,7 @@ export default function StreetViewModal({
             boxSizing: 'border-box',
           }}
         >
-          {/* Title Bar with High-Contrast Crisp Black Buttons */}
+          {/* Title Bar with Guaranteed Visible High-Contrast Black Icons */}
           <div style={{
             background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
             color: '#ffffff',
@@ -178,7 +191,6 @@ export default function StreetViewModal({
               </span>
             </div>
             
-            {/* Title Bar Controls with Guaranteed Visible Black Icons */}
             <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               {/* Maximize / Restore */}
               <button
@@ -234,7 +246,7 @@ export default function StreetViewModal({
             </div>
           </div>
 
-          {/* Taskbar / Action Bar with "Update Location" Button */}
+          {/* Action Toolbar */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -264,7 +276,6 @@ export default function StreetViewModal({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {/* UPDATE LOCATION BUTTON (Left of Open in Google Maps) */}
               <button
                 onClick={handleUpdateLocation}
                 disabled={updating}
@@ -305,7 +316,7 @@ export default function StreetViewModal({
             </div>
           </div>
 
-          {/* 3D Sunken Viewport Canvas with Bottom-Left Pegman Mini-Map Box */}
+          {/* 3D Sunken Viewport Canvas with Authentic Google Pegman Mini-Map Radar Box */}
           <div style={{
             flex: 1,
             backgroundColor: '#000000',
@@ -328,64 +339,81 @@ export default function StreetViewModal({
               loading="lazy"
             />
 
-            {/* ── Iconic Bottom-Left Pegman Mini-Map Radar Box ── */}
+            {/* ── EXACT GOOGLE PEGMAN MINI-MAP RADAR (Wrapped in Win98 skin) ── */}
             {showRadar && !isRadarMinimized && (
               <div style={{
                 position: 'absolute',
                 bottom: '12px',
                 left: '12px',
-                width: '190px',
-                height: '160px',
+                width: isRadarExpanded ? '280px' : '200px',
+                height: isRadarExpanded ? '210px' : '160px',
                 backgroundColor: '#ffffff',
-                border: '2px solid #000000',
-                borderRadius: '6px',
+                border: '1.5px solid #000000',
+                borderRadius: '8px',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
                 zIndex: 50,
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
+                transition: 'width 0.2s ease, height 0.2s ease',
               }}>
+                {/* Top Mini Control Strip */}
                 <div style={{
-                  backgroundColor: '#c0c0c0',
-                  borderBottom: '1px solid #000',
-                  padding: '2px 4px',
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  zIndex: 1000,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  color: '#000',
-                  userSelect: 'none',
+                  gap: '3px',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <span>🗺️ Pegman Radar</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                    <button
-                      onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))}
-                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '10px' }}
-                      title="Zoom In"
-                    >+</button>
-                    <button
-                      onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))}
-                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '10px' }}
-                      title="Zoom Out"
-                    >-</button>
-                    {/* Minimize Radar Button */}
-                    <button
-                      onClick={() => { playWin98Click(); setIsRadarMinimized(true); }}
-                      style={{ padding: '0 3px', fontSize: '9px', cursor: 'pointer', height: '14px', lineHeight: '8px', fontWeight: 'bold' }}
-                      title="Minimize Radar"
-                    >_</button>
-                    {/* Close Radar Button */}
-                    <button
-                      onClick={() => { playWin98Click(); setShowRadar(false); }}
-                      style={{ padding: '0 3px', fontSize: '8px', cursor: 'pointer', height: '14px', lineHeight: '10px', fontWeight: 'bold' }}
-                      title="Close Radar"
-                    >✕</button>
-                  </div>
+                  {/* Minimize Button */}
+                  <button
+                    onClick={() => { playWin98Click(); setIsRadarMinimized(true); }}
+                    title="Minimize radar"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: 'rgba(255,255,255,0.95)',
+                      border: '1px solid #333',
+                      borderRadius: '3px',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      padding: 0,
+                    }}
+                  >
+                    _
+                  </button>
+
+                  {/* Close Button */}
+                  <button
+                    onClick={() => { playWin98Click(); setShowRadar(false); }}
+                    title="Close radar"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: 'rgba(255,255,255,0.95)',
+                      border: '1px solid #333',
+                      borderRadius: '3px',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      padding: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
                 </div>
-                
+
+                {/* Leaflet Mini-Map Canvas */}
                 <div style={{ flex: 1, position: 'relative' }}>
                   <MapContainer
                     center={[currentLat, currentLng]}
@@ -398,14 +426,91 @@ export default function StreetViewModal({
                     <Marker position={[currentLat, currentLng]} icon={pegmanIcon} />
                     <MiniMapClickEvents onMapClick={handleMiniMapClick} />
                   </MapContainer>
-                </div>
-                <div style={{ backgroundColor: '#fff', fontSize: '8px', textAlign: 'center', padding: '1px', color: '#555' }}>
-                  Click road to jump Pegman
+
+                  {/* Google Expand Button (Bottom Left) */}
+                  <button
+                    onClick={() => { playWin98Click(); setIsRadarExpanded(!isRadarExpanded); }}
+                    title={isRadarExpanded ? "Shrink map" : "Expand map"}
+                    style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      zIndex: 1000,
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid rgba(0,0,0,0.2)',
+                      borderRadius: '4px',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5">
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                    </svg>
+                  </button>
+
+                  {/* Google Zoom Controls (Bottom Right Pill) */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    zIndex: 1000,
+                    backgroundColor: '#ffffff',
+                    border: '1px solid rgba(0,0,0,0.2)',
+                    borderRadius: '4px',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}>
+                    <button
+                      onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))}
+                      title="Zoom In"
+                      style={{
+                        width: '24px',
+                        height: '22px',
+                        backgroundColor: '#ffffff',
+                        border: 'none',
+                        borderBottom: '1px solid #e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#444',
+                        padding: 0,
+                      }}
+                    >+</button>
+                    <button
+                      onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))}
+                      title="Zoom Out"
+                      style={{
+                        width: '24px',
+                        height: '22px',
+                        backgroundColor: '#ffffff',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#444',
+                        padding: 0,
+                      }}
+                    >−</button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Minimized Pegman Radar Dock (Win98) */}
+            {/* Minimized Docked Tab */}
             {showRadar && isRadarMinimized && (
               <div
                 onClick={() => { playWin98Click(); setIsRadarMinimized(false); }}
@@ -417,7 +522,7 @@ export default function StreetViewModal({
                   backgroundColor: '#c0c0c0',
                   border: '1px solid #000000',
                   boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 8px rgba(0,0,0,0.5)',
-                  padding: '3px 8px',
+                  padding: '4px 8px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
@@ -454,7 +559,7 @@ export default function StreetViewModal({
               height: '100%',
             }}>
               <Navigation size={11} color="#008000" />
-              <span>360° Street View & Walkaround Active • Click roads to navigate</span>
+              <span>360° Walkaround Active • Click roads to teleport Pegman</span>
             </div>
 
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -615,7 +720,7 @@ export default function StreetViewModal({
           </div>
         </div>
 
-        {/* Viewport Canvas + Bottom-Left Pegman Mini-Map */}
+        {/* Viewport Canvas + Exact Google Pegman Mini-Map */}
         <div style={{ flex: 1, backgroundColor: '#000', position: 'relative' }}>
           <iframe
             src={embedUrl}
@@ -631,36 +736,75 @@ export default function StreetViewModal({
               position: 'absolute',
               bottom: '16px',
               left: '16px',
-              width: '200px',
-              height: '170px',
+              width: isRadarExpanded ? '300px' : '220px',
+              height: isRadarExpanded ? '230px' : '170px',
               backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
-              border: '2px solid rgba(255,255,255,0.2)',
-              borderRadius: '14px',
+              border: '1.5px solid #000000',
+              borderRadius: '12px',
               boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
               zIndex: 50,
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              transition: 'width 0.2s ease, height 0.2s ease',
             }}>
+              {/* Top controls (Minimize & Close) */}
               <div style={{
-                padding: '4px 8px',
+                position: 'absolute',
+                top: '6px',
+                right: '6px',
+                zIndex: 1000,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '11px',
-                fontWeight: 700,
-                color: 'var(--ios-text-primary)',
-                backgroundColor: 'rgba(255,255,255,0.05)',
+                gap: '4px',
               }}>
-                <span>📍 Mini-Map Radar</span>
-                <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                  <button onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>+</button>
-                  <button onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>-</button>
-                  <button onClick={() => setIsRadarMinimized(true)} title="Minimize" style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>_</button>
-                  <button onClick={() => setShowRadar(false)} title="Close" style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '10px' }}>✕</button>
-                </div>
+                <button
+                  onClick={() => setIsRadarMinimized(true)}
+                  title="Minimize"
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(4px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '5px',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: 0,
+                  }}
+                >
+                  _
+                </button>
+                <button
+                  onClick={() => setShowRadar(false)}
+                  title="Close"
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(4px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '5px',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    padding: 0,
+                  }}
+                >
+                  ✕
+                </button>
               </div>
-              <div style={{ flex: 1 }}>
+
+              {/* Map Container */}
+              <div style={{ flex: 1, position: 'relative' }}>
                 <MapContainer
                   center={[currentLat, currentLng]}
                   zoom={miniMapZoom}
@@ -672,11 +816,91 @@ export default function StreetViewModal({
                   <Marker position={[currentLat, currentLng]} icon={pegmanIcon} />
                   <MiniMapClickEvents onMapClick={handleMiniMapClick} />
                 </MapContainer>
+
+                {/* Google Expand Button (Bottom Left) */}
+                <button
+                  onClick={() => setIsRadarExpanded(!isRadarExpanded)}
+                  title={isRadarExpanded ? "Shrink map" : "Expand map"}
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '8px',
+                    zIndex: 1000,
+                    width: '26px',
+                    height: '26px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid rgba(0,0,0,0.2)',
+                    borderRadius: '6px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                  </svg>
+                </button>
+
+                {/* Google Zoom Controls (Bottom Right Pill) */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  zIndex: 1000,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid rgba(0,0,0,0.2)',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}>
+                  <button
+                    onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))}
+                    title="Zoom In"
+                    style={{
+                      width: '26px',
+                      height: '24px',
+                      backgroundColor: '#ffffff',
+                      border: 'none',
+                      borderBottom: '1px solid #e0e0e0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#333',
+                      padding: 0,
+                    }}
+                  >+</button>
+                  <button
+                    onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))}
+                    title="Zoom Out"
+                    style={{
+                      width: '26px',
+                      height: '24px',
+                      backgroundColor: '#ffffff',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#333',
+                      padding: 0,
+                    }}
+                  >−</button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Minimized Pegman Radar Pill (Modern) */}
+          {/* Minimized Pill */}
           {showRadar && isRadarMinimized && (
             <button
               onClick={() => setIsRadarMinimized(false)}
@@ -717,7 +941,7 @@ export default function StreetViewModal({
           backgroundColor: 'rgba(0,0,0,0.3)',
         }}>
           <span style={{ fontSize: '12px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
-            Drag to look around 360° • Click arrows to move • Click Mini-Map to reposition Pegman
+            Drag to look around 360° • Click arrows to move • Click Mini-Map to teleport Pegman
           </span>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

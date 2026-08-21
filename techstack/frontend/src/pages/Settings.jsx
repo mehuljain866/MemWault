@@ -473,7 +473,7 @@ export default function Settings() {
           </div>
 
           {/* Light / Dark Mode Toggle */}
-          <div style={{
+          <div className="segmented-container segment-group" style={{
             display: 'flex',
             background: 'var(--ios-bg-app)',
             border: '1px solid var(--ios-border)',
@@ -714,7 +714,7 @@ export default function Settings() {
             </div>
             Map View Mode
           </div>
-          <div style={{ display: 'flex', background: 'var(--ios-bg-app)', border: '1px solid var(--ios-border)', borderRadius: '10px', padding: '3px', gap: '3px' }}>
+          <div className="segmented-container segment-group" style={{ display: 'flex', background: 'var(--ios-bg-app)', border: '1px solid var(--ios-border)', borderRadius: '10px', padding: '3px', gap: '3px' }}>
             {[['split','Split Screen'],['immersive','Immersive']].map(([val, label]) => {
               const isSelected = playbackSettings.mapMode === val;
               return (
@@ -749,7 +749,7 @@ export default function Settings() {
             </div>
             Preferred Music App
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="segmented-container segment-group" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[
               { id: 'spotify', label: 'Spotify', color: '#1DB954', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM19.08 9.3C15.12 6.96 8.76 6.78 5.1 7.86c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.72 1.62.539.3.719 1.02.419 1.56-.239.48-.959.66-1.5.36z"/></svg> },
               { id: 'apple', label: 'Apple Music', color: '#fa243c', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.333 13.585c-.092.17-.225.298-.387.382-.162.083-.342.12-.533.12H9.587c-.19 0-.37-.037-.533-.12a1.053 1.053 0 0 1-.387-.382c-.092-.17-.144-.36-.144-.564V8.425c0-.204.052-.394.144-.564.092-.17.225-.298.387-.382.162-.084.342-.12.533-.12h4.826c.19 0 .37.036.533.12.162.084.295.212.387.382.092.17.144.36.144.564v6.596c0 .204-.052.394-.144.564z"/></svg> },

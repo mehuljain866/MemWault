@@ -314,7 +314,7 @@ export default function Timeline({ isReelView = false }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Zoom Selector (Years / Months / Days) */}
           {!isSelectMode && (
-            <div style={{
+            <div className="segmented-container segment-group" style={{
               display: 'flex',
               background: 'var(--ios-bg-card)',
               border: '1px solid var(--ios-border)',
@@ -326,6 +326,7 @@ export default function Timeline({ isReelView = false }) {
                 <button
                   key={val}
                   onClick={() => setZoomLevel(val)}
+                  className={`segment-btn ${zoomLevel === val ? 'active' : ''}`}
                   style={{
                     border: 'none',
                     borderRadius: '8px',

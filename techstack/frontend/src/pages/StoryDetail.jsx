@@ -15,6 +15,7 @@ export default function StoryDetail() {
   const [searchParams] = useSearchParams()
   const locationParam = searchParams.get('location') || ''
   const settings = getSettings()
+  const isWin98 = settings.themeId === 'win98'
   const navigate = useNavigate()
   const [story, setStory] = useState(null)
   const [viewers, setViewers] = useState([])
@@ -135,7 +136,7 @@ export default function StoryDetail() {
 
 
   const SegmentedControl = ({ tabs, activeTab, onChange }) => (
-    <div style={{
+    <div className="segmented-container segment-group" style={{
       display: 'flex',
       backgroundColor: 'var(--ios-border)',
       borderRadius: '20px',
@@ -150,6 +151,7 @@ export default function StoryDetail() {
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
+            className={`segment-btn ${isActive ? 'active' : ''}`}
             style={{
               flex: 1,
               padding: '7px 12px',
@@ -166,7 +168,7 @@ export default function StoryDetail() {
               whiteSpace: 'nowrap',
             }}
           >
-            {isActive && (
+            {isActive && !isWin98 && (
               <motion.span
                 layoutId="story-tab-pill"
                 style={{
@@ -276,12 +278,13 @@ export default function StoryDetail() {
           
           {(story.is_reel || story.og_reel_media_id) && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-              <div style={{ background: 'var(--ios-bg-card)', borderRadius: '20px', padding: '4px', display: 'flex', gap: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+              <div className="segmented-container segment-group" style={{ background: 'var(--ios-bg-card)', borderRadius: '20px', padding: '4px', display: 'flex', gap: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <button
                   onClick={async () => {
                     setStory(s => ({...s, primary_view: 'story'}));
                     try { await updateStory(id, { primary_view: 'story' }); } catch (e) {}
                   }}
+                  className={`segment-btn ${story.primary_view !== 'reel' ? 'active' : ''}`}
                   style={{
                     padding: '8px 16px', borderRadius: '16px', border: 'none', cursor: 'pointer',
                     background: story.primary_view !== 'reel' ? 'var(--ios-accent)' : 'transparent',
@@ -296,6 +299,7 @@ export default function StoryDetail() {
                     setStory(s => ({...s, primary_view: 'reel'}));
                     try { await updateStory(id, { primary_view: 'reel' }); } catch (e) {}
                   }}
+                  className={`segment-btn ${story.primary_view === 'reel' ? 'active' : ''}`}
                   style={{
                     padding: '8px 16px', borderRadius: '16px', border: 'none', cursor: 'pointer',
                     background: story.primary_view === 'reel' ? 'var(--ios-accent)' : 'transparent',

@@ -106,7 +106,7 @@ export default function Posts() {
           </div>
 
           {/* Aspect Ratio Switcher */}
-          <div style={{
+          <div className="segmented-container" style={{
             display: 'flex', alignItems: 'center',
             backgroundColor: 'var(--ios-bg-card)',
             borderRadius: '12px', padding: '3px',
@@ -114,6 +114,7 @@ export default function Posts() {
           }}>
             <button
               onClick={() => setGridAspect('square')}
+              className={`segment-btn ${gridAspect === 'square' ? 'active' : ''}`}
               style={{
                 background: gridAspect === 'square' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'square' ? '#fff' : 'var(--ios-text-secondary)',
@@ -125,6 +126,7 @@ export default function Posts() {
             </button>
             <button
               onClick={() => setGridAspect('portrait')}
+              className={`segment-btn ${gridAspect === 'portrait' ? 'active' : ''}`}
               style={{
                 background: gridAspect === 'portrait' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'portrait' ? '#fff' : 'var(--ios-text-secondary)',
@@ -136,6 +138,7 @@ export default function Posts() {
             </button>
             <button
               onClick={() => setGridAspect('original')}
+              className={`segment-btn ${gridAspect === 'original' ? 'active' : ''}`}
               style={{
                 background: gridAspect === 'original' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'original' ? '#fff' : 'var(--ios-text-secondary)',
@@ -166,7 +169,7 @@ export default function Posts() {
       </div>
 
       {/* -- Filters Segmented Control ----------------------------- */}
-      <div style={{
+      <div className="filter-container" style={{
         display: 'flex', alignItems: 'center', gap: '8px',
         overflowX: 'auto', paddingBottom: '8px', marginBottom: '24px',
       }}>

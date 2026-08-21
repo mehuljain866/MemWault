@@ -2204,26 +2204,51 @@ ul { list-style: none; }
 }
 
 /* Universal Win98 Sunken Pressed State for Active Controls & Tabs */
+[data-theme-id='win98'] .segmented-container,
+[data-theme-id='win98'] .segment-group,
+[data-theme-id='win98'] .filter-container {
+  background-color: var(--win98-face) !important;
+  border: 1px solid var(--win98-dark-shadow) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow),
+    inset -2px -2px 0px 0px var(--win98-light) !important;
+  padding: 2px !important;
+  border-radius: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
 [data-theme-id='win98'] button.segment-btn,
+[data-theme-id='win98'] .segmented-container button,
+[data-theme-id='win98'] .segment-group button,
 [data-theme-id='win98'] .tab-btn,
 [data-theme-id='win98'] .filter-btn,
 [data-theme-id='win98'] .view-mode-btn,
 [data-theme-id='win98'] .btn-win98 {
   background-color: var(--win98-face) !important;
   color: var(--win98-window-text) !important;
-  border: none !important;
+  border: 1px solid #000000 !important;
   box-shadow: 
     inset 1px 1px 0px 0px var(--win98-highlight),
-    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-shadow),
     inset 2px 2px 0px 0px var(--win98-light),
-    inset -2px -2px 0px 0px var(--win98-shadow) !important;
+    inset -2px -2px 0px 0px var(--win98-dark-shadow) !important;
   border-radius: 0 !important;
   cursor: pointer !important;
   user-select: none !important;
   font-family: var(--win98-font) !important;
+  font-size: 11px !important;
+  padding: 3px 8px !important;
+  margin: 0 !important;
+  transition: none !important;
 }
 
 [data-theme-id='win98'] button.segment-btn.active,
+[data-theme-id='win98'] .segmented-container button.active,
+[data-theme-id='win98'] .segment-group button.active,
 [data-theme-id='win98'] .tab-btn.active,
 [data-theme-id='win98'] .filter-btn.active,
 [data-theme-id='win98'] .view-mode-btn.active,
@@ -2238,8 +2263,9 @@ ul { list-style: none; }
   background-color: #dfdfdf !important;
   background-image: radial-gradient(circle, #dfdfdf 25%, #c0c0c0 25%) !important;
   background-size: 2px 2px !important;
-  color: var(--win98-window-text) !important;
+  color: #000000 !important;
   font-weight: bold !important;
+  border: 1px solid #000000 !important;
   transform: translate(1px, 1px) !important;
 }
 

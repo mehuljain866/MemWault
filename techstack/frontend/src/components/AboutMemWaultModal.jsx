@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getInstagramSession } from '../services/api'
 import { playWin98Click } from '../services/win98Audio'
+import { Github, ExternalLink, ShieldCheck, Database, HardDrive, CheckCircle2 } from 'lucide-react'
 
 /**
  * Pixel-accurate macOS Big Sur / Monterey "About This Mac" window for MemWault.
  * Replicates the exact layout, light mode aesthetic, top tabs, circular profile disc,
  * second-quadrant application logo badge, specs grid, and outside-click dismiss.
+ * Isolated from global Win98 button stylesheets.
  */
 export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
   const [activeTab, setActiveTab] = useState('Overview')
@@ -36,7 +38,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
     ? `/api/v1/proxy/image?url=${encodeURIComponent(igSession.profile_pic_url)}`
     : null
 
-  const username = igSession?.full_name || igSession?.ig_username || 'MemWault Vault User'
+  const username = igSession?.full_name || igSession?.ig_username || 'Mehul Jain'
 
   return (
     <AnimatePresence>
@@ -47,8 +49,8 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
           inset: 0,
           zIndex: 999999,
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -62,12 +64,12 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
           style={{
-            width: '590px',
+            width: '600px',
             maxWidth: '96vw',
             backgroundColor: '#ffffff',
-            borderRadius: '14px',
+            borderRadius: '16px',
             border: '1px solid #d2d2d7',
-            boxShadow: '0 24px 60px rgba(0,0,0,0.3), 0 0 1px rgba(0,0,0,0.2)',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.32), 0 0 1px rgba(0,0,0,0.2)',
             overflow: 'hidden',
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif',
             color: '#1d1d1f',
@@ -81,15 +83,16 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '10px 14px 6px 14px',
+            padding: '12px 16px 8px 16px',
             borderBottom: '1px solid #e5e5ea',
             backgroundColor: '#fbfbfd',
           }}>
-            {/* Traffic Light Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '80px' }}>
-              <button
+            {/* Traffic Light Dots (using div to prevent Win98 button override) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '80px' }}>
+              <div
                 onClick={() => { playWin98Click(); onClose(); }}
                 title="Close"
+                role="button"
                 style={{
                   width: '12px',
                   height: '12px',
@@ -97,42 +100,46 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                   backgroundColor: '#ff5f56',
                   border: '0.5px solid #e0443e',
                   cursor: 'pointer',
-                  padding: 0,
+                  flexShrink: 0,
                 }}
               />
-              <span
+              <div
                 style={{
                   width: '12px',
                   height: '12px',
                   borderRadius: '50%',
                   backgroundColor: '#ffbd2e',
                   border: '0.5px solid #dea123',
-                  opacity: 0.7,
+                  opacity: 0.6,
+                  flexShrink: 0,
                 }}
               />
-              <span
+              <div
                 style={{
                   width: '12px',
                   height: '12px',
                   borderRadius: '50%',
                   backgroundColor: '#27c93f',
                   border: '0.5px solid #1aab29',
-                  opacity: 0.7,
+                  opacity: 0.6,
+                  flexShrink: 0,
                 }}
               />
             </div>
 
-            {/* Navigation Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+            {/* Navigation Tabs (using styled div to completely bypass Win98 button styles) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
               {['Overview', 'Displays', 'Storage', 'Support', 'Service'].map((tab) => {
                 const isActive = activeTab === tab
                 return (
-                  <button
+                  <div
                     key={tab}
+                    role="button"
                     onClick={() => { playWin98Click(); setActiveTab(tab); }}
                     style={{
                       background: 'none',
                       border: 'none',
+                      boxShadow: 'none',
                       padding: '4px 2px',
                       fontSize: '13px',
                       fontWeight: isActive ? 600 : 400,
@@ -140,13 +147,15 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                       cursor: 'pointer',
                       position: 'relative',
                       transition: 'color 0.15s ease',
+                      outline: 'none',
+                      userSelect: 'none',
                     }}
                   >
                     {tab}
                     {isActive && (
                       <span style={{
                         position: 'absolute',
-                        bottom: '-7px',
+                        bottom: '-9px',
                         left: '50%',
                         transform: 'translateX(-50%)',
                         width: '100%',
@@ -155,7 +164,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                         borderRadius: '2px',
                       }} />
                     )}
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -165,12 +174,13 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
           </div>
 
           {/* ── Main Body Content ── */}
-          <div style={{ padding: '32px 36px 20px 36px', minHeight: '230px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ padding: '34px 38px 24px 38px', minHeight: '230px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {/* 1. OVERVIEW TAB */}
             {activeTab === 'Overview' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '34px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
                 {/* ── Left Column: Circular Profile Disc with 2nd-Quadrant App Logo Badge ── */}
                 <div style={{ position: 'relative', width: '160px', height: '160px', flexShrink: 0 }}>
-                  {/* Outer Bevel Ring / Shadow */}
+                  {/* Outer Bevel Ring */}
                   <div style={{
                     width: '160px',
                     height: '160px',
@@ -305,16 +315,17 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Action Buttons (div styled as macOS pill buttons) */}
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
+                    <div
+                      role="button"
                       onClick={() => {
                         playWin98Click()
                         onClose()
                         window.location.hash = '#/settings'
                       }}
                       style={{
-                        padding: '4px 14px',
+                        padding: '5px 14px',
                         backgroundColor: '#f5f5f7',
                         border: '1px solid #d2d2d7',
                         borderRadius: '6px',
@@ -324,21 +335,25 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                         cursor: 'pointer',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                         transition: 'background 0.15s ease',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#e8e8ed'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f7'}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8e8ed'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
                     >
                       System Report...
-                    </button>
+                    </div>
 
-                    <button
+                    <div
+                      role="button"
                       onClick={() => {
                         playWin98Click()
                         onClose()
                         window.location.hash = '#/timeline'
                       }}
                       style={{
-                        padding: '4px 14px',
+                        padding: '5px 14px',
                         backgroundColor: '#f5f5f7',
                         border: '1px solid #d2d2d7',
                         borderRadius: '6px',
@@ -348,17 +363,21 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
                         cursor: 'pointer',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                         transition: 'background 0.15s ease',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#e8e8ed'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f7'}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8e8ed'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
                     >
                       Software Update...
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* 2. STORAGE TAB */}
             {activeTab === 'Storage' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -400,6 +419,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
               </div>
             )}
 
+            {/* 3. DISPLAYS TAB */}
             {activeTab === 'Displays' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                 <div style={{ fontSize: '38px' }}>🖥️</div>
@@ -414,42 +434,100 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
               </div>
             )}
 
+            {/* 4. SUPPORT TAB — Links to GitHub */}
             {activeTab === 'Support' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                <div style={{ fontWeight: 600 }}>MemWault Help & Documentation</div>
-                <div style={{ color: '#6e6e73' }}>
-                  Need assistance preserving Instagram memories or exploring the World Atlas?
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: '#1d1d1f' }}>
+                  Developer & Repository Support
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  <button
-                    onClick={() => {
-                      playWin98Click()
-                      onClose()
-                      window.location.hash = '#/settings'
-                    }}
+                <div style={{ color: '#6e6e73', lineHeight: 1.5 }}>
+                  MemWault is architected by <strong>Mehul Jain</strong> to permanently preserve your Instagram memories with zero cloud lock-in.
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                  <a
+                    href="https://github.com/mehuljain866/MemWault"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => playWin98Click()}
                     style={{
-                      padding: '4px 12px',
+                      padding: '6px 14px',
                       backgroundColor: '#f5f5f7',
                       border: '1px solid #d2d2d7',
                       borderRadius: '6px',
+                      color: '#1d1d1f',
                       fontSize: '12px',
-                      cursor: 'pointer',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                     }}
                   >
-                    User Guide...
-                  </button>
+                    <Github size={14} />
+                    <span>MemWault on GitHub</span>
+                    <ExternalLink size={11} color="#6e6e73" />
+                  </a>
+
+                  <a
+                    href="https://github.com/mehuljain866"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => playWin98Click()}
+                    style={{
+                      padding: '6px 14px',
+                      backgroundColor: '#f5f5f7',
+                      border: '1px solid #d2d2d7',
+                      borderRadius: '6px',
+                      color: '#1d1d1f',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <span>Mehul Jain (Profile)</span>
+                    <ExternalLink size={11} color="#6e6e73" />
+                  </a>
                 </div>
               </div>
             )}
 
+            {/* 5. SERVICE TAB — Witty, Philosophical & Accurate Local Data Sovereignty Guarantee */}
             {activeTab === 'Service' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                <div style={{ fontWeight: 600 }}>Local Vault Guarantee</div>
-                <div style={{ color: '#6e6e73' }}>
-                  Coverage: Active & Lifetime Local SQLite Vault Storage.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: '#1d1d1f', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={18} color="#0071e3" />
+                  <span>Sovereignty & Local Ownership Guarantee</span>
                 </div>
-                <div style={{ color: '#34c759', fontWeight: 600, fontSize: '12px' }}>
-                  ● Hardware & Database COM1 Link Verified
+                
+                <div style={{ color: '#424245', lineHeight: 1.5, fontSize: '12px' }}>
+                  Your memories are not algorithmic fuel, nor are they tenants on someone else's ephemeral cloud server. 
+                  Every photograph, story reel, timestamp, and journal entry is preserved in permanent local SQLite storage on this machine.
+                </div>
+
+                <div style={{ color: '#6e6e73', lineHeight: 1.4, fontSize: '12px', fontStyle: 'italic' }}>
+                  "If the global network goes dark, your vault remains intact, timeless, and completely yours."
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                  border: '1px solid rgba(52, 199, 89, 0.3)',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  color: '#1b8a3e',
+                  fontWeight: 600,
+                  marginTop: '4px',
+                }}>
+                  <CheckCircle2 size={13} color="#34c759" />
+                  <span>100% Local SQLite Vault • Zero Telemetry • Physical Hardware Sovereignty</span>
                 </div>
               </div>
             )}
@@ -464,7 +542,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
             borderTop: '1px solid #f2f2f7',
             backgroundColor: '#ffffff',
           }}>
-            ™ and © 1983–2026 Apple Inc. & MemWault Corp. All Rights Reserved. &nbsp;&nbsp;
+            ™ and © 1998–2026 Mehul Jain & MemWault Corp. All Rights Reserved. &nbsp;&nbsp;
             <span style={{ color: '#0071e3', cursor: 'pointer' }} onClick={() => { playWin98Click(); onClose(); }}>
               License Agreement
             </span>

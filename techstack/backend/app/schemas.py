@@ -463,7 +463,7 @@ class PostMediaUpdate(BaseModel):
 
 class QRUploadSessionRead(BaseModel):
     id: uuid.UUID
-    post_id: uuid.UUID
+    post_id: Optional[uuid.UUID] = None
     token: str
     qr_url: str
     expires_at: datetime

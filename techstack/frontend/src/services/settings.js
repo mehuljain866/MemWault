@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS = {
   win98WidgetPositions: {},
   win98SoundEnabled: true,
   win98BootScreen: true,
+  customQRCodes: true, // true = styled era frames & dots, false = classic high-contrast B&W
 };
 
 export function applyThemeSettings(settings) {

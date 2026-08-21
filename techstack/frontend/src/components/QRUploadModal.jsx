@@ -11,7 +11,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
   const [uploadedCount, setUploadedCount] = useState(0)
 
   useEffect(() => {
-    if (!isOpen || !postId) {
+    if (!isOpen) {
       setSession(null)
       return
     }
@@ -19,7 +19,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
     let isMounted = true
     setLoading(true)
 
-    createQRSession(postId)
+    createQRSession(postId || null)
       .then((data) => {
         if (isMounted) {
           setSession(data)
@@ -43,8 +43,9 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
       try {
         const data = await getUploadPortalSession(session.token)
         if (data.uploaded_files && data.uploaded_files.length > uploadedCount) {
+          const latestFile = data.uploaded_files[data.uploaded_files.length - 1]
           setUploadedCount(data.uploaded_files.length)
-          if (onUploadSuccess) onUploadSuccess()
+          if (onUploadSuccess) onUploadSuccess(latestFile)
         }
       } catch (err) {
         console.error('Poll error', err)

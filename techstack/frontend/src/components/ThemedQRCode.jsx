@@ -234,40 +234,100 @@ const THEME_QR_CONFIGS = {
   }
 };
 
+const STANDARD_QR_CONFIG = {
+  width: 200,
+  height: 200,
+  type: 'svg',
+  qrOptions: { errorCorrectionLevel: 'H' },
+  dotsOptions: {
+    type: 'square',
+    color: '#000000',
+  },
+  cornersSquareOptions: {
+    type: 'square',
+    color: '#000000',
+  },
+  cornersDotOptions: {
+    type: 'square',
+    color: '#000000',
+  },
+  backgroundOptions: {
+    color: '#ffffff',
+  },
+};
+
 // ── Themed QR Code Master Card ─────────────────────────────────
 export default function ThemedQRCodeCard({ url, title, caption }) {
   const qrRef = useRef(null);
   const qrCodeInstance = useRef(null);
   const settings = getSettings();
+  const [useCustomStyle, setUseCustomStyle] = React.useState(settings.customQRCodes !== false);
   const themeId = settings.themeId || 'darkroom';
 
-  useEffect(() => {
-    const config = THEME_QR_CONFIGS[themeId] || THEME_QR_CONFIGS.darkroom;
+  React.useEffect(() => {
+    const config = useCustomStyle
+      ? (THEME_QR_CONFIGS[themeId] || THEME_QR_CONFIGS.darkroom)
+      : STANDARD_QR_CONFIG;
 
-    qrCodeInstance.current = new QRCodeStyling({
-      ...config,
-      data: url || 'https://memwault.app',
-    });
+    try {
+      qrCodeInstance.current = new QRCodeStyling({
+        ...config,
+        data: url || 'https://memwault.app',
+      });
 
-    if (qrRef.current) {
-      qrRef.current.innerHTML = '';
-      qrCodeInstance.current.append(qrRef.current);
+      if (qrRef.current) {
+        qrRef.current.innerHTML = '';
+        qrCodeInstance.current.append(qrRef.current);
+      }
+    } catch (err) {
+      console.warn('QR Code generation fallback', err);
     }
-  }, [themeId, url]);
+  }, [themeId, url, useCustomStyle]);
+
+  const toggleStyle = (e) => {
+    e.stopPropagation();
+    const nextVal = !useCustomStyle;
+    setUseCustomStyle(nextVal);
+    const s = getSettings();
+    saveSettings({ ...s, customQRCodes: nextVal });
+  };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-      {themeId === 'win98' && <Win98WindowFrame qrRef={qrRef} title={title} />}
-      {themeId === 'y2k' && <Y2KChromeFrame qrRef={qrRef} />}
-      {themeId === 'field-notes' && <FieldNotesPaperFrame qrRef={qrRef} caption={caption} />}
-      {themeId === 'polaroid' && <PolaroidFrame qrRef={qrRef} caption={caption} />}
-      {themeId === 'darkroom' && <DarkroomTrayFrame qrRef={qrRef} />}
-      {themeId === 'observatory' && <ObservatoryAstrolabeFrame qrRef={qrRef} />}
-      {themeId === 'monolith' && <MonolithFrame qrRef={qrRef} />}
-      {themeId === 'insta2016' && <Insta2016Frame qrRef={qrRef} />}
-      {(themeId === 'basic' || themeId === 'vault-classic' || themeId === 'cabinet-1974' || themeId === 'scriptorium' || themeId === 'mid-century' || themeId === 'aqua' || themeId === 'ios7' || themeId === 'material' || themeId === 'neumorphic') && (
-        <StandardFrame qrRef={qrRef} themeId={themeId} />
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        {useCustomStyle && themeId === 'win98' && <Win98WindowFrame qrRef={qrRef} title={title} />}
+        {useCustomStyle && themeId === 'y2k' && <Y2KChromeFrame qrRef={qrRef} />}
+        {useCustomStyle && themeId === 'field-notes' && <FieldNotesPaperFrame qrRef={qrRef} caption={caption} />}
+        {useCustomStyle && themeId === 'polaroid' && <PolaroidFrame qrRef={qrRef} caption={caption} />}
+        {useCustomStyle && themeId === 'darkroom' && <DarkroomTrayFrame qrRef={qrRef} />}
+        {useCustomStyle && themeId === 'observatory' && <ObservatoryAstrolabeFrame qrRef={qrRef} />}
+        {useCustomStyle && themeId === 'monolith' && <MonolithFrame qrRef={qrRef} />}
+        {useCustomStyle && themeId === 'insta2016' && <Insta2016Frame qrRef={qrRef} />}
+        {(!useCustomStyle || themeId === 'basic' || themeId === 'vault-classic' || themeId === 'cabinet-1974' || themeId === 'scriptorium' || themeId === 'mid-century' || themeId === 'aqua' || themeId === 'ios7' || themeId === 'material' || themeId === 'neumorphic') && (
+          <StandardFrame qrRef={qrRef} themeId={useCustomStyle ? themeId : 'basic'} />
+        )}
+      </div>
+
+      {/* Style Toggle Button */}
+      <button
+        onClick={toggleStyle}
+        style={{
+          background: 'none',
+          border: '1px solid var(--ios-border, #444)',
+          borderRadius: '20px',
+          padding: '4px 12px',
+          fontSize: '11px',
+          color: 'var(--ios-text-secondary, #aaa)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          marginTop: '4px',
+        }}
+      >
+        <span>{useCustomStyle ? '✨ Era Styled Frame' : '🔳 Standard Matrix'}</span>
+        <span style={{ fontSize: '9px', opacity: 0.7 }}>(click to switch)</span>
+      </button>
     </div>
   );
 }

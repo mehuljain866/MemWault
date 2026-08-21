@@ -490,6 +490,13 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
         <QRUploadModal
           isOpen={isQRModalOpen}
           onClose={() => setIsQRModalOpen(false)}
+          onUploadSuccess={(latestFile) => {
+            if (latestFile?.url) {
+              handleUpdate('win98Wallpaper', latestFile.url)
+              setFeedbackMsg('Wallpaper received from smartphone!')
+              setTimeout(() => setFeedbackMsg(''), 3500)
+            }
+          }}
         />
       )}
     </div>

@@ -398,8 +398,11 @@ export async function replacePostMediaRaw(postId, mediaId, file, companionVideo 
   })
 }
 
-export async function createQRSession(postId) {
-  return apiFetch(`/posts/${postId}/qr-session`, { method: 'POST' })
+export async function createQRSession(postId = null) {
+  if (postId) {
+    return apiFetch(`/posts/${postId}/qr-session`, { method: 'POST' })
+  }
+  return apiFetch('/upload/qr-session', { method: 'POST' })
 }
 
 export async function getUploadPortalSession(token) {

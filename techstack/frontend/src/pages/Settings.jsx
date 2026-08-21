@@ -813,6 +813,20 @@ export default function Settings() {
           />
         </div>
 
+        {/* Custom / Themed QR Codes Toggle */}
+        <div className="settings-row-panel" style={{ padding: '14px 16px', borderTop: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="settings-item-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Custom & Era-Styled QR Codes</div>
+            <div className="settings-item-val" style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>Render stylized era-themed QR frames (Windows 98, Y2K chrome, etc.) or standard high-contrast matrix</div>
+          </div>
+          <input
+            type="checkbox"
+            className="ios-toggle"
+            checked={playbackSettings.customQRCodes !== false}
+            onChange={(e) => handleSettingChange('customQRCodes', e.target.checked)}
+          />
+        </div>
+
         {/* Win98 Quick Toolbar Toggle */}
         {playbackSettings.themeId === 'win98' && (
           <div className="settings-row-panel" style={{ padding: '14px 16px', borderTop: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

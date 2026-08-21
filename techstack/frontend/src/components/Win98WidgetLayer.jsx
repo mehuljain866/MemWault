@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Layers, HardDrive, Server, Clock, RefreshCw, Upload, Sparkles,
   Images, Video, Star, Music, MapPin, Users, CheckCircle2, XCircle,
@@ -7,12 +7,39 @@ import {
 import { getSettings, saveSettings } from '../services/settings'
 import { playWin98Click, playWin98Minimize } from '../services/win98Audio'
 
+const DEFAULT_POSITIONS = {
+  memoryCounter: { x: 24, y: 30 },
+  statGrid: { x: 24, y: 160 },
+  quickActions: { x: 380, y: 30 },
+  systemHealth: { x: 380, y: 180 },
+  auditLog: { x: 24, y: 380 },
+}
+
 export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate }) {
   const [settings, setSettings] = useState(getSettings())
   const [positions, setPositions] = useState(settings.win98WidgetPositions || {})
-  const [draggingWidget, setDraggingWidget] = useState(null)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [minimizedWidgets, setMinimizedWidgets] = useState({})
+
+  // Active drag state in ref to avoid react state render thrashing
+  const dragRef = useRef({
+    activeKey: null,
+    startX: 0,
+    startY: 0,
+    initPosX: 0,
+    initPosY: 0,
+    currentX: 0,
+    currentY: 0,
+    element: null,
+    rafId: null,
+  })
+
+  const widgetRefs = {
+    memoryCounter: useRef(null),
+    statGrid: useRef(null),
+    quickActions: useRef(null),
+    systemHealth: useRef(null),
+    auditLog: useRef(null),
+  }
 
   useEffect(() => {
     const handleSettingsUpdate = () => {
@@ -24,46 +51,86 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
     return () => window.removeEventListener('memwault-settings-changed', handleSettingsUpdate)
   }, [])
 
-  // Default positions if none saved
-  const defaultPositions = {
-    memoryCounter: { x: 24, y: 30 },
-    statGrid: { x: 24, y: 160 },
-    quickActions: { x: 380, y: 30 },
-    systemHealth: { x: 380, y: 180 },
-    auditLog: { x: 24, y: 380 },
-  }
-
   const getPos = (key) => {
-    return positions[key] || defaultPositions[key] || { x: 40, y: 40 }
+    return positions[key] || DEFAULT_POSITIONS[key] || { x: 40, y: 40 }
   }
 
-  const handleMouseDown = (e, key) => {
+  const startDrag = (e, key) => {
+    e.preventDefault()
     e.stopPropagation()
+
     const current = getPos(key)
-    setDraggingWidget(key)
-    setDragOffset({
-      x: e.clientX - current.x,
-      y: e.clientY - current.y,
+    const el = widgetRefs[key]?.current
+    if (!el) return
+
+    dragRef.current = {
+      activeKey: key,
+      startX: e.clientX,
+      startY: e.clientY,
+      initPosX: current.x,
+      initPosY: current.y,
+      currentX: current.x,
+      currentY: current.y,
+      element: el,
+      rafId: null,
+    }
+
+    el.style.zIndex = '9999'
+    el.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+
+    window.addEventListener('mousemove', onGlobalMouseMove, { passive: false })
+    window.addEventListener('mouseup', onGlobalMouseUp)
+  }
+
+  const onGlobalMouseMove = (e) => {
+    const state = dragRef.current
+    if (!state.activeKey || !state.element) return
+
+    const deltaX = e.clientX - state.startX
+    const deltaY = e.clientY - state.startY
+
+    const newX = Math.max(10, Math.min(window.innerWidth - 220, state.initPosX + deltaX))
+    const newY = Math.max(10, Math.min(window.innerHeight - 80, state.initPosY + deltaY))
+
+    state.currentX = newX
+    state.currentY = newY
+
+    if (!state.rafId) {
+      state.rafId = requestAnimationFrame(() => {
+        if (state.element) {
+          state.element.style.left = `${state.currentX}px`
+          state.element.style.top = `${state.currentY}px`
+        }
+        state.rafId = null
+      })
+    }
+  }
+
+  const onGlobalMouseUp = () => {
+    const state = dragRef.current
+    if (!state.activeKey) return
+
+    window.removeEventListener('mousemove', onGlobalMouseMove)
+    window.removeEventListener('mouseup', onGlobalMouseUp)
+    document.body.style.userSelect = ''
+
+    if (state.element) {
+      state.element.style.zIndex = '10'
+      state.element.style.cursor = ''
+    }
+
+    const key = state.activeKey
+    const finalPos = { x: state.currentX, y: state.currentY }
+
+    setPositions(prev => {
+      const updated = { ...prev, [key]: finalPos }
+      const s = getSettings()
+      saveSettings({ ...s, win98WidgetPositions: updated })
+      return updated
     })
-  }
 
-  const handleMouseMove = (e) => {
-    if (!draggingWidget) return
-    const newX = Math.max(10, Math.min(window.innerWidth - 260, e.clientX - dragOffset.x))
-    const newY = Math.max(10, Math.min(window.innerHeight - 100, e.clientY - dragOffset.y))
-    const updated = {
-      ...positions,
-      [draggingWidget]: { x: newX, y: newY },
-    }
-    setPositions(updated)
-  }
-
-  const handleMouseUp = () => {
-    if (draggingWidget) {
-      const s = { ...settings, win98WidgetPositions: positions }
-      saveSettings(s)
-      setDraggingWidget(null)
-    }
+    dragRef.current.activeKey = null
   }
 
   const toggleMinimize = (key) => {
@@ -80,8 +147,6 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
 
   return (
     <div
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
       style={{
         position: 'absolute',
         inset: 0,
@@ -93,6 +158,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
       {/* ── 1. MEMORY COUNTER WIDGET ────────────────────── */}
       {isVisible('memoryCounter') && (
         <div
+          ref={widgetRefs.memoryCounter}
           style={{
             position: 'absolute',
             left: `${getPos('memoryCounter').x}px`,
@@ -103,11 +169,13 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
             boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000, inset 2px 2px #dfdfdf, 3px 3px 10px rgba(0,0,0,0.3)',
             pointerEvents: 'auto',
             userSelect: 'none',
+            zIndex: 10,
+            willChange: 'left, top',
           }}
         >
           {/* Title Bar */}
           <div
-            onMouseDown={(e) => handleMouseDown(e, 'memoryCounter')}
+            onMouseDown={(e) => startDrag(e, 'memoryCounter')}
             style={{
               background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
               color: '#fff',
@@ -115,7 +183,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              cursor: 'move',
+              cursor: 'grab',
               fontSize: '11px',
               fontWeight: 'bold',
             }}
@@ -170,6 +238,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
       {/* ── 2. STAT GRID WIDGET ────────────────────── */}
       {isVisible('statGrid') && (
         <div
+          ref={widgetRefs.statGrid}
           style={{
             position: 'absolute',
             left: `${getPos('statGrid').x}px`,
@@ -180,11 +249,13 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
             boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000, inset 2px 2px #dfdfdf, 3px 3px 10px rgba(0,0,0,0.3)',
             pointerEvents: 'auto',
             userSelect: 'none',
+            zIndex: 10,
+            willChange: 'left, top',
           }}
         >
           {/* Title Bar */}
           <div
-            onMouseDown={(e) => handleMouseDown(e, 'statGrid')}
+            onMouseDown={(e) => startDrag(e, 'statGrid')}
             style={{
               background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
               color: '#fff',
@@ -192,7 +263,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              cursor: 'move',
+              cursor: 'grab',
               fontSize: '11px',
               fontWeight: 'bold',
             }}
@@ -260,6 +331,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
       {/* ── 3. QUICK ACTIONS WIDGET ────────────────────── */}
       {isVisible('quickActions') && (
         <div
+          ref={widgetRefs.quickActions}
           style={{
             position: 'absolute',
             left: `${getPos('quickActions').x}px`,
@@ -270,11 +342,13 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
             boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000, inset 2px 2px #dfdfdf, 3px 3px 10px rgba(0,0,0,0.3)',
             pointerEvents: 'auto',
             userSelect: 'none',
+            zIndex: 10,
+            willChange: 'left, top',
           }}
         >
           {/* Title Bar */}
           <div
-            onMouseDown={(e) => handleMouseDown(e, 'quickActions')}
+            onMouseDown={(e) => startDrag(e, 'quickActions')}
             style={{
               background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
               color: '#fff',
@@ -282,7 +356,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              cursor: 'move',
+              cursor: 'grab',
               fontSize: '11px',
               fontWeight: 'bold',
             }}
@@ -342,6 +416,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
       {/* ── 4. SYSTEM HEALTH WIDGET ────────────────────── */}
       {isVisible('systemHealth') && (
         <div
+          ref={widgetRefs.systemHealth}
           style={{
             position: 'absolute',
             left: `${getPos('systemHealth').x}px`,
@@ -352,11 +427,13 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
             boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000, inset 2px 2px #dfdfdf, 3px 3px 10px rgba(0,0,0,0.3)',
             pointerEvents: 'auto',
             userSelect: 'none',
+            zIndex: 10,
+            willChange: 'left, top',
           }}
         >
           {/* Title Bar */}
           <div
-            onMouseDown={(e) => handleMouseDown(e, 'systemHealth')}
+            onMouseDown={(e) => startDrag(e, 'systemHealth')}
             style={{
               background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
               color: '#fff',
@@ -364,7 +441,7 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              cursor: 'move',
+              cursor: 'grab',
               fontSize: '11px',
               fontWeight: 'bold',
             }}

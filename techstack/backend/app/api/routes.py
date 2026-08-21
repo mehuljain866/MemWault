@@ -1885,22 +1885,24 @@ async def replace_post_media_raw(
     return _format_post_media(media, s3)
 
 
+@router.post("/upload/qr-session", response_model=QRUploadSessionRead)
 @router.post("/posts/{post_id}/qr-session", response_model=QRUploadSessionRead)
 async def create_qr_upload_session(
-    post_id: uuid.UUID,
+    post_id: Optional[uuid.UUID] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a local Wi-Fi QR code session for uploading master files from phone camera roll.
+    Generate a local Wi-Fi QR code session for uploading master files / wallpapers from phone camera roll.
     """
     import secrets
     from datetime import timedelta
 
-    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
-    post = result.scalar_one_or_none()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    if post_id:
+        result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+        post = result.scalar_one_or_none()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
@@ -1956,7 +1958,26 @@ async def get_upload_portal_session(
         raise HTTPException(status_code=410, detail="QR upload session has expired")
 
     post = session.post
-    formatted_post = _format_post(post, s3)
+    if post:
+        formatted_post = _format_post(post, s3)
+    else:
+        formatted_post = {
+            "id": "general-transfer",
+            "caption": "MemWault Mobile Media & Wallpaper Transfer",
+            "date": session.created_at.isoformat(),
+            "is_carousel": False,
+            "total_slides": 1,
+            "media_items": [
+                {
+                    "id": "slot-0",
+                    "slide_index": 0,
+                    "media_type": "IMAGE",
+                    "display_url": None,
+                    "has_raw_master": len(session.uploaded_files or []) > 0,
+                    "is_live_photo": False,
+                }
+            ]
+        }
 
     return {
         "session_id": session.id,
@@ -1977,7 +1998,7 @@ async def upload_portal_files(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Direct mobile LAN stream upload endpoint to attach uncompressed RAW / Live Photos from phone.
+    Direct mobile LAN stream upload endpoint to attach uncompressed RAW / Live Photos / wallpapers from phone.
     """
     from app.media.motion_photo import extract_embedded_motion_video, extract_image_metadata
     s3 = get_storage()
@@ -1996,15 +2017,35 @@ async def upload_portal_files(
     if exp < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Expired session")
 
+    file_bytes = await file.read()
+    ext = Path(file.filename or "file.jpg").suffix.lower() or ".jpg"
+
     post = session.post
+    if not post:
+        # General file / wallpaper upload
+        raw_s3_key = f"wallpapers/{session.token}_{file.filename}"
+        s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "image/jpeg")
+        file_url = s3.get_url(raw_s3_key)
+
+        uploaded = list(session.uploaded_files or [])
+        uploaded_item = {
+            "filename": file.filename,
+            "url": file_url,
+            "slide_index": slide_index,
+            "is_live_photo": False,
+            "size_bytes": len(file_bytes),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        }
+        uploaded.append(uploaded_item)
+        session.uploaded_files = uploaded
+        await db.commit()
+        return {"status": "ok", "url": file_url, "uploaded_file": uploaded_item}
+
     media = next((m for m in post.media_items if m.slide_index == slide_index), None)
     if not media:
         raise HTTPException(status_code=404, detail=f"Slide index {slide_index} not found")
 
-    file_bytes = await file.read()
-    ext = Path(file.filename or "file.jpg").suffix.lower() or ".jpg"
     raw_s3_key = f"posts/raw_masters/{post.id}_{slide_index}{ext}"
-
     s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "application/octet-stream")
 
     img_meta = extract_image_metadata(file_bytes)

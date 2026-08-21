@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   Layers, HardDrive, Server, Clock, RefreshCw, Upload, Sparkles,
   Images, Video, Star, Music, MapPin, Users, CheckCircle2, XCircle,
-  Database, Activity, Minimize2, X
+  Database, Activity, Minimize2, X, Eye, EyeOff
 } from 'lucide-react'
 import SevenSegmentDisplay from './SevenSegmentDisplay'
 import { getSettings, saveSettings } from '../services/settings'
@@ -13,7 +13,6 @@ const DEFAULT_POSITIONS = {
   statGrid: { x: 24, y: 160 },
   quickActions: { x: 380, y: 30 },
   systemHealth: { x: 380, y: 180 },
-  auditLog: { x: 24, y: 380 },
 }
 
 export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate }) {
@@ -39,7 +38,6 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
     statGrid: useRef(null),
     quickActions: useRef(null),
     systemHealth: useRef(null),
-    auditLog: useRef(null),
   }
 
   useEffect(() => {
@@ -142,9 +140,33 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
     }))
   }
 
+  const hideWidget = (key) => {
+    playWin98Click()
+    const s = getSettings()
+    const currentVis = s.win98WidgetVisibility || {}
+    const newVisibility = { ...currentVis, [key]: false }
+    saveSettings({ ...s, win98WidgetVisibility: newVisibility })
+    setSettings({ ...s, win98WidgetVisibility: newVisibility })
+  }
+
+  const showAllWidgets = () => {
+    playWin98Click()
+    const s = getSettings()
+    const newVisibility = {
+      memoryCounter: true,
+      statGrid: true,
+      quickActions: true,
+      systemHealth: true,
+    }
+    saveSettings({ ...s, win98WidgetVisibility: newVisibility })
+    setSettings({ ...s, win98WidgetVisibility: newVisibility })
+  }
+
   const isVisible = (key) => {
     return settings.win98WidgetVisibility?.[key] !== false
   }
+
+  const anyWidgetVisible = ['memoryCounter', 'statGrid', 'quickActions', 'systemHealth'].some(isVisible)
 
   return (
     <div
@@ -193,12 +215,22 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               <Layers size={13} />
               <span>MemWault Archive Counter</span>
             </div>
-            <div style={{ display: 'flex', gap: '2px' }}>
+            <div className="win98-title-controls" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               <button
+                className="win98-title-btn"
                 onClick={() => toggleMinimize('memoryCounter')}
-                style={{ width: '14px', height: '12px', background: '#c0c0c0', border: 'none', boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                title="Minimize widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
               >
                 _
+              </button>
+              <button
+                className="win98-title-btn is-close"
+                onClick={() => hideWidget('memoryCounter')}
+                title="Hide widget (Right-click desktop to restore)"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -272,12 +304,22 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               <Activity size={13} />
               <span>Media Breakdown Grid</span>
             </div>
-            <div style={{ display: 'flex', gap: '2px' }}>
+            <div className="win98-title-controls" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               <button
+                className="win98-title-btn"
                 onClick={() => toggleMinimize('statGrid')}
-                style={{ width: '14px', height: '12px', background: '#c0c0c0', border: 'none', boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                title="Minimize widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
               >
                 _
+              </button>
+              <button
+                className="win98-title-btn is-close"
+                onClick={() => hideWidget('statGrid')}
+                title="Hide widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -365,12 +407,22 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               <RefreshCw size={13} />
               <span>Quick Action Controls</span>
             </div>
-            <div style={{ display: 'flex', gap: '2px' }}>
+            <div className="win98-title-controls" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               <button
+                className="win98-title-btn"
                 onClick={() => toggleMinimize('quickActions')}
-                style={{ width: '14px', height: '12px', background: '#c0c0c0', border: 'none', boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                title="Minimize widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
               >
                 _
+              </button>
+              <button
+                className="win98-title-btn is-close"
+                onClick={() => hideWidget('quickActions')}
+                title="Hide widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -388,9 +440,11 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
                   justifyContent: 'center',
                   gap: '6px',
                   fontWeight: 'bold',
+                  cursor: 'pointer',
+                  color: '#000080',
                 }}
               >
-                <RefreshCw size={14} className={syncing ? 'spin-anim' : ''} />
+                <RefreshCw size={14} color="#000080" className={syncing ? 'spin-anim' : ''} />
                 <span>{syncing ? 'Syncing Stories...' : 'Sync Active Stories'}</span>
               </button>
 
@@ -403,9 +457,12 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  color: '#000080',
                 }}
               >
-                <Upload size={14} />
+                <Upload size={14} color="#000080" />
                 <span>Browse Archive Vault</span>
               </button>
             </div>
@@ -450,12 +507,22 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
               <HardDrive size={13} />
               <span>System & Storage Monitor</span>
             </div>
-            <div style={{ display: 'flex', gap: '2px' }}>
+            <div className="win98-title-controls" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
               <button
+                className="win98-title-btn"
                 onClick={() => toggleMinimize('systemHealth')}
-                style={{ width: '14px', height: '12px', background: '#c0c0c0', border: 'none', boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                title="Minimize widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
               >
                 _
+              </button>
+              <button
+                className="win98-title-btn is-close"
+                onClick={() => hideWidget('systemHealth')}
+                title="Hide widget"
+                style={{ width: '16px', height: '14px', fontSize: '10px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -490,6 +557,34 @@ export default function Win98WidgetLayer({ stats, syncing, onSync, onNavigate })
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Restore Widgets Floating Button if All are Hidden ── */}
+      {!anyWidgetVisible && (
+        <button
+          onClick={showAllWidgets}
+          className="segment-btn"
+          style={{
+            position: 'absolute',
+            bottom: '40px',
+            right: '20px',
+            pointerEvents: 'auto',
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '2px 2px 8px rgba(0,0,0,0.5)',
+            zIndex: 20,
+            cursor: 'pointer',
+            backgroundColor: '#c0c0c0',
+            color: '#000080',
+          }}
+        >
+          <Eye size={13} color="#000080" />
+          <span>Show Desktop Widgets</span>
+        </button>
       )}
     </div>
   )

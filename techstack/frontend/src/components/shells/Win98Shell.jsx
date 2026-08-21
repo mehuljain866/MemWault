@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { triggerScrape, getDashboardStats } from '../../services/api';
-import { getSettings } from '../../services/settings';
+import { getSettings, saveSettings } from '../../services/settings';
 import { 
   Monitor, Image as ImageIcon, Video, Folder, Settings, Map as MapIcon, 
   RotateCcw, Package, Grid, Layers, Sparkles, Volume2, HardDrive,
   Power, HelpCircle, Search, FileText, ChevronRight, Terminal, Trash2, CheckCircle2,
-  Sliders, LayoutGrid, BookOpen
+  Sliders, LayoutGrid, BookOpen, Eye, EyeOff
 } from 'lucide-react';
 
 import ShutdownModal from '../ShutdownModal';
 import Win98DisplayProperties from '../Win98DisplayProperties';
 import Win98BootScreen from '../Win98BootScreen';
 import Win98WidgetLayer from '../Win98WidgetLayer';
-import { playWin98Click, playWin98Minimize, playWin98Maximize } from '../../services/win98Audio';
+import { playWin98Click, playWin98Minimize, playWin98Maximize, playWin98Startup } from '../../services/win98Audio';
 
 const APPS_LIST = [
   { path: '/', name: 'MemWault.exe', label: 'Vault Main', icon: Monitor },
@@ -103,12 +103,18 @@ export default function Win98Shell({ children }) {
 
   // System Tray Resource Monitor state
   const [showResourcePopup, setShowResourcePopup] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const startMenuRef = useRef(null);
   const resourcePopupRef = useRef(null);
 
   const currentApp = resolveAppInfo(location.pathname);
   const CurrentIcon = currentApp.icon;
+
+  useEffect(() => {
+    // Play startup chime on session init
+    playWin98Startup();
+  }, []);
 
   useEffect(() => {
     const loadStats = () => {
@@ -137,7 +143,7 @@ export default function Win98Shell({ children }) {
     };
   }, [location.pathname]);
 
-  // Close start menu when clicking outside
+  // Close start menu & context menu when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
       if (startMenuRef.current && !startMenuRef.current.contains(e.target) && !e.target.closest('.win98-start-btn')) {
@@ -148,12 +154,13 @@ export default function Win98Shell({ children }) {
       if (resourcePopupRef.current && !resourcePopupRef.current.contains(e.target) && !e.target.closest('.win98-tray-resource-btn')) {
         setShowResourcePopup(false);
       }
+      setContextMenu(null);
     }
-    if (isStartMenuOpen || showResourcePopup) {
+    if (isStartMenuOpen || showResourcePopup || contextMenu) {
       window.addEventListener('mousedown', handleClickOutside);
       return () => window.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isStartMenuOpen, showResourcePopup]);
+  }, [isStartMenuOpen, showResourcePopup, contextMenu]);
 
   const handleSync = () => {
     playWin98Click();
@@ -173,6 +180,42 @@ export default function Win98Shell({ children }) {
       });
   };
 
+  const handleShowAllWidgets = () => {
+    playWin98Click();
+    const s = getSettings();
+    const newVis = {
+      memoryCounter: true,
+      statGrid: true,
+      quickActions: true,
+      systemHealth: true,
+    };
+    saveSettings({ ...s, win98WidgetVisibility: newVis });
+    setSettings({ ...s, win98WidgetVisibility: newVis });
+    setContextMenu(null);
+  };
+
+  const handleHideAllWidgets = () => {
+    playWin98Click();
+    const s = getSettings();
+    const newVis = {
+      memoryCounter: false,
+      statGrid: false,
+      quickActions: false,
+      systemHealth: false,
+    };
+    saveSettings({ ...s, win98WidgetVisibility: newVis });
+    setSettings({ ...s, win98WidgetVisibility: newVis });
+    setContextMenu(null);
+  };
+
+  const handleResetWidgetPositions = () => {
+    playWin98Click();
+    const s = getSettings();
+    saveSettings({ ...s, win98WidgetPositions: {} });
+    setSettings({ ...s, win98WidgetPositions: {} });
+    setContextMenu(null);
+  };
+
   const menuItems = {
     File: [
       { label: 'Sync Archive Now', action: handleSync },
@@ -189,7 +232,11 @@ export default function Win98Shell({ children }) {
       { label: 'Feed Grid (Large Icons)', action: () => { playWin98Click(); navigate('/posts'); setIsMinimized(false); } },
       { label: 'Story Timeline (List)', action: () => { playWin98Click(); navigate('/timeline'); setIsMinimized(false); } },
       { label: 'World Atlas Map', action: () => { playWin98Click(); navigate('/map'); setIsMinimized(false); } },
-      { label: 'Story Highlights', action: () => { playWin98Click(); navigate('/highlights'); setIsMinimized(false); } }
+      { label: 'Story Highlights', action: () => { playWin98Click(); navigate('/highlights'); setIsMinimized(false); } },
+      { label: '----------------', action: () => {} },
+      { label: 'Show Desktop Widgets', action: handleShowAllWidgets },
+      { label: 'Hide All Desktop Widgets', action: handleHideAllWidgets },
+      { label: 'Reset Widget Positions', action: handleResetWidgetPositions },
     ],
     Options: [
       { label: 'Display Properties...', action: () => { playWin98Click(); setDisplayPropsOpen(true); } },
@@ -247,7 +294,17 @@ export default function Win98Shell({ children }) {
   };
 
   return (
-    <div className="win98-desktop-environment" style={desktopStyle}>
+    <div 
+      className="win98-desktop-environment" 
+      style={desktopStyle}
+      onContextMenu={(e) => {
+        if (e.target.closest('.win98-outer-window') || e.target.closest('.win98-start-menu') || e.target.closest('.win98-taskbar') || e.target.closest('.win98-modal')) return;
+        e.preventDefault();
+        playWin98Click();
+        setContextMenu({ x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) });
+      }}
+      onClick={() => { if (contextMenu) setContextMenu(null); }}
+    >
       {/* ── Boot Splash Screen (Startup) ── */}
       {showBootScreen && (
         <Win98BootScreen
@@ -256,6 +313,70 @@ export default function Win98Shell({ children }) {
             setShowBootScreen(false);
           }}
         />
+      )}
+
+      {/* ── Classic Win98 Desktop Right-Click Context Menu ── */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+            backgroundColor: '#c0c0c0',
+            border: '1px solid #000000',
+            boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 3px 3px 10px rgba(0,0,0,0.5)',
+            zIndex: 99999,
+            padding: '2px',
+            minWidth: '180px',
+            fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+            fontSize: '11px',
+            userSelect: 'none',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            onClick={handleShowAllWidgets}
+            className="win98-context-item"
+            style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
+            <Eye size={12} color="#000080" />
+            <span>Show Desktop Widgets</span>
+          </div>
+          <div
+            onClick={handleHideAllWidgets}
+            className="win98-context-item"
+            style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
+            <EyeOff size={12} color="#800000" />
+            <span>Hide Desktop Widgets</span>
+          </div>
+          <div
+            onClick={handleResetWidgetPositions}
+            className="win98-context-item"
+            style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
+            <RotateCcw size={12} />
+            <span>Reset Widget Layout</span>
+          </div>
+          <div style={{ height: '1px', backgroundColor: '#808080', borderBottom: '1px solid #ffffff', margin: '2px 0' }} />
+          <div
+            onClick={() => { playWin98Click(); setContextMenu(null); }}
+            className="win98-context-item"
+            style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
+            <RefreshCw size={12} />
+            <span>Refresh Desktop</span>
+          </div>
+          <div style={{ height: '1px', backgroundColor: '#808080', borderBottom: '1px solid #ffffff', margin: '2px 0' }} />
+          <div
+            onClick={() => { playWin98Click(); setDisplayPropsOpen(true); setContextMenu(null); }}
+            className="win98-context-item"
+            style={{ padding: '3px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            <Monitor size={12} color="#000080" />
+            <span>Properties</span>
+          </div>
+        </div>
       )}
 
       {/* ── Desktop Layer: Active Desktop Widgets ── */}

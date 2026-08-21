@@ -1,9 +1,11 @@
 /**
  * Authentic Microsoft Windows 98 Sound System
- * Uses bit-for-bit authentic 1998 Microsoft WAV audio samples with instant audio pre-caching.
+ * Uses bit-for-bit authentic 1998 Microsoft WAV audio samples with instant audio pre-caching
+ * and reliable browser autoplay-unlock handling.
  */
 
 const AUDIO_CACHE = {}
+let startupPlayedInSession = false
 
 function getCachedAudio(filename) {
   if (typeof window === 'undefined') return null
@@ -21,17 +23,43 @@ function getCachedAudio(filename) {
 
 /**
  * Play authentic Microsoft Windows 98 Startup Chime (Original "The Microsoft Sound.wav")
+ * Handles browser autoplay policy by attaching a one-time interaction listener if initially blocked.
  */
-export function playWin98Startup() {
+export function playWin98Startup(force = false) {
+  if (typeof window === 'undefined') return
+  if (startupPlayedInSession && !force) return
+
   try {
     const audio = getCachedAudio('win98_startup.wav')
     if (audio) {
       audio.volume = 0.85
       const promise = audio.play()
       if (promise !== undefined) {
-        promise.catch(err => {
-          console.warn('Startup audio autoplay blocked by browser policy until interaction:', err)
-        })
+        promise
+          .then(() => {
+            startupPlayedInSession = true
+            sessionStorage.setItem('win98_startup_sound_played', 'true')
+          })
+          .catch(() => {
+            // Autoplay blocked: wait for first user gesture then trigger startup chime
+            const unlockAndPlay = () => {
+              if (startupPlayedInSession && !force) return
+              const retryAudio = getCachedAudio('win98_startup.wav')
+              if (retryAudio) {
+                retryAudio.volume = 0.85
+                retryAudio.play().then(() => {
+                  startupPlayedInSession = true
+                  sessionStorage.setItem('win98_startup_sound_played', 'true')
+                }).catch(() => {})
+              }
+              window.removeEventListener('click', unlockAndPlay)
+              window.removeEventListener('keydown', unlockAndPlay)
+              window.removeEventListener('touchstart', unlockAndPlay)
+            }
+            window.addEventListener('click', unlockAndPlay, { once: true })
+            window.addEventListener('keydown', unlockAndPlay, { once: true })
+            window.addEventListener('touchstart', unlockAndPlay, { once: true })
+          })
       }
     }
   } catch (e) {
@@ -110,7 +138,21 @@ export function playWin98Ding() {
 }
 
 /**
- * Play authentic Microsoft Windows 98 Shutdown Sound ("LOGOFF.WAV")
+ * Play authentic Microsoft Windows 98 Critical Stop / Error Sound
+ */
+export function playWin98Error() {
+  try {
+    const audio = getCachedAudio('win98_chord.wav')
+    if (audio) {
+      audio.volume = 0.8
+      const p = audio.play()
+      if (p !== undefined) p.catch(() => {})
+    }
+  } catch (e) {}
+}
+
+/**
+ * Play authentic Microsoft Windows 98 Shutdown Sound ("LOGON.WAV" / "LOGOFF.WAV")
  */
 export function playWin98Shutdown() {
   try {
@@ -123,13 +165,16 @@ export function playWin98Shutdown() {
   } catch (e) {}
 }
 
-// Pre-cache sounds on module load
-if (typeof window !== 'undefined') {
-  ['win98_startup.wav', 'win98_shutdown.wav', 'win98_chord.wav', 'win98_ding.wav', 'win98_start.wav', 'win98_notify.wav'].forEach(f => {
-    try {
-      const a = new Audio(`/sounds/${f}`)
-      a.preload = 'auto'
-      AUDIO_CACHE[f] = a
-    } catch (e) {}
-  })
+/**
+ * Play authentic Microsoft Windows 98 Empty Recycle Bin Sound
+ */
+export function playWin98Recycle() {
+  try {
+    const audio = getCachedAudio('win98_recycle.wav')
+    if (audio) {
+      audio.volume = 0.75
+      const p = audio.play()
+      if (p !== undefined) p.catch(() => {})
+    }
+  } catch (e) {}
 }

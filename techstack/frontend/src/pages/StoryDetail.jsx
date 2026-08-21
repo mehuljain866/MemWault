@@ -5,6 +5,7 @@ import { getStory, getStoryViewers, refreshStoryViewers, locateStoryMedia, updat
 import StoryPlayer from '../components/StoryPlayer'
 import LocationModal from '../components/LocationModal'
 import MusicPlayer from '../components/MusicPlayer'
+import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
 import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink } from 'lucide-react'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { getSettings } from '../services/settings'
@@ -686,16 +687,13 @@ export default function StoryDetail() {
                 </div>
               )}
 
-              {/* ── Manifest Tab ──────────────── */}
+              {/* ── Manifest Tab (Era-Appropriate Syntax Code) ── */}
               {activeTab === 'manifest' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-                  <pre style={{
-                    background: '#1e1e1e', color: '#d4d4d4', padding: '16px', borderRadius: '12px',
-                    overflow: 'auto', flex: 1, maxHeight: '500px', fontSize: '12px', fontFamily: 'monospace',
-                    whiteSpace: 'pre-wrap', wordBreak: 'break-word'
-                  }}>
-                    {JSON.stringify(story, null, 2)}
-                  </pre>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, paddingBottom: '16px' }}>
+                  <SyntaxJsonViewer
+                    data={story}
+                    filename={`STORY_${story.id?.slice(0, 8).toUpperCase()}.JSON`}
+                  />
                 </div>
               )}
 

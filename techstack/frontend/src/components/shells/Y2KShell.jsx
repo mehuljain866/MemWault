@@ -52,7 +52,7 @@ export default function Y2KShell({ children }) {
           <div className="y2k-vfd-display">
             <span className="y2k-vfd-dot">•</span>
             <span className="y2k-vfd-text">
-              REC: {String(totalItems).padStart(4, '0')} MEMORIES [ONLINE] // PROTOCOL: v2.6 // SYS_TEMP: 38°C
+              REC: {String(totalItems).padStart(4, '0')} MEMORIES [ONLINE] // PROTOCOL: v3.2 // SYS_TEMP: 38°C
             </span>
           </div>
 

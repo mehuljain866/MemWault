@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-v2.6-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 2.6" />
+  <img src="https://img.shields.io/badge/Version-v3.2-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 3.2" />
   <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React 19" />
   <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
@@ -230,6 +230,26 @@ Single Archived Memory Object
 ---
 
 ## Changelog & Evolution
+
+### Version 3.2 — Windows 98 Design System Perfection & Architecture
+- **Authentic Windows 98 Property Sheet Engine:** Continuous 3D tab strip, black legends, and compact vertical rhythm.
+- **Halftone Dithered Segmented Controls:** System-wide Windows 98 3D sunken containers with authentic 2x2 halftone dither pattern and 1px pressed offset.
+- **Windows 98 Notepad / DevStudio Syntax Code Viewer:** Built-in retro syntax-highlighted JSON viewer with line numbering and 1998 Microsoft Visual Studio color palette.
+- **Categorized Dashboard & Widget Architecture:** Segregated Stories/Memories and Feed Posts/Carousels into clean, distinct groupboxes and desktop gadgets.
+- **Official Microsoft 1998 WAV Sound Suite:** Bundled bit-for-bit authentic 1998 Microsoft WAV audio samples (Brian Eno startup sound, shutdown chord, navigation clicks) with zero boot delay.
+- **Authentic Shutdown Modal:** 3D outset Windows 98 dialog with "It's now safe to turn off your computer" screen.
+
+### Version 3.1 — Mobile QR Wallpaper Portal & Performance Engine
+- **Dynamic Mobile QR Wallpaper Portal:** Generate responsive QR codes for direct mobile-to-desktop photo upload with live camera previews.
+- **60 FPS Hardware-Accelerated Desktop Widgets:** Pure matrix transforms for smooth, lag-free widget dragging across high-DPI displays.
+
+### Version 3.0 — Era Design Engine & Active Desktop Paradigm
+- **Windows 98 Desktop Paradigm:** Fully interactive Windows 98 desktop environment complete with Start Menu, Taskbar, Draggable Windows, CRT Monitor Preview, and authentic double-bevel borders.
+- **Multi-Era Design Architecture:** Comprehensive support for modern iOS HIG, Tactile Skeuomorphism, Y2K Brushed Chrome, and Windows 98.
+
+### Version 2.6 — Feed Posts, Carousels & RAW Master Archival
+- **Instagram Feed Posts & Carousels:** Complete ingestion pipeline for multi-slide carousels, video posts, and full-resolution uncompressed master media.
+- **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
 
 ### Version 2.5 — Architecture, Data Model & Documentation Update
 - **Memory Object Model (MOM):** Standardized domain entity modeling for Stories, modeling them as rich multi-context memory objects.

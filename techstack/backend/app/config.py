@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # ── App ──────────────────────────────────────────────
     app_name: str = "MemWault"
-    app_version: str = "2.6.0"
+    app_version: str = "3.2.0"
     debug: bool = False
     secret_key: str = "change-me-to-a-random-secret-key-in-production"
 

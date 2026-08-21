@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Monitor, Smartphone, Upload, Sliders, Volume2, Layers } from 'lucide-react'
+import { Monitor } from 'lucide-react'
 import { getSettings, saveSettings } from '../services/settings'
 import { playWin98Startup, playWin98Chord, playWin98Shutdown, playWin98Click, playWin98Ding } from '../services/win98Audio'
 import QRUploadModal from './QRUploadModal'
@@ -67,73 +67,24 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 99999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(0,0,0,0.35)',
-    }}>
-      {/* 3D Window Frame */}
-      <div style={{
-        width: '420px',
-        maxWidth: '95vw',
-        backgroundColor: 'var(--win98-face, #c0c0c0)',
-        border: '1px solid var(--win98-dark-shadow, #000000)',
-        boxShadow: `
-          inset 1px 1px 0px 0px var(--win98-highlight, #ffffff),
-          inset -1px -1px 0px 0px var(--win98-dark-shadow, #000000),
-          inset 2px 2px 0px 0px var(--win98-light, #dfdfdf),
-          inset -2px -2px 0px 0px var(--win98-shadow, #808080),
-          4px 4px 16px rgba(0,0,0,0.5)
-        `,
-        padding: '3px',
-        fontFamily: 'var(--win98-font, "MS Sans Serif", Tahoma, sans-serif)',
-        fontSize: '11px',
-        color: '#000000',
-        userSelect: 'none',
-      }}>
+    <div className="win98-dialog-overlay">
+      <div className="win98-dialog-window">
         {/* Title Bar */}
-        <div style={{
-          background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
-          color: '#ffffff',
-          fontWeight: 'bold',
-          padding: '3px 4px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="win98-dialog-titlebar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <Monitor size={13} color="#ffffff" />
             <span>Display Properties</span>
           </div>
           <button
             onClick={() => { playWin98Click(); onClose(); }}
-            style={{
-              width: '16px',
-              height: '14px',
-              backgroundColor: '#c0c0c0',
-              border: 'none',
-              boxShadow: 'inset 1px 1px #fff, inset -1px -1px #000',
-              color: '#000000',
-              fontSize: '10px',
-              fontWeight: 'bold',
-              lineHeight: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-            }}
+            className="win98-dialog-close-btn"
           >
             ✕
           </button>
         </div>
 
-        {/* Tab Strip Container */}
-        <div style={{ display: 'flex', paddingLeft: '4px', marginTop: '4px', gap: '2px', position: 'relative', zIndex: 2 }}>
+        {/* Tab Strip */}
+        <div className="win98-tabs-header">
           {[
             { id: 'background', label: 'Background' },
             { id: 'widgets', label: 'Widgets & Desktop' },
@@ -144,25 +95,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
               <button
                 key={tab.id}
                 onClick={() => { playWin98Click(); setActiveTab(tab.id); }}
-                style={{
-                  padding: '3px 8px 4px 8px',
-                  backgroundColor: '#c0c0c0',
-                  border: '1px solid #000',
-                  borderBottom: isActive ? 'none' : '1px solid #000',
-                  boxShadow: isActive
-                    ? 'inset 1px 1px #ffffff, inset -1px 0px #808080'
-                    : 'inset 1px 1px #dfdfdf',
-                  fontWeight: isActive ? 'bold' : 'normal',
-                  cursor: 'pointer',
-                  borderTopLeftRadius: '3px',
-                  borderTopRightRadius: '3px',
-                  position: 'relative',
-                  top: isActive ? '1px' : '0px',
-                  marginBottom: isActive ? '-1px' : '0px',
-                  zIndex: isActive ? 3 : 1,
-                  fontFamily: 'inherit',
-                  fontSize: '11px',
-                }}
+                className={`win98-tab-button ${isActive ? 'active' : ''}`}
               >
                 {tab.label}
               </button>
@@ -170,50 +103,40 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           })}
         </div>
 
-        {/* Property Sheet Main Canvas */}
-        <div style={{
-          backgroundColor: '#c0c0c0',
-          border: '1px solid #000000',
-          boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
-          padding: '10px',
-          position: 'relative',
-          zIndex: 1,
-          minHeight: '310px',
-        }}>
-          {/* TAB 1: BACKGROUND */}
+        {/* Property Sheet Content Body */}
+        <div className="win98-tab-pane">
+          {/* ── TAB 1: BACKGROUND ── */}
           {activeTab === 'background' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Authentic CRT Desktop Monitor with Pedestal */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {/* CRT Housing */}
+              {/* Authentic CRT Monitor Preview */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2px' }}>
                 <div style={{
-                  width: '160px',
-                  height: '110px',
+                  width: '152px',
+                  height: '104px',
                   backgroundColor: '#dcd8cf',
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   border: '1px solid #707070',
-                  boxShadow: 'inset 2px 2px #ffffff, inset -2px -2px #505050, 1px 1px 3px rgba(0,0,0,0.3)',
-                  padding: '6px',
+                  boxShadow: 'inset 2px 2px #ffffff, inset -2px -2px #505050',
+                  padding: '5px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   boxSizing: 'border-box',
                 }}>
-                  {/* CRT Screen Bezel */}
                   <div style={{
                     width: '100%',
-                    height: '84px',
+                    height: '80px',
                     backgroundColor: '#111111',
-                    borderRadius: '4px',
+                    borderRadius: '3px',
                     border: '2px solid #505050',
-                    boxShadow: 'inset 2px 2px #000000',
+                    boxShadow: 'inset 1px 1px #000000',
                     overflow: 'hidden',
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
                   }}>
-                    {/* Screen Wallpaper Surface */}
+                    {/* Screen Viewport */}
                     <div style={{
                       flex: 1,
                       backgroundColor: currentSettings.win98Wallpaper ? '#000000' : 'var(--win98-desktop, #008080)',
@@ -231,10 +154,9 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                         </span>
                       )}
                     </div>
-
-                    {/* Mini CRT Taskbar */}
+                    {/* Mini Taskbar */}
                     <div style={{
-                      height: '10px',
+                      height: '9px',
                       backgroundColor: '#c0c0c0',
                       borderTop: '1px solid #ffffff',
                       display: 'flex',
@@ -242,97 +164,67 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                       justifyContent: 'space-between',
                       padding: '0 2px',
                     }}>
-                      <div style={{ width: '14px', height: '6px', backgroundColor: '#dfdfdf', border: '1px outset #fff' }} />
-                      <div style={{ width: '12px', height: '6px', backgroundColor: '#dfdfdf', border: '1px inset #808080' }} />
+                      <div style={{ width: '12px', height: '5px', backgroundColor: '#dfdfdf', border: '1px solid #fff' }} />
+                      <div style={{ width: '10px', height: '5px', backgroundColor: '#dfdfdf', border: '1px solid #808080' }} />
                     </div>
                   </div>
 
-                  {/* Monitor Controls & Power LED */}
+                  {/* Monitor Controls */}
                   <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
                     <div style={{ display: 'flex', gap: '2px' }}>
-                      <div style={{ width: '4px', height: '2px', backgroundColor: '#909090' }} />
-                      <div style={{ width: '4px', height: '2px', backgroundColor: '#909090' }} />
+                      <div style={{ width: '3px', height: '2px', backgroundColor: '#909090' }} />
+                      <div style={{ width: '3px', height: '2px', backgroundColor: '#909090' }} />
                     </div>
-                    {/* Glowing Green Power LED */}
                     <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#00ff00', boxShadow: '0 0 3px #00ff00' }} />
                   </div>
                 </div>
 
-                {/* CRT Swivel Stand Pedestal */}
+                {/* CRT Pedestal Stand */}
                 <div style={{
-                  width: '60px',
-                  height: '8px',
+                  width: '50px',
+                  height: '6px',
                   backgroundColor: '#c4c0b6',
                   border: '1px solid #707070',
                   borderTop: 'none',
                   boxShadow: 'inset 1px 0px #ffffff, inset -1px 0px #505050',
                 }} />
                 <div style={{
-                  width: '90px',
+                  width: '76px',
                   height: '4px',
                   backgroundColor: '#b8b4aa',
                   border: '1px solid #707070',
                   borderRadius: '0 0 2px 2px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                 }} />
               </div>
 
-              {/* Wallpaper Selection Controls (Authentic Win98 GroupBox) */}
-              <fieldset style={{
-                border: '1px solid #808080',
-                boxShadow: 'inset 1px 1px #ffffff',
-                padding: '8px 10px',
-                marginTop: '4px',
-              }}>
-                <legend style={{ padding: '0 4px', color: '#000080', fontWeight: 'bold' }}>
-                  Wallpaper
-                </legend>
+              {/* Wallpaper Selection Controls */}
+              <fieldset className="win98-fieldset">
+                <legend>Wallpaper</legend>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '10px' }}>
-                  {/* Sunken ListBox */}
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #000',
-                    boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf',
-                    height: '92px',
-                    overflowY: 'auto',
-                    padding: '1px',
-                  }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '8px' }}>
+                  {/* Listbox */}
+                  <div className="win98-listbox" style={{ height: '84px' }}>
                     {PRESET_WALLPAPERS.map(item => {
                       const isSelected = (item.url === currentSettings.win98Wallpaper) || (!item.url && !currentSettings.win98Wallpaper);
                       return (
                         <div
                           key={item.id}
                           onClick={() => handleUpdate('win98Wallpaper', item.url)}
-                          style={{
-                            padding: '2px 4px',
-                            backgroundColor: isSelected ? '#000080' : 'transparent',
-                            color: isSelected ? '#ffffff' : '#000000',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                          }}
+                          className={`win98-listbox-item ${isSelected ? 'selected' : ''}`}
                         >
                           {item.label}
                         </div>
                       )
                     })}
                     {currentSettings.win98Wallpaper && !PRESET_WALLPAPERS.some(p => p.url === currentSettings.win98Wallpaper) && (
-                      <div
-                        style={{
-                          padding: '2px 4px',
-                          backgroundColor: '#000080',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                        }}
-                      >
+                      <div className="win98-listbox-item selected">
                         [Custom User Image]
                       </div>
                     )}
                   </div>
 
-                  {/* Sizing & Action Buttons */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {/* Buttons & Display dropdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '2px' }}>Display:</label>
                       <select
@@ -340,7 +232,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                         onChange={(e) => handleUpdate('win98WallpaperMode', e.target.value)}
                         style={{
                           width: '100%',
-                          padding: '2px',
+                          padding: '1px 2px',
                           backgroundColor: '#ffffff',
                           border: '1px solid #000',
                           boxShadow: 'inset 1px 1px #808080',
@@ -356,16 +248,16 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="btn-win98"
-                      style={{ padding: '4px', width: '100%' }}
+                      className="win98-standard-btn"
+                      style={{ width: '100%' }}
                     >
                       Browse PC...
                     </button>
 
                     <button
                       onClick={() => setIsQRModalOpen(true)}
-                      className="btn-win98"
-                      style={{ padding: '4px', width: '100%' }}
+                      className="win98-standard-btn"
+                      style={{ width: '100%' }}
                     >
                       Phone (QR)...
                     </button>
@@ -383,19 +275,13 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
             </div>
           )}
 
-          {/* TAB 2: WIDGETS & DESKTOP */}
+          {/* ── TAB 2: WIDGETS & DESKTOP ── */}
           {activeTab === 'widgets' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <fieldset style={{
-                border: '1px solid #808080',
-                boxShadow: 'inset 1px 1px #ffffff',
-                padding: '8px 10px',
-              }}>
-                <legend style={{ padding: '0 4px', color: '#000080', fontWeight: 'bold' }}>
-                  Desktop Paradigm
-                </legend>
+              <fieldset className="win98-fieldset">
+                <legend>Desktop Paradigm</legend>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '2px 0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                     <input
                       type="radio"
@@ -404,7 +290,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                       checked={(currentSettings.win98DashboardMode || 'dashboard') === 'dashboard'}
                       onChange={() => handleUpdate('win98DashboardMode', 'dashboard')}
                     />
-                    <span>Standard Dashboard Application Window</span>
+                    <span>Standard Application Window (Dashboard Window)</span>
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -420,16 +306,14 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                 </div>
               </fieldset>
 
-              <fieldset style={{
-                border: '1px solid #808080',
-                boxShadow: 'inset 1px 1px #ffffff',
-                padding: '8px 10px',
-              }}>
-                <legend style={{ padding: '0 4px', color: '#000080', fontWeight: 'bold' }}>
-                  Gadget Items
-                </legend>
+              <fieldset className="win98-fieldset">
+                <legend>Active Gadget Items</legend>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <div style={{ fontSize: '11px', color: '#444444', marginBottom: '8px' }}>
+                  Select the individual gadget boxes displayed on the wallpaper:
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', padding: '2px 0' }}>
                   {[
                     { key: 'memoryCounter', label: 'Memory Counter' },
                     { key: 'statGrid', label: 'Media Breakdown Grid' },
@@ -448,14 +332,15 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                   ))}
                 </div>
 
-                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: '#666666' }}>Drag gadgets to reposition</span>
                   <button
                     onClick={() => {
                       handleUpdate('win98WidgetPositions', {})
                       setFeedbackMsg('Widget coordinates reset.')
+                      setTimeout(() => setFeedbackMsg(''), 2500)
                     }}
-                    className="btn-win98"
-                    style={{ padding: '3px 8px' }}
+                    className="win98-standard-btn"
                   >
                     Reset Positions
                   </button>
@@ -464,19 +349,13 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
             </div>
           )}
 
-          {/* TAB 3: SOUNDS */}
+          {/* ── TAB 3: SOUND FX ── */}
           {activeTab === 'sounds' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <fieldset style={{
-                border: '1px solid #808080',
-                boxShadow: 'inset 1px 1px #ffffff',
-                padding: '8px 10px',
-              }}>
-                <legend style={{ padding: '0 4px', color: '#000080', fontWeight: 'bold' }}>
-                  System Audio Scheme
-                </legend>
+              <fieldset className="win98-fieldset">
+                <legend>Sound Scheme & Boot Splash</legend>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '2px 0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -497,24 +376,22 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                 </div>
               </fieldset>
 
-              <fieldset style={{
-                border: '1px solid #808080',
-                boxShadow: 'inset 1px 1px #ffffff',
-                padding: '8px 10px',
-              }}>
-                <legend style={{ padding: '0 4px', color: '#000080', fontWeight: 'bold' }}>
-                  Audio Test
-                </legend>
+              <fieldset className="win98-fieldset">
+                <legend>Audio Preview</legend>
+
+                <div style={{ fontSize: '11px', color: '#444444', marginBottom: '8px' }}>
+                  Test bit-for-bit official 1998 Microsoft Windows WAV samples:
+                </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-                  <button onClick={playWin98Startup} className="btn-win98" style={{ padding: '6px 2px' }}>
-                    ▶ Startup.wav
+                  <button onClick={playWin98Startup} className="win98-standard-btn" style={{ height: '26px' }}>
+                    ▶ Startup
                   </button>
-                  <button onClick={playWin98Chord} className="btn-win98" style={{ padding: '6px 2px' }}>
-                    ▶ Chord.wav
+                  <button onClick={playWin98Chord} className="win98-standard-btn" style={{ height: '26px' }}>
+                    ▶ Chord
                   </button>
-                  <button onClick={playWin98Shutdown} className="btn-win98" style={{ padding: '6px 2px' }}>
-                    ▶ Logoff.wav
+                  <button onClick={playWin98Shutdown} className="win98-standard-btn" style={{ height: '26px' }}>
+                    ▶ Logoff
                   </button>
                 </div>
               </fieldset>
@@ -523,43 +400,34 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
           {feedbackMsg && (
             <div style={{
-              position: 'absolute',
-              bottom: '8px',
-              left: '12px',
               color: '#000080',
               fontWeight: 'bold',
-              fontSize: '10px',
+              fontSize: '11px',
+              marginTop: '4px',
             }}>
               {feedbackMsg}
             </div>
           )}
         </div>
 
-        {/* Dialog Actions (Right Aligned Win98 Buttons) */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '6px',
-          padding: '8px 4px 4px 4px',
-        }}>
+        {/* Footer Actions */}
+        <div className="win98-dialog-footer">
           <button
             onClick={handleSaveAndClose}
-            className="btn-win98"
-            style={{ width: '70px', padding: '4px', fontWeight: 'bold' }}
+            className="win98-standard-btn"
+            style={{ fontWeight: 'bold' }}
           >
             OK
           </button>
           <button
             onClick={() => { playWin98Click(); onClose(); }}
-            className="btn-win98"
-            style={{ width: '70px', padding: '4px' }}
+            className="win98-standard-btn"
           >
             Cancel
           </button>
           <button
             onClick={handleApplyOnly}
-            className="btn-win98"
-            style={{ width: '70px', padding: '4px' }}
+            className="win98-standard-btn"
           >
             Apply
           </button>

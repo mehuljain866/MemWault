@@ -243,9 +243,6 @@ export default function Win98Shell({ children }) {
     Options: [
       { label: 'Display Properties...', action: () => { playWin98Click(); setDisplayPropsOpen(true); } },
       { label: 'Toggle Full Screen Window', action: () => { playWin98Maximize(); setIsMaximized(!isMaximized); } }
-    ],
-    Help: [
-      { label: 'About MemWault 98...', action: () => { playWin98Click(); setAboutModalOpen(true); } }
     ]
   };
 

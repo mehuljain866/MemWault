@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Smartphone, Copy, Check, Upload, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { createQRSession, getUploadPortalSession } from '../services/api'
-import ThemedQRCodeCard from './ThemedQRCode'
 
 export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess }) {
   const [session, setSession] = useState(null)
@@ -15,7 +15,6 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
     createQRSession(postId || null)
       .then((data) => {
         if (data && data.qr_url) {
-          // If the backend returns 127.0.0.1 but the frontend is running on a LAN IP, adjust to make it accessible by phone camera
           let finalQrUrl = data.qr_url
           const currentHost = window.location.hostname
           if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1' && finalQrUrl.includes('127.0.0.1')) {
@@ -23,7 +22,6 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
           }
           setSession({ ...data, qr_url: finalQrUrl })
         } else {
-          // Fallback session
           const fallbackToken = 'local_' + Math.random().toString(36).substring(2, 12)
           const port = window.location.port ? `:${window.location.port}` : ''
           const fallbackUrl = `${window.location.protocol}//${window.location.hostname}${port}/upload-link/${fallbackToken}`
@@ -144,6 +142,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
             </p>
           </div>
 
+          {/* Normal Reliable Standard QR Code Container */}
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             marginBottom: '18px', width: '100%'
@@ -153,11 +152,30 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
                 <RefreshCw size={28} className="spin-anim" color="var(--ios-accent, #007aff)" />
               </div>
             ) : session?.qr_url ? (
-              <ThemedQRCodeCard
-                url={session.qr_url}
-                title="UPLOAD_PORTAL.EXE"
-                caption="Scan on Wi-Fi 📷"
-              />
+              <div style={{
+                backgroundColor: '#ffffff',
+                padding: '16px',
+                borderRadius: '16px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <QRCodeSVG
+                  value={session.qr_url}
+                  size={200}
+                  level="M"
+                  includeMargin={false}
+                  imageSettings={{
+                    src: "/logos/memwault_app_logo.png",
+                    x: undefined,
+                    y: undefined,
+                    height: 38,
+                    width: 38,
+                    excavate: true,
+                  }}
+                />
+              </div>
             ) : (
               <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#888' }}>
                 <span>Could not generate QR session</span>

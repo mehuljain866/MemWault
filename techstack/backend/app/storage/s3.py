@@ -179,6 +179,10 @@ class StorageClient:
         )
         return url
 
+    def get_url(self, s3_key: str) -> str:
+        """Alias for get_presigned_url."""
+        return self.get_presigned_url(s3_key)
+
     # ── List & Delete ────────────────────────────────────
 
     def list_objects(self, prefix: str = "") -> list[dict]:

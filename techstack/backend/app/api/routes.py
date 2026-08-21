@@ -2062,7 +2062,7 @@ async def upload_portal_files(
         # General file / wallpaper upload
         raw_s3_key = f"wallpapers/{session.token}_{file.filename}"
         s3.upload_bytes(file_bytes, raw_s3_key, content_type=file.content_type or "image/jpeg")
-        file_url = s3.get_url(raw_s3_key)
+        file_url = s3.get_presigned_url(raw_s3_key)
 
         uploaded = list(session.uploaded_files or [])
         uploaded_item = {

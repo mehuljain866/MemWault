@@ -1,18 +1,74 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Maximize2, Minimize2, ExternalLink, MapPin, Compass, Navigation } from 'lucide-react'
+import { 
+  X, Maximize2, Minimize2, ExternalLink, MapPin, Compass, 
+  Navigation, Save, Check, Plus, Minus, Layers
+} from 'lucide-react'
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
 import { getSettings } from '../services/settings'
 import { playWin98Click } from '../services/win98Audio'
 
-/**
- * Google Street View In-App Window with Fullscreen Toggle
- * Opens an interactive 360° street panorama inside an in-app window with full-screen expansion.
- */
-export default function StreetViewModal({ isOpen, onClose, locationName, lat, lng }) {
+// Custom Orange Pegman Icon matching real Google Maps Pegman
+const pegmanIcon = L.divIcon({
+  html: `
+    <div style="position: relative; width: 28px; height: 36px; display: flex; flex-direction: column; align-items: center;">
+      <svg width="26" height="34" viewBox="0 0 24 32" fill="none">
+        <!-- Head -->
+        <circle cx="12" cy="6" r="4.5" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
+        <!-- Torso & Arms -->
+        <path d="M7 11.5C7 10.5 8 9.5 12 9.5C16 9.5 17 10.5 17 11.5L18 20C18 21 16.5 21.5 15 21.5L15 29C15 30 13.5 30.5 12.5 30.5L12.5 22L11.5 22L11.5 30.5C10.5 30.5 9 30 9 29L9 21.5C7.5 21.5 6 21 6 20L7 11.5Z" fill="#F4B400" stroke="#000000" stroke-width="1.2"/>
+        <!-- Tie / Collar -->
+        <path d="M11 10L12 14L13 10Z" fill="#DB4437"/>
+      </svg>
+      <!-- Drop Shadow -->
+      <div style="position: absolute; bottom: 0; width: 14px; height: 4px; background: rgba(0,0,0,0.4); border-radius: 50%;"></div>
+    </div>
+  `,
+  className: 'pegman-radar-pin',
+  iconSize: [28, 36],
+  iconAnchor: [14, 34]
+})
+
+function MiniMapClickEvents({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) onMapClick(e.latlng)
+    }
+  })
+  return null
+}
+
+export default function StreetViewModal({ 
+  isOpen, 
+  onClose, 
+  locationName, 
+  lat: initialLat, 
+  lng: initialLng,
+  onUpdateLocation 
+}) {
+  const [currentLat, setCurrentLat] = useState(initialLat)
+  const [currentLng, setCurrentLng] = useState(initialLng)
+  const [currentName, setCurrentName] = useState(locationName || '')
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const containerRef = useRef(null)
+  const [showRadar, setShowRadar] = useState(true)
+  const [updating, setUpdating] = useState(false)
+  const [updatedSuccess, setUpdatedSuccess] = useState(false)
+  const [miniMapZoom, setMiniMapZoom] = useState(15)
+  const miniMapRef = useRef(null)
+
   const settings = getSettings()
   const isWin98 = settings.themeId === 'win98'
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentLat(initialLat)
+      setCurrentLng(initialLng)
+      setCurrentName(locationName || '')
+      setUpdatedSuccess(false)
+    }
+  }, [isOpen, initialLat, initialLng, locationName])
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -25,228 +81,356 @@ export default function StreetViewModal({ isOpen, onClose, locationName, lat, ln
     return () => window.removeEventListener('keydown', handleEsc)
   }, [isOpen, isFullscreen, onClose])
 
-  if (!isOpen || !lat || !lng) return null
+  if (!isOpen || !currentLat || !currentLng) return null
 
   const toggleFullscreen = () => {
     if (isWin98) playWin98Click()
     setIsFullscreen(!isFullscreen)
   }
 
-  // Google Maps Street View interactive embed URL
-  const embedUrl = `https://maps.google.com/maps?q=${lat},${lng}&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&output=svembed`
-  const directMapsUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`
+  const handleMiniMapClick = (latlng) => {
+    if (isWin98) playWin98Click()
+    setCurrentLat(latlng.lat)
+    setCurrentLng(latlng.lng)
+    // Reverse geocode optionally or notify
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.display_name) {
+          setCurrentName(data.display_name.split(',')[0].trim())
+        }
+      })
+      .catch(() => {})
+  }
+
+  const handleUpdateLocation = async () => {
+    if (isWin98) playWin98Click()
+    setUpdating(true)
+    try {
+      if (onUpdateLocation) {
+        await onUpdateLocation({
+          location_name: currentName,
+          location_lat: currentLat,
+          location_lng: currentLng
+        })
+      }
+      setUpdatedSuccess(true)
+      setTimeout(() => setUpdatedSuccess(false), 2500)
+    } catch (err) {
+      alert('Failed to update location: ' + err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Interactive embed panorama URL
+  const embedUrl = `https://maps.google.com/maps?q=${currentLat},${currentLng}&layer=c&cbll=${currentLat},${currentLng}&cbp=11,0,0,0,0&output=svembed`
+  const directMapsUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${currentLat},${currentLng}`
 
   // ═══════════════════════════════════════════════════════════
   // 1. WINDOWS 98 AUTHENTIC WINDOW STYLE
   // ═══════════════════════════════════════════════════════════
   if (isWin98) {
     return (
-      <AnimatePresence>
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: isFullscreen ? '0' : '16px',
-        }}>
-          <div
-            ref={containerRef}
-            style={{
-              width: isFullscreen ? '100vw' : '820px',
-              height: isFullscreen ? '100vh' : '580px',
-              maxWidth: isFullscreen ? '100vw' : '95vw',
-              maxHeight: isFullscreen ? '100vh' : '90vh',
-              backgroundColor: '#c0c0c0',
-              border: '1px solid #000000',
-              boxShadow: isFullscreen ? 'none' : 'inset 1px 1px #ffffff, inset -1px -1px #808080, 4px 4px 16px rgba(0,0,0,0.5)',
-              display: 'flex',
-              flexDirection: 'column',
-              boxSizing: 'border-box',
-              fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
-            }}
-          >
-            {/* Title Bar */}
-            <div style={{
-              background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
-              color: '#ffffff',
-              fontWeight: 'bold',
-              padding: '3px 4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '11px',
-              userSelect: 'none',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                <Compass size={13} color="#ffffff" />
-                <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                  StreetView.exe - {locationName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '2px' }}>
-                <button
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? "Restore Window" : "Maximize Full Screen"}
-                  style={{
-                    width: '16px',
-                    height: '14px',
-                    backgroundColor: '#c0c0c0',
-                    border: '1px solid #000',
-                    boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  {isFullscreen ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
-                </button>
-                <button
-                  onClick={onClose}
-                  title="Close"
-                  style={{
-                    width: '16px',
-                    height: '14px',
-                    backgroundColor: '#c0c0c0',
-                    border: '1px solid #000',
-                    boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    padding: 0,
-                    fontWeight: 'bold',
-                    fontSize: '10px',
-                  }}
-                >
-                  <X size={10} />
-                </button>
-              </div>
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: isFullscreen ? '0' : '16px',
+        fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+        fontSize: '11px',
+      }}>
+        <div
+          style={{
+            width: isFullscreen ? '100vw' : '860px',
+            height: isFullscreen ? '100vh' : '620px',
+            maxWidth: isFullscreen ? '100vw' : '96vw',
+            maxHeight: isFullscreen ? '100vh' : '94vh',
+            backgroundColor: '#c0c0c0',
+            border: '1px solid #000000',
+            boxShadow: isFullscreen ? 'none' : 'inset 1px 1px #ffffff, inset -1px -1px #808080, 4px 4px 18px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Title Bar with High-Contrast Crisp Black Buttons */}
+          <div style={{
+            background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
+            color: '#ffffff',
+            fontWeight: 'bold',
+            padding: '3px 4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px',
+            userSelect: 'none',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+              <Compass size={13} color="#ffffff" />
+              <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                StreetView.exe - {currentName || `${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`}
+              </span>
+            </div>
+            
+            {/* Title Bar Controls with Guaranteed Visible Black Icons */}
+            <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+              {/* Maximize / Restore */}
+              <button
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Restore" : "Maximize"}
+                style={{
+                  width: '16px',
+                  height: '14px',
+                  backgroundColor: '#c0c0c0',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                {isFullscreen ? (
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <rect x="2" y="0" width="6" height="6" stroke="#000000" strokeWidth="1.2" fill="none" />
+                    <rect x="0" y="2" width="6" height="6" stroke="#000000" strokeWidth="1.2" fill="#c0c0c0" />
+                  </svg>
+                ) : (
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <rect x="0.5" y="0.5" width="8" height="8" stroke="#000000" strokeWidth="1.2" fill="none" />
+                    <line x1="0" y1="2" x2="9" y2="2" stroke="#000000" strokeWidth="1.5" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+                title="Close"
+                style={{
+                  width: '16px',
+                  height: '14px',
+                  backgroundColor: '#c0c0c0',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M1 1L7 7M7 1L1 7" stroke="#000000" strokeWidth="1.8" strokeLinecap="square" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Taskbar / Action Bar with "Update Location" Button */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '3px 6px',
+            backgroundColor: '#c0c0c0',
+            borderBottom: '1px solid #808080',
+            fontSize: '11px',
+            gap: '8px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+              <span style={{ fontWeight: 'bold' }}>Location:</span>
+              <span style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #000',
+                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                padding: '1px 8px',
+                fontSize: '11px',
+                color: '#000080',
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {currentName || 'GPS Location'} ({currentLat.toFixed(5)}, {currentLng.toFixed(5)})
+              </span>
             </div>
 
-            {/* Menu / Address Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '3px 6px',
-              backgroundColor: '#c0c0c0',
-              borderBottom: '1px solid #808080',
-              fontSize: '11px',
-              color: '#000000',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 600 }}>Location:</span>
-                <span style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #000',
-                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
-                  padding: '1px 6px',
-                  fontSize: '11px',
-                  color: '#000080',
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* UPDATE LOCATION BUTTON (Left of Open in Google Maps) */}
+              <button
+                onClick={handleUpdateLocation}
+                disabled={updating}
+                className="segment-btn"
+                title="Save current coordinates & metadata to memory"
+                style={{
+                  padding: '2px 10px',
+                  backgroundColor: updatedSuccess ? '#008000' : '#000080',
+                  color: '#ffffff',
                   fontWeight: 'bold',
-                }}>
-                  {locationName || 'GPS Coordinates'} ({lat.toFixed(5)}, {lng.toFixed(5)})
-                </span>
-              </div>
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {updatedSuccess ? <Check size={12} /> : <MapPin size={12} />}
+                <span>{updating ? 'Updating...' : (updatedSuccess ? 'Location Updated!' : '📍 Update Location')}</span>
+              </button>
 
               <a
                 href={directMapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="segment-btn"
                 style={{
                   color: '#000080',
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
+                  padding: '2px 8px',
+                  fontWeight: 'bold',
                 }}
               >
                 <span>Open in Google Maps</span>
                 <ExternalLink size={11} />
               </a>
             </div>
+          </div>
 
-            {/* 3D Sunken Viewport Canvas */}
-            <div style={{
-              flex: 1,
-              backgroundColor: '#000000',
-              margin: '2px',
-              border: '1px solid #000000',
-              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
-              position: 'relative',
-              overflow: 'hidden',
-            }}>
-              <iframe
-                src={embedUrl}
-                title="Google Street View"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  display: 'block',
-                }}
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-
-            {/* Status & Bottom Action Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '2px 4px',
-              backgroundColor: '#c0c0c0',
-              height: '22px',
-              boxSizing: 'border-box',
-              fontSize: '11px',
-            }}>
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0 4px',
-                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
-                color: '#000000',
+          {/* 3D Sunken Viewport Canvas with Bottom-Left Pegman Mini-Map Box */}
+          <div style={{
+            flex: 1,
+            backgroundColor: '#000000',
+            margin: '2px',
+            border: '1px solid #000000',
+            boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <iframe
+              src={embedUrl}
+              title="Google Street View"
+              style={{
+                width: '100%',
                 height: '100%',
-              }}>
-                <Navigation size={11} color="#008000" />
-                <span>360° Interactive Street Panorama Active</span>
-              </div>
+                border: 'none',
+                display: 'block',
+              }}
+              allowFullScreen
+              loading="lazy"
+            />
 
-              <button
-                onClick={toggleFullscreen}
-                style={{
-                  height: '100%',
+            {/* ── Iconic Bottom-Left Pegman Mini-Map Radar Box ── */}
+            {showRadar && (
+              <div style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '12px',
+                width: '190px',
+                height: '160px',
+                backgroundColor: '#ffffff',
+                border: '2px solid #000000',
+                borderRadius: '8px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                zIndex: 50,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <div style={{
                   backgroundColor: '#c0c0c0',
-                  border: '1px solid #000',
-                  boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
-                  padding: '0 8px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
+                  borderBottom: '1px solid #000',
+                  padding: '2px 4px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  color: '#000000',
-                  marginLeft: '4px',
-                }}
-              >
-                {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen View'}</span>
-              </button>
+                  justifyContent: 'space-between',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  color: '#000',
+                }}>
+                  <span>🗺️ Pegman Radar</span>
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    <button
+                      onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))}
+                      style={{ padding: '0 4px', fontSize: '9px', cursor: 'pointer' }}
+                    >+</button>
+                    <button
+                      onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))}
+                      style={{ padding: '0 4px', fontSize: '9px', cursor: 'pointer' }}
+                    >-</button>
+                  </div>
+                </div>
+                
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <MapContainer
+                    center={[currentLat, currentLng]}
+                    zoom={miniMapZoom}
+                    style={{ height: '100%', width: '100%' }}
+                    zoomControl={false}
+                    attributionControl={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[currentLat, currentLng]} icon={pegmanIcon} />
+                    <MiniMapClickEvents onMapClick={handleMiniMapClick} />
+                  </MapContainer>
+                </div>
+                <div style={{ backgroundColor: '#fff', fontSize: '8px', textAlign: 'center', padding: '1px', color: '#555' }}>
+                  Click road to jump Pegman
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Status & Bottom Action Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '2px 6px',
+            backgroundColor: '#c0c0c0',
+            height: '24px',
+            boxSizing: 'border-box',
+          }}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0 4px',
+              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+              color: '#000000',
+              height: '100%',
+            }}>
+              <Navigation size={11} color="#008000" />
+              <span>360° Street View & Walkaround Active • Click roads to navigate</span>
             </div>
+
+            <button
+              onClick={toggleFullscreen}
+              className="segment-btn"
+              style={{
+                height: '100%',
+                padding: '0 8px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginLeft: '4px',
+              }}
+            >
+              {isFullscreen ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+              <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen View'}</span>
+            </button>
           </div>
         </div>
-      </AnimatePresence>
+      </div>
     )
   }
 
@@ -254,154 +438,217 @@ export default function StreetViewModal({ isOpen, onClose, locationName, lat, ln
   // 2. MODERN / GLASSMORPHIC THEME STYLE
   // ═══════════════════════════════════════════════════════════
   return (
-    <AnimatePresence>
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(12px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: isFullscreen ? '0' : '20px',
-      }}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-          ref={containerRef}
-          style={{
-            width: isFullscreen ? '100vw' : '880px',
-            height: isFullscreen ? '100vh' : '620px',
-            maxWidth: isFullscreen ? '100vw' : '95vw',
-            maxHeight: isFullscreen ? '100vh' : '92vh',
-            backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
-            borderRadius: isFullscreen ? '0' : '20px',
-            border: isFullscreen ? 'none' : '1px solid var(--ios-border, rgba(255,255,255,0.12))',
-            boxShadow: isFullscreen ? 'none' : '0 24px 60px rgba(0,0,0,0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
-            backgroundColor: 'rgba(255,255,255,0.03)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(10, 132, 255, 0.15)',
-                color: 'var(--ios-accent, #007aff)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <MapPin size={18} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--ios-text-primary, #fff)' }}>
-                  {locationName || 'Street View'}
-                </h3>
-                <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                  {lat.toFixed(5)}, {lng.toFixed(5)} • Interactive 360° Walkaround
-                </span>
-              </div>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(12px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: isFullscreen ? '0' : '20px',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        style={{
+          width: isFullscreen ? '100vw' : '900px',
+          height: isFullscreen ? '100vh' : '640px',
+          maxWidth: isFullscreen ? '100vw' : '96vw',
+          maxHeight: isFullscreen ? '100vh' : '94vh',
+          backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
+          borderRadius: isFullscreen ? '0' : '20px',
+          border: isFullscreen ? 'none' : '1px solid var(--ios-border, rgba(255,255,255,0.12))',
+          boxShadow: isFullscreen ? 'none' : '0 24px 60px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 18px',
+          borderBottom: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
+          backgroundColor: 'rgba(255,255,255,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(10, 132, 255, 0.15)',
+              color: 'var(--ios-accent, #007aff)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <MapPin size={18} />
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <a
-                href={directMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ios-btn-secondary"
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '10px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  textDecoration: 'none',
-                  color: 'var(--ios-text-primary)',
-                }}
-              >
-                <span>Google Maps</span>
-                <ExternalLink size={13} />
-              </a>
-
-              <button
-                onClick={toggleFullscreen}
-                className="ios-btn-secondary"
-                style={{ padding: '8px', borderRadius: '10px' }}
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-              >
-                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              </button>
-
-              <button
-                onClick={onClose}
-                className="ios-btn-secondary"
-                style={{ padding: '8px', borderRadius: '10px' }}
-                title="Close"
-              >
-                <X size={16} />
-              </button>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--ios-text-primary, #fff)' }}>
+                {currentName || 'Street View'}
+              </h3>
+              <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
+                {currentLat.toFixed(5)}, {currentLng.toFixed(5)} • Interactive 360° Walkaround
+              </span>
             </div>
           </div>
 
-          {/* Panorama Viewport */}
-          <div style={{ flex: 1, backgroundColor: '#000', position: 'relative' }}>
-            <iframe
-              src={embedUrl}
-              title="Google Street View Panorama"
-              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-
-          {/* Bottom Bar with Fullscreen CTA */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 18px',
-            borderTop: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
-            backgroundColor: 'rgba(0,0,0,0.2)',
-          }}>
-            <span style={{ fontSize: '12px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
-              Drag to pan 360° • Click arrows or roads to walk around
-            </span>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* UPDATE LOCATION CTA */}
             <button
-              onClick={toggleFullscreen}
+              onClick={handleUpdateLocation}
+              disabled={updating}
               className="ios-btn"
               style={{
-                padding: '6px 16px',
-                borderRadius: '12px',
-                fontSize: '13px',
-                fontWeight: 600,
+                padding: '6px 14px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
+                backgroundColor: updatedSuccess ? 'var(--ios-success, #34c759)' : 'var(--ios-accent, #007aff)',
               }}
             >
-              {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+              {updatedSuccess ? <Check size={14} /> : <MapPin size={14} />}
+              <span>{updating ? 'Updating...' : (updatedSuccess ? 'Location Saved!' : 'Update Location')}</span>
+            </button>
+
+            <a
+              href={directMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ios-btn-secondary"
+              style={{
+                padding: '6px 12px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                color: 'var(--ios-text-primary)',
+              }}
+            >
+              <span>Google Maps</span>
+              <ExternalLink size={13} />
+            </a>
+
+            <button
+              onClick={toggleFullscreen}
+              className="ios-btn-secondary"
+              style={{ padding: '8px', borderRadius: '10px' }}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            <button
+              onClick={onClose}
+              className="ios-btn-secondary"
+              style={{ padding: '8px', borderRadius: '10px' }}
+            >
+              <X size={16} />
             </button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+
+        {/* Viewport Canvas + Bottom-Left Pegman Mini-Map */}
+        <div style={{ flex: 1, backgroundColor: '#000', position: 'relative' }}>
+          <iframe
+            src={embedUrl}
+            title="Google Street View"
+            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+            allowFullScreen
+            loading="lazy"
+          />
+
+          {/* Pegman Mini-Map Box */}
+          {showRadar && (
+            <div style={{
+              position: 'absolute',
+              bottom: '16px',
+              left: '16px',
+              width: '200px',
+              height: '170px',
+              backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
+              border: '2px solid rgba(255,255,255,0.2)',
+              borderRadius: '14px',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+              zIndex: 50,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              <div style={{
+                padding: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--ios-text-primary)',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+              }}>
+                <span>📍 Mini-Map Radar</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => setMiniMapZoom(z => Math.min(18, z + 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>+</button>
+                  <button onClick={() => setMiniMapZoom(z => Math.max(10, z - 1))} style={{ padding: '0 5px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>-</button>
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <MapContainer
+                  center={[currentLat, currentLng]}
+                  zoom={miniMapZoom}
+                  style={{ height: '100%', width: '100%' }}
+                  zoomControl={false}
+                  attributionControl={false}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <Marker position={[currentLat, currentLng]} icon={pegmanIcon} />
+                  <MiniMapClickEvents onMapClick={handleMiniMapClick} />
+                </MapContainer>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 18px',
+          borderTop: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
+          backgroundColor: 'rgba(0,0,0,0.3)',
+        }}>
+          <span style={{ fontSize: '12px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
+            Drag to look around 360° • Click arrows to move • Click Mini-Map to reposition Pegman
+          </span>
+
+          <button
+            onClick={toggleFullscreen}
+            className="ios-btn"
+            style={{
+              padding: '6px 16px',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+          </button>
+        </div>
+      </motion.div>
+    </div>
   )
 }

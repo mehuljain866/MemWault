@@ -215,204 +215,218 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* ── 1. Top Full-Width Ribbon: Stories & Memories ──────── */}
+      {/* ── 2x2 Asymmetric Grid Layout (Left: Stories & Feed Posts | Right: Quick Actions & System Info) ── */}
       <motion.div 
         variants={containerVariants}
-        style={{ marginBottom: '16px' }}
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', 
+          gap: '16px',
+          alignItems: 'start'
+        }}
       >
-        <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
-              <Clock size={16} color="var(--ios-accent)" />
-              <span>Stories & Memories</span>
-            </div>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#000080',
-              background: '#ffffff',
-              padding: '1px 10px',
-              border: '1px solid #000000',
-              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
-              fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
-              letterSpacing: '0.02em',
-            }}>
-              {stats.total_stories || 0} Total
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
-            <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
-            <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
-            <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
-            <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
-            <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
-            <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── 2. Bottom Full-Width Ribbon: Feed Posts & Carousels ──────── */}
-      <motion.div 
-        variants={containerVariants}
-        style={{ marginBottom: '16px' }}
-      >
-        <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
-              <Layers size={16} color="#5856d6" />
-              <span>Feed Posts & Carousels</span>
-            </div>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#000080',
-              background: '#ffffff',
-              padding: '1px 10px',
-              border: '1px solid #000000',
-              boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
-              fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
-              letterSpacing: '0.02em',
-            }}>
-              {stats.total_feed_posts || 0} Total
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
-            <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
-            <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
-            <BentoStat icon={Images} color="#34c759" label="High-Res Media" value={stats.total_post_media || stats.total_feed_posts || 0} />
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── 3. Quick Actions (Above System Status) ───────────────────── */}
-      <motion.div variants={containerVariants} style={{ marginBottom: '16px' }}>
-        <div className="ios-card settings-section-card" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="settings-section-header" style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>
-              Quick Actions
-            </h3>
-            <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
-              Ingestion & Cloud Tasks
-            </span>
-          </div>
+        {/* ── LEFT COLUMN (Wider): Stories & Feed Posts ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-            <motion.button 
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="ios-btn" 
-              onClick={handleSync}
-              disabled={syncing}
-              style={{
-                padding: '12px 18px', fontSize: '13px', fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-              }}
-            >
-              <RefreshCw size={16} className={syncing ? "spin-anim" : "spin-on-hover"} />
-              <span>{syncing ? 'Syncing Active Stories...' : 'Sync Active Stories'}</span>
-            </motion.button>
-
-            <motion.button 
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="ios-btn-secondary ios-btn" 
-              onClick={handleArchiveImport} 
-              disabled={importing}
-              style={{
-                padding: '12px 18px', fontSize: '13px', fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-              }}
-            >
-              <AnimatedCloudDownload isImporting={importing} />
-              <span>{importing ? 'Importing Archive Stories...' : 'Import Full Archive'}</span>
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── 4. System Status (Below Quick Actions) ───────────────────── */}
-      <motion.div variants={containerVariants}>
-        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px 20px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--ios-text-primary)' }}>System Status</h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-            {/* Storage Metric */}
-            <div className="dashboard-status-row" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
-              border: '1px solid var(--ios-border)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <HardDrive size={22} color="var(--ios-accent)" />
-                <div>
-                  <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
-                    Total Storage
-                  </div>
-                  <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
-                    Local disk allocation
-                  </div>
-                </div>
+          {/* 1. Top Left: Stories & Memories */}
+          <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
+                <Clock size={16} color="var(--ios-accent)" />
+                <span>Stories & Memories</span>
               </div>
-              <div className="status-val" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
-                {stats.storage_used_mb} MB
-              </div>
-            </div>
-
-            {/* Instagram Session Metric */}
-            <div className="dashboard-status-row" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
-              border: '1px solid var(--ios-border)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Server size={22} color={stats.ig_session_valid ? "#34c759" : "var(--ios-danger)"} />
-                <div>
-                  <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
-                    Instagram Session
-                  </div>
-                  <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
-                    Automated background scraper
-                  </div>
-                </div>
-              </div>
-              <span className={`dashboard-status-badge ${stats.ig_session_valid ? 'badge-active' : ''}`} style={{
-                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
-                backgroundColor: stats.ig_session_valid ? 'rgba(52, 199, 89, 0.15)' : 'rgba(255, 59, 48, 0.15)',
-                color: stats.ig_session_valid ? '#34c759' : '#ff3b30'
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#000080',
+                background: '#ffffff',
+                padding: '1px 10px',
+                border: '1px solid #000000',
+                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
+                letterSpacing: '0.02em',
               }}>
-                {stats.ig_session_valid ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                {stats.ig_session_valid ? 'Active' : 'Expired'}
+                {stats.total_stories || 0} Total
               </span>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
+              <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
+              <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
+              <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
+              <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
+              <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
+              <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
+            </div>
+          </div>
 
-            {/* Last Ingestion Metric */}
-            {stats.last_scrape && (
+          {/* 2. Bottom Left: Feed Posts & Carousels */}
+          <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--ios-text-primary)' }}>
+                <Layers size={16} color="#5856d6" />
+                <span>Feed Posts & Carousels</span>
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#000080',
+                background: '#ffffff',
+                padding: '1px 10px',
+                border: '1px solid #000000',
+                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                fontFamily: '"MS Sans Serif", Tahoma, sans-serif',
+                letterSpacing: '0.02em',
+              }}>
+                {stats.total_feed_posts || 0} Total
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
+              <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
+              <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
+              <BentoStat icon={Images} color="#34c759" label="High-Res Media" value={stats.total_post_media || stats.total_feed_posts || 0} />
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── RIGHT COLUMN: Quick Actions & System Info ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          
+          {/* 3. Top Right: Quick Actions */}
+          <div className="ios-card settings-section-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+              <h3 className="settings-section-header" style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>
+                Quick Actions
+              </h3>
+              <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                Ingestion & Sync
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <motion.button 
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="ios-btn" 
+                onClick={handleSync}
+                disabled={syncing}
+                style={{
+                  padding: '12px 18px', fontSize: '13px', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+              >
+                <RefreshCw size={16} className={syncing ? "spin-anim" : "spin-on-hover"} />
+                <span>{syncing ? 'Syncing Active Stories...' : 'Sync Active Stories'}</span>
+              </motion.button>
+
+              <motion.button 
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="ios-btn-secondary ios-btn" 
+                onClick={handleArchiveImport} 
+                disabled={importing}
+                style={{
+                  padding: '12px 18px', fontSize: '13px', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+              >
+                <AnimatedCloudDownload isImporting={importing} />
+                <span>{importing ? 'Importing Archive Stories...' : 'Import Full Archive'}</span>
+              </motion.button>
+            </div>
+          </div>
+
+          {/* 4. Bottom Right: System Status & Info */}
+          <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ios-border)', paddingBottom: '8px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: 'var(--ios-text-primary)' }}>
+                System Status
+              </h3>
+              <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                Environment Info
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Storage Metric */}
               <div className="dashboard-status-row" style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
+                padding: '10px 12px', borderRadius: '10px', background: 'var(--ios-bg-app)',
                 border: '1px solid var(--ios-border)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Clock size={22} color="var(--ios-accent)" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <HardDrive size={20} color="var(--ios-accent)" />
                   <div>
                     <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
-                      Last Sync
+                      Total Storage
                     </div>
-                    <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
-                      {new Date(stats.last_scrape.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    <div className="status-subtitle" style={{ fontSize: '10px', color: 'var(--ios-text-secondary)' }}>
+                      Local disk allocation
                     </div>
                   </div>
                 </div>
-                <span className="dashboard-status-badge badge-sync" style={{
+                <div className="status-val" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
+                  {stats.storage_used_mb} MB
+                </div>
+              </div>
+
+              {/* Instagram Session Metric */}
+              <div className="dashboard-status-row" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 12px', borderRadius: '10px', background: 'var(--ios-bg-app)',
+                border: '1px solid var(--ios-border)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Server size={20} color={stats.ig_session_valid ? "#34c759" : "var(--ios-danger)"} />
+                  <div>
+                    <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                      Instagram Session
+                    </div>
+                    <div className="status-subtitle" style={{ fontSize: '10px', color: 'var(--ios-text-secondary)' }}>
+                      Background scraper
+                    </div>
+                  </div>
+                </div>
+                <span className={`dashboard-status-badge ${stats.ig_session_valid ? 'badge-active' : ''}`} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
                   padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
-                  backgroundColor: 'rgba(232, 158, 56, 0.15)', color: 'var(--ios-accent)'
+                  backgroundColor: stats.ig_session_valid ? 'rgba(52, 199, 89, 0.15)' : 'rgba(255, 59, 48, 0.15)',
+                  color: stats.ig_session_valid ? '#34c759' : '#ff3b30'
                 }}>
-                  +{stats.last_scrape.stories_new} new
+                  {stats.ig_session_valid ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                  {stats.ig_session_valid ? 'Active' : 'Expired'}
                 </span>
               </div>
-            )}
+
+              {/* Last Ingestion Metric */}
+              {stats.last_scrape && (
+                <div className="dashboard-status-row" style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 12px', borderRadius: '10px', background: 'var(--ios-bg-app)',
+                  border: '1px solid var(--ios-border)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Clock size={20} color="var(--ios-accent)" />
+                    <div>
+                      <div className="status-title" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                        Last Sync
+                      </div>
+                      <div className="status-subtitle" style={{ fontSize: '10px', color: 'var(--ios-text-secondary)' }}>
+                        {new Date(stats.last_scrape.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="dashboard-status-badge badge-sync" style={{
+                    padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                    backgroundColor: 'rgba(232, 158, 56, 0.15)', color: 'var(--ios-accent)'
+                  }}>
+                    +{stats.last_scrape.stories_new} new
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
       </motion.div>
 

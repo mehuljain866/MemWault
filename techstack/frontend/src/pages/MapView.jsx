@@ -558,6 +558,10 @@ export default function MapView() {
         locationName={streetViewTarget?.name}
         lat={streetViewTarget?.lat}
         lng={streetViewTarget?.lng}
+        onUpdateLocation={async (loc) => {
+          setStreetViewTarget(prev => prev ? { ...prev, name: loc.location_name, lat: loc.location_lat, lng: loc.location_lng } : null)
+          loadStories()
+        }}
       />
     </motion.div>
   )

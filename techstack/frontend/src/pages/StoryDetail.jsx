@@ -846,6 +846,7 @@ export default function StoryDetail() {
         locationName={story.location_name}
         lat={story.location_lat}
         lng={story.location_lng}
+        onUpdateLocation={handleSaveLocation}
       />
     </motion.div>
   )

@@ -4,40 +4,30 @@ import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
 
-// Animated Waveform Icon component
-function AnimatedWaveform({ isPlaying }) {
+// Live Moving Equalizer Waveform Icon component
+function LiveMovingWaveform({ isPlaying }) {
   return (
     <div style={{
       display: 'inline-flex',
       alignItems: 'flex-end',
-      gap: '2px',
-      height: '12px',
-      marginRight: '4px',
+      gap: '2.5px',
+      height: '14px',
+      marginRight: '6px',
       flexShrink: 0
     }}>
-      <span style={{
-        width: '2px',
-        background: '#fff',
-        borderRadius: '1px',
-        animation: isPlaying ? 'waveformPulse 0.8s ease-in-out infinite alternate' : 'none',
-        height: isPlaying ? '12px' : '4px'
-      }} />
-      <span style={{
-        width: '2px',
-        background: '#fff',
-        borderRadius: '1px',
-        animation: isPlaying ? 'waveformPulse 0.5s ease-in-out infinite alternate' : 'none',
-        height: isPlaying ? '10px' : '6px',
-        animationDelay: '0.15s'
-      }} />
-      <span style={{
-        width: '2px',
-        background: '#fff',
-        borderRadius: '1px',
-        animation: isPlaying ? 'waveformPulse 0.7s ease-in-out infinite alternate' : 'none',
-        height: isPlaying ? '14px' : '3px',
-        animationDelay: '0.3s'
-      }} />
+      {[1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className={`eq-bar-${i}`}
+          style={{
+            width: '2.5px',
+            background: 'var(--ios-accent, #e89e38)',
+            borderRadius: '2px',
+            height: isPlaying ? undefined : '3px',
+            animationPlayState: isPlaying ? 'running' : 'paused'
+          }}
+        />
+      ))}
     </div>
   )
 }
@@ -218,10 +208,12 @@ export default function HighlightPlayerModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.22 }}
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: '#111', display: 'flex', flexDirection: 'column',
+            backgroundColor: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(20px)',
+            display: 'flex', flexDirection: 'column',
             userSelect: 'none'
           }}
         >
@@ -239,10 +231,11 @@ export default function HighlightPlayerModal({
           className="nav-zone group"
         >
           <div className="nav-icon" style={{
-            background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)',
-            borderRadius: '50%', padding: '12px', color: '#fff',
+            background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
+            border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
+            borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
             opacity: 0, transition: 'opacity 0.2s',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            boxShadow: 'var(--ios-shadow-md)'
           }}>
             <ChevronLeft size={28} />
           </div>
@@ -253,16 +246,18 @@ export default function HighlightPlayerModal({
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: '24px', padding: '20px 0', position: 'relative'
         }}>
-          {/* Story Canvas (FLIP layout animation smoothly glides when music widget opens) */}
+          {/* Story Canvas */}
           <motion.div 
             layout
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             onClick={handleCanvasClick}
+            className="ios-story-card"
             style={{
               height: '100%', aspectRatio: '9/16',
-              background: '#000', borderRadius: '16px', overflow: 'hidden',
+              background: '#000', borderRadius: 'var(--ios-radius-lg, 16px)', overflow: 'hidden',
               position: 'relative', cursor: 'pointer',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+              border: '1px solid var(--ios-border)',
               flexShrink: 0
             }}
           >
@@ -289,7 +284,7 @@ export default function HighlightPlayerModal({
             {currentStory.is_ai_generated && (
                <div style={{
                  position: 'absolute', top: '80px', right: '16px', zIndex: 40,
-                 background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+                 background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
                  color: '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px',
                  borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)'
                }}>
@@ -303,8 +298,8 @@ export default function HighlightPlayerModal({
               onClick={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute', top: 0, left: 0, right: 0,
-                padding: '12px', zIndex: 60,
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                padding: '14px 16px', zIndex: 60,
+                background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
                 pointerEvents: 'auto'
               }}
             >
@@ -317,11 +312,11 @@ export default function HighlightPlayerModal({
                   
                   return (
                     <div key={s.id || idx} style={{
-                      flex: 1, height: '2px', background: 'rgba(255,255,255,0.3)',
+                      flex: 1, height: '2.5px', background: 'rgba(255,255,255,0.3)',
                       borderRadius: '2px', overflow: 'hidden'
                     }}>
                       <div style={{
-                        height: '100%', background: '#fff',
+                        height: '100%', background: 'var(--ios-accent, #fff)',
                         width: `${fill}%`, transition: isPaused ? 'none' : 'width 50ms linear'
                       }} />
                     </div>
@@ -330,22 +325,32 @@ export default function HighlightPlayerModal({
               </div>
 
               {/* ── 2-Row Header Layout ── */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', pointerEvents: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
                 {/* Avatar */}
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', padding: '2px', flexShrink: 0 }}>
-                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 700 }}>
+                <div style={{
+                  width: '38px', height: '38px', borderRadius: '50%',
+                  background: 'var(--ios-accent, #e89e38)',
+                  padding: '2px', flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}>
+                   <div style={{
+                     width: '100%', height: '100%', borderRadius: '50%',
+                     background: 'var(--ios-bg-card, #1c1c1e)',
+                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     color: 'var(--ios-text-primary, #fff)', fontSize: '13px', fontWeight: 800
+                   }}>
                      {highlightTitle.charAt(0).toUpperCase()}
                    </div>
                 </div>
 
                 {/* 2-Row Info Block */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
                   {/* Row 1: Identity */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {highlightTitle}
                     </span>
-                    <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '12px', flexShrink: 0 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', flexShrink: 0 }}>
                       {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                     </span>
                   </div>
@@ -355,30 +360,30 @@ export default function HighlightPlayerModal({
                     <AnimatePresence mode="wait">
                       <motion.div 
                         key={contextDisplayMode}
-                        initial={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: 3 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.2 }}
+                        exit={{ opacity: 0, y: -3 }}
+                        transition={{ duration: 0.18 }}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (currentStory.music) setShowMusicWidget(prev => !prev);
                         }}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '5px',
+                          display: 'flex', alignItems: 'center', gap: '4px',
                           color: '#fff', fontSize: '12px', fontWeight: 500,
                           cursor: currentStory.music ? 'pointer' : 'default',
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                         }}
-                        title={currentStory.music ? "Click to toggle Apple Music widget" : ""}
+                        title={currentStory.music ? "Click to toggle music turntable / equalizer" : ""}
                       >
                         {contextDisplayMode === 'location' || (!currentStory.music && currentStory.location_name) ? (
                           <>
-                            <MapPin size={12} color="#ff3b30" />
+                            <MapPin size={12} color="var(--ios-accent, #e89e38)" />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
                           </>
                         ) : (
                           <>
-                            <AnimatedWaveform isPlaying={!isPaused} />
+                            <LiveMovingWaveform isPlaying={!isPaused} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
                             </span>
@@ -393,72 +398,95 @@ export default function HighlightPlayerModal({
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); setShowMenu(prev => !prev); }} 
-                    style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+                    style={{
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '50%', width: '32px', height: '32px',
+                      color: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                    title="Story Options"
                   >
-                    <MoreHorizontal size={24} />
+                    <MoreHorizontal size={18} />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                    style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+                    style={{
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '50%', width: '32px', height: '32px',
+                      color: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                    title="Close"
                   >
-                    <X size={28} />
+                    <X size={18} />
                   </button>
 
                   {/* ── Popover Menu ── */}
                   <AnimatePresence>
                     {showMenu && (
                       <motion.div 
-                        initial={{ opacity: 0, scale: 0.85, y: -10 }}
+                        initial={{ opacity: 0, scale: 0.88, y: -8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                        exit={{ opacity: 0, scale: 0.88, y: -8 }}
                         transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                         onClick={(e) => e.stopPropagation()}
+                        className="ios-card"
                         style={{
-                          position: 'absolute', top: '40px', right: 0, zIndex: 100,
-                          background: 'rgba(28,28,30,0.95)', backdropFilter: 'blur(20px)',
-                          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px',
-                          width: '220px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                          display: 'flex', flexDirection: 'column', gap: '4px', transformOrigin: 'top right'
+                          position: 'absolute', top: '42px', right: 0, zIndex: 100,
+                          backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
+                          border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
+                          borderRadius: '16px',
+                          width: '230px', padding: '6px',
+                          boxShadow: 'var(--ios-shadow-lg, 0 10px 30px rgba(0,0,0,0.5))',
+                          display: 'flex', flexDirection: 'column', gap: '2px', transformOrigin: 'top right'
                         }}
                       >
                         <button 
                           onClick={handleOpenInstagram}
                           style={{
-                            background: 'transparent', border: 'none', color: '#fff',
-                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                            cursor: 'pointer', textAlign: 'left'
+                            background: 'transparent', border: 'none',
+                            color: 'var(--ios-text-primary, #fff)',
+                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                            cursor: 'pointer', textAlign: 'left',
+                            transition: 'background 0.15s'
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <ExternalLink size={16} color="#0a84ff" /> Open on Instagram
+                          <ExternalLink size={16} color="var(--ios-accent, #0a84ff)" /> Open on Instagram
                         </button>
 
                         <button 
                           onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
                           style={{
-                            background: 'transparent', border: 'none', color: '#fff',
-                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                            cursor: 'pointer', textAlign: 'left'
+                            background: 'transparent', border: 'none',
+                            color: 'var(--ios-text-primary, #fff)',
+                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                            cursor: 'pointer', textAlign: 'left',
+                            transition: 'background 0.15s'
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <MusicIcon size={16} color="#ff375f" /> {showMusicWidget ? 'Hide Music Widget' : 'Show Music Widget'}
+                          <MusicIcon size={16} color="#e89e38" /> {showMusicWidget ? 'Hide Music Turntable' : 'Show Music Turntable'}
                         </button>
 
                         {currentStory.location_name && (
                           <button 
                             onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
                             style={{
-                              background: 'transparent', border: 'none', color: '#fff',
-                              padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                              alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                              cursor: 'pointer', textAlign: 'left'
+                              background: 'transparent', border: 'none',
+                              color: 'var(--ios-text-primary, #fff)',
+                              padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                              alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                              cursor: 'pointer', textAlign: 'left',
+                              transition: 'background 0.15s'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                           >
                             <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
@@ -468,15 +496,17 @@ export default function HighlightPlayerModal({
                         <button 
                           onClick={handleLocateFile}
                           style={{
-                            background: 'transparent', border: 'none', color: '#fff',
-                            padding: '10px 12px', borderRadius: '8px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500,
-                            cursor: 'pointer', textAlign: 'left'
+                            background: 'transparent', border: 'none',
+                            color: 'var(--ios-text-primary, #fff)',
+                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                            cursor: 'pointer', textAlign: 'left',
+                            transition: 'background 0.15s'
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <Folder size={16} color="#ffd60a" /> Show Local File
+                          <Folder size={16} color="var(--ios-accent, #e89e38)" /> Reveal Media File
                         </button>
                       </motion.div>
                     )}
@@ -486,20 +516,36 @@ export default function HighlightPlayerModal({
             </div>
           </motion.div>
 
-          {/* Optional Apple Music Side Widget (Sliding width expansion animation) */}
+          {/* Optional Music Turntable / Visualizer Side Widget */}
           <AnimatePresence>
             {showMusicWidget && (
               <motion.div 
                 layout
                 initial={{ opacity: 0, width: 0, scale: 0.95 }}
-                animate={{ opacity: 1, width: 320, scale: 1 }}
+                animate={{ opacity: 1, width: 340, scale: 1 }}
                 exit={{ opacity: 0, width: 0, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 style={{ zIndex: 60, flexShrink: 0, position: 'relative', overflow: 'hidden' }}
               >
-                <div style={{ width: '320px', position: 'relative' }}>
+                <div style={{ width: '340px', position: 'relative' }}>
                   <MusicPlayer 
                     music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
+                    onPlayStateChange={(isMusicPlaying) => {
+                      if (isMusicPlaying) {
+                        setIsPaused(true);
+                        if (videoRef.current) {
+                          videoRef.current.pause();
+                          videoRef.current.muted = true;
+                        }
+                      }
+                    }}
+                    onExternalOpen={() => {
+                      setIsPaused(true);
+                      if (videoRef.current) {
+                        videoRef.current.pause();
+                        videoRef.current.muted = true;
+                      }
+                    }}
                   />
                 </div>
               </motion.div>
@@ -518,10 +564,11 @@ export default function HighlightPlayerModal({
           className="nav-zone group"
         >
            <div className="nav-icon" style={{
-            background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)',
-            borderRadius: '50%', padding: '12px', color: '#fff',
+            background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
+            border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
+            borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
             opacity: 0, transition: 'opacity 0.2s',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            boxShadow: 'var(--ios-shadow-md)'
           }}>
             <ChevronRight size={28} />
           </div>
@@ -530,9 +577,11 @@ export default function HighlightPlayerModal({
 
       {/* ── Bottom Filmstrip (Thumbnail Scrubber) ── */}
       <div style={{
-        height: '100px', background: '#0a0a0a', borderTop: '1px solid #222',
+        height: '96px',
+        backgroundColor: 'var(--ios-bg-card, #121214)',
+        borderTop: '1px solid var(--ios-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-        overflowX: 'auto', gap: '8px'
+        overflowX: 'auto', gap: '10px'
       }} className="hide-scrollbar">
         {stories.map((story, idx) => {
           const isActive = idx === currentIndex
@@ -541,17 +590,19 @@ export default function HighlightPlayerModal({
           return (
             <motion.div 
               key={story.id} 
-              whileHover={{ scale: 1.08 }}
+              className={`filmstrip-thumb ${isActive ? 'active' : ''}`}
+              whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setCurrentIndex(idx)}
               style={{
-                height: '70px', minWidth: '40px', aspectRatio: '9/16',
-                borderRadius: '6px', overflow: 'hidden',
-                border: isActive ? '2px solid #fff' : '2px solid transparent',
-                opacity: isActive ? 1 : 0.4,
+                height: '68px', minWidth: '40px', aspectRatio: '9/16',
+                borderRadius: 'var(--ios-radius-sm, 6px)', overflow: 'hidden',
+                border: isActive ? '2px solid var(--ios-accent, #e89e38)' : '2px solid transparent',
+                opacity: isActive ? 1 : 0.45,
                 transition: 'border 0.2s, opacity 0.2s', cursor: 'pointer',
-                position: 'relative', background: '#222',
-                flexShrink: 0
+                position: 'relative', backgroundColor: 'var(--ios-border)',
+                flexShrink: 0,
+                boxShadow: isActive ? '0 0 12px rgba(232, 158, 56, 0.4)' : 'none'
               }}
             >
               {thumbUrl ? (
@@ -566,16 +617,7 @@ export default function HighlightPlayerModal({
         })}
       </div>
       
-      {/* Add global styles for nav-zone hover and hiding scrollbar */}
       <style>{`
-        @keyframes waveformPulse {
-          0% {
-            height: 3px;
-          }
-          100% {
-            height: 12px;
-          }
-        }
         .nav-zone:hover .nav-icon {
           opacity: 1 !important;
         }

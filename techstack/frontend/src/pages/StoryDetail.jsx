@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getStory, getStoryViewers, refreshStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
 import StoryPlayer from '../components/StoryPlayer'
@@ -11,6 +11,8 @@ import { getSettings } from '../services/settings'
 
 export default function StoryDetail() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const locationParam = searchParams.get('location') || ''
   const settings = getSettings()
   const navigate = useNavigate()
   const [story, setStory] = useState(null)
@@ -27,7 +29,7 @@ export default function StoryDetail() {
 
   useEffect(() => {
     loadStory()
-  }, [id])
+  }, [id, locationParam])
 
   // Keydown listener for arrow navigation
   useEffect(() => {
@@ -36,15 +38,16 @@ export default function StoryDetail() {
       if (activeTab === 'journal') return
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return
 
+      const qs = locationParam ? `?location=${encodeURIComponent(locationParam)}` : ''
       if (e.key === 'ArrowLeft' && adjacent.prev_id) {
-        navigate(`/story/${adjacent.prev_id}`, { replace: true })
+        navigate(`/story/${adjacent.prev_id}${qs}`, { replace: true })
       } else if (e.key === 'ArrowRight' && adjacent.next_id) {
-        navigate(`/story/${adjacent.next_id}`, { replace: true })
+        navigate(`/story/${adjacent.next_id}${qs}`, { replace: true })
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [adjacent, navigate, activeTab])
+  }, [adjacent, navigate, activeTab, locationParam])
 
   async function handleLocate() {
     try {
@@ -64,7 +67,7 @@ export default function StoryDetail() {
       // Load viewers and adjacent stories in background
       Promise.all([
         getStoryViewers(id).catch(() => []),
-        getAdjacentStories(id).catch(() => ({ prev_id: null, next_id: null }))
+        getAdjacentStories(id, { location: locationParam || undefined }).catch(() => ({ prev_id: null, next_id: null }))
       ]).then(([v, adj]) => {
         setViewers(v)
         setAdjacent(adj)
@@ -223,17 +226,23 @@ export default function StoryDetail() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.25 }}
-      style={{ maxWidth: '1000px', margin: '-20px auto 0 auto', display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '40px' }}
+      style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '12px 12px 40px 12px' }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
         <motion.button
-          whileHover={{ scale: 1.05, x: -3 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.03, x: -2 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => navigate(-1)}
-          style={{ background: 'transparent', border: 'none', color: 'var(--ios-accent)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '17px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+          className="segment-btn"
+          style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '6px', 
+            fontSize: '14px', fontWeight: 600, cursor: 'pointer', 
+            padding: '6px 14px', borderRadius: '8px',
+            color: 'var(--ios-accent)'
+          }}
         >
-          <ChevronLeft size={24} /> Back
+          <ChevronLeft size={18} /> Back
         </motion.button>
       </div>
 
@@ -615,9 +624,24 @@ export default function StoryDetail() {
                               <Users size={20} color="var(--ios-text-secondary)" />
                             </div>
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ios-text-primary)' }}>
+                              <div style={{ fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ios-text-primary)', flexWrap: 'wrap' }}>
                                 @{v.username}
                                 <ExternalLink size={13} style={{ color: 'var(--ios-accent)', opacity: 0.8 }} />
+                                {v.view_count > 1 && (
+                                  <span 
+                                    style={{
+                                      display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                      background: 'rgba(10, 132, 255, 0.15)',
+                                      color: 'var(--ios-accent, #007aff)',
+                                      border: '1px solid rgba(10, 132, 255, 0.35)',
+                                      padding: '1px 7px', borderRadius: '10px',
+                                      fontSize: '11px', fontWeight: 800, letterSpacing: '0.2px'
+                                    }}
+                                    title={`Watched this story ${v.view_count} times`}
+                                  >
+                                    <Eye size={11} /> {v.view_count}×
+                                  </span>
+                                )}
                               </div>
                               {v.full_name && <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.full_name}</div>}
                             </div>

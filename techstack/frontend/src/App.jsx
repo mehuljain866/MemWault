@@ -17,6 +17,9 @@ import Posts from './pages/Posts'
 import PostDetail from './pages/PostDetail'
 import MobileUploadPortal from './pages/MobileUploadPortal'
 
+import ThemeShellWrapper from './components/shells/ThemeShellWrapper'
+import { applyThemeSettings, getSettings } from './services/settings'
+
 /**
  * Protected route wrapper — redirects to /login if not authenticated.
  */
@@ -32,41 +35,53 @@ function ProtectedRoute({ children }) {
  */
 function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [themeId, setThemeId] = useState(() => getSettings().themeId || 'darkroom')
   const location = useLocation()
   
   // By calling useOutlet() instead of rendering <Outlet />, we get the static element.
   // This prevents the exiting page from suddenly re-rendering as the new page during the animation!
   const currentOutlet = useOutlet({ onMenuClick: () => setSidebarOpen(true) })
 
-  // Apply theme & design philosophy to body/html
+  // Apply theme & design philosophy to body/html and listen to theme updates
   useEffect(() => {
-    const settings = JSON.parse(localStorage.getItem('memwault_settings') || '{}')
-    document.documentElement.setAttribute('data-theme', settings.theme || 'dark')
-    document.documentElement.setAttribute('data-design', settings.designPhilosophy || 'modern')
+    applyThemeSettings()
+    const handleUpdate = () => {
+      const current = getSettings()
+      setThemeId(current.themeId || 'darkroom')
+    }
+    window.addEventListener('storage', handleUpdate)
+    window.addEventListener('memwault-settings-changed', handleUpdate)
+    return () => {
+      window.removeEventListener('storage', handleUpdate)
+      window.removeEventListener('memwault-settings-changed', handleUpdate)
+    }
   }, [])
 
+  const isWin98 = themeId === 'win98'
+
   return (
-    <div className="app-container">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="ios-main-content">
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-              onAnimationComplete={() => {
-                // Force remove transform to prevent trapping position: fixed children
-                document.body.style.transform = '';
-              }}
-            >
-              {currentOutlet}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+    <div className={`app-container ${isWin98 ? 'win98-root-container' : ''}`}>
+      {!isWin98 && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+      <div className={`ios-main-content ${isWin98 ? 'win98-main-content' : ''}`}>
+        <ThemeShellWrapper onMenuClick={() => setSidebarOpen(true)}>
+          <div style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: isWin98 ? 0 : 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: isWin98 ? 0 : -10 }}
+                transition={{ duration: isWin98 ? 0.05 : 0.18, ease: "easeOut" }}
+                style={{ width: '100%', flex: 1 }}
+                onAnimationComplete={() => {
+                  document.body.style.transform = '';
+                }}
+              >
+                {currentOutlet}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </ThemeShellWrapper>
       </div>
       <ScrollRestoration />
     </div>

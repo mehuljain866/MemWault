@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive, LayoutGrid } from 'lucide-react'
+import { LayoutDashboard, Film, PlaySquare, Settings, Map as MapIcon, Image as ImageIcon, FolderHeart, Archive, LayoutGrid, Power } from 'lucide-react'
+import ShutdownModal from './ShutdownModal'
 
 const topNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -18,7 +20,7 @@ const bottomNavItems = [
 function MemWaultVaultIcon({ size = 28 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #88744A)" />
+      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #E89E38)" />
       {/* Outer Arch Vault */}
       <path d="M7 25V13C7 9.68629 9.68629 7 13 7H19C22.3137 7 25 9.68629 25 13V25" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
       {/* Inner Vault Door Arch */}
@@ -32,6 +34,7 @@ function MemWaultVaultIcon({ size = 28 }) {
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation()
+  const [shutdownModalOpen, setShutdownModalOpen] = useState(false)
 
   return (
     <>
@@ -98,8 +101,39 @@ export default function Sidebar({ isOpen, onClose }) {
               </NavLink>
             )
           })}
+
+          {/* ── Power / Shutdown Button ── */}
+          <button
+            onClick={() => {
+              if (onClose) onClose();
+              setShutdownModalOpen(true);
+            }}
+            className="ios-nav-item"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              color: '#ff453a',
+              marginTop: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px'
+            }}
+            title="Shut Down All Services"
+          >
+            <Power size={20} strokeWidth={2.5} color="#ff453a" />
+            <span>Power Off</span>
+          </button>
         </nav>
       </aside>
+
+      <ShutdownModal 
+        isOpen={shutdownModalOpen}
+        onClose={() => setShutdownModalOpen(false)}
+      />
     </>
   )
 }
+

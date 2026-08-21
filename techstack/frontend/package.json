@@ -1,6 +1,6 @@
 {
   "name": "memwault-pwa",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "description": "MemWault — A portable, user-owned digital memory archive PWA",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "leaflet.markercluster": "^1.5.3",
     "liquidify-react": "^0.6.25",
     "lucide-react": "^0.552.0",
+    "qr-code-styling": "^1.9.2",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

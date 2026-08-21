@@ -394,7 +394,7 @@ export default function Highlights() {
             return (
               <motion.div
                 layout
-                whileHover={{ scale: isSelectMode ? 0.98 : 1.04, y: -4 }}
+                whileHover={{ scale: isSelectMode ? 0.98 : 1.03, y: -3 }}
                 whileTap={{ scale: 0.96 }}
                 transition={{ type: 'spring', damping: 22, stiffness: 280 }}
                 key={hl.id}
@@ -405,26 +405,31 @@ export default function Highlights() {
                     navigate(`/highlights/${hl.id}`)
                   }
                 }}
+                className="ios-card"
                 style={{
                   position: 'relative',
                   aspectRatio: '1/1',
-                  borderRadius: '16px',
+                  borderRadius: 'var(--ios-radius-lg, 16px)',
                   overflow: 'hidden',
                   cursor: 'pointer',
-                  backgroundColor: 'var(--ios-border)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                  backgroundColor: 'var(--ios-bg-card)',
+                  border: isSelectMode && selectedIds.includes(hl.id) ? '3px solid var(--ios-accent)' : '1px solid var(--ios-border)',
+                  boxShadow: 'var(--ios-shadow-md)',
                   opacity: isSelectMode && !selectedIds.includes(hl.id) ? 0.7 : 1,
-                  border: isSelectMode && selectedIds.includes(hl.id) ? '3px solid var(--ios-accent)' : 'none',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
                 {/* Cover image area */}
-                {CoverContent}
+                <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+                  {CoverContent}
+                </div>
 
                 {/* Gradient overlay */}
                 <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0,
-                  height: '55%',
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)',
+                  height: '60%',
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)',
                   pointerEvents: 'none',
                 }} />
 

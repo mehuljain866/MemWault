@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
 import { X, Smartphone, Copy, Check, Upload, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { createQRSession, getUploadPortalSession } from '../services/api'
+import ThemedQRCodeCard from './ThemedQRCode'
 
 export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess }) {
   const [session, setSession] = useState(null)
@@ -123,19 +123,17 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
 
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            background: '#ffffff', borderRadius: '20px', padding: '20px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginBottom: '18px'
+            marginBottom: '18px', width: '100%'
           }}>
             {loading ? (
-              <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <RefreshCw size={28} className="spin-anim" color="#000" />
+              <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RefreshCw size={28} className="spin-anim" color="var(--ios-accent, #007aff)" />
               </div>
             ) : session?.qr_url ? (
-              <QRCodeSVG
-                value={session.qr_url}
-                size={200}
-                level="M"
-                includeMargin={false}
+              <ThemedQRCodeCard
+                url={session.qr_url}
+                title="UPLOAD_PORTAL.EXE"
+                caption="Scan on Wi-Fi 📷"
               />
             ) : (
               <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>

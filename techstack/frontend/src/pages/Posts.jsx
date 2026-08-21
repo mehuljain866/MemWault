@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Grid, LayoutGrid, Layers, Film, Image as ImageIcon, 
-  Sparkles, RefreshCw, Heart, MessageCircle, Disc, Filter, Check
+  Sparkles, RefreshCw, Heart, MessageCircle, Disc, Filter, Check,
+  ZoomIn, ZoomOut
 } from 'lucide-react'
 import { getPosts, triggerPostsSync } from '../services/api'
 
@@ -14,6 +15,7 @@ export default function Posts() {
   const [syncing, setSyncing] = useState(false)
   const [filterType, setFilterType] = useState('all') // 'all', 'carousel', 'photo', 'video', 'raw'
   const [gridAspect, setGridAspect] = useState('square') // 'square' (1:1), 'portrait' (4:5), 'original'
+  const [zoom, setZoom] = useState(260) // column min-width in px
 
   const loadPosts = async () => {
     setLoading(true)
@@ -60,9 +62,9 @@ export default function Posts() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      backgroundColor: 'var(--ios-bg-primary, #000000)',
-      color: 'var(--ios-text-primary, #ffffff)',
+      minHeight: '100%',
+      backgroundColor: 'transparent',
+      color: 'var(--ios-text-primary)',
       padding: '24px 32px 100px 32px',
     }}>
       {/* -- Top Header ------------------------------------------- */}
@@ -74,24 +76,42 @@ export default function Posts() {
           <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
             Feed Posts & Carousels
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--ios-text-secondary, #8e8e93)', margin: 0 }}>
-            {posts.length} {posts.length === 1 ? 'archived post' : 'archived posts'}  Uncompressed RAW & Live Photos
+          <p style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', margin: 0 }}>
+            {posts.length} {posts.length === 1 ? 'archived post' : 'archived posts'} • Uncompressed RAW & Live Photos
           </p>
         </div>
 
         {/* Right Action Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* Zoom controls */}
+          <div style={{ display: 'flex', background: 'var(--ios-border)', borderRadius: '14px', padding: '2px' }}>
+            <button
+              onClick={() => setZoom(prev => Math.min(prev + 40, 440))}
+              title="Zoom In"
+              style={{ padding: '6px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ios-text-primary)', display: 'flex', alignItems: 'center' }}
+            >
+              <ZoomIn size={16} />
+            </button>
+            <button
+              onClick={() => setZoom(prev => Math.max(prev - 40, 140))}
+              title="Zoom Out"
+              style={{ padding: '6px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ios-text-primary)', display: 'flex', alignItems: 'center' }}
+            >
+              <ZoomOut size={16} />
+            </button>
+          </div>
+
           {/* Aspect Ratio Switcher */}
           <div style={{
             display: 'flex', alignItems: 'center',
-            backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
+            backgroundColor: 'var(--ios-bg-card)',
             borderRadius: '12px', padding: '3px',
-            border: '1px solid var(--ios-border, rgba(255,255,255,0.1))',
+            border: '1px solid var(--ios-border)',
           }}>
             <button
               onClick={() => setGridAspect('square')}
               style={{
-                background: gridAspect === 'square' ? 'var(--ios-accent, #007aff)' : 'transparent',
+                background: gridAspect === 'square' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'square' ? '#fff' : 'var(--ios-text-secondary)',
                 border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -102,7 +122,7 @@ export default function Posts() {
             <button
               onClick={() => setGridAspect('portrait')}
               style={{
-                background: gridAspect === 'portrait' ? 'var(--ios-accent, #007aff)' : 'transparent',
+                background: gridAspect === 'portrait' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'portrait' ? '#fff' : 'var(--ios-text-secondary)',
                 border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -113,7 +133,7 @@ export default function Posts() {
             <button
               onClick={() => setGridAspect('original')}
               style={{
-                background: gridAspect === 'original' ? 'var(--ios-accent, #007aff)' : 'transparent',
+                background: gridAspect === 'original' ? 'var(--ios-accent)' : 'transparent',
                 color: gridAspect === 'original' ? '#fff' : 'var(--ios-text-secondary)',
                 border: 'none', padding: '6px 12px', borderRadius: '9px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -129,7 +149,7 @@ export default function Posts() {
             disabled={syncing}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              backgroundColor: 'var(--ios-accent, #007aff)', color: '#fff',
+              backgroundColor: 'var(--ios-accent)', color: '#fff',
               border: 'none', padding: '8px 16px', borderRadius: '12px',
               fontSize: '13px', fontWeight: 600, cursor: syncing ? 'default' : 'pointer',
               opacity: syncing ? 0.7 : 1, transition: 'opacity 0.2s',
@@ -158,12 +178,13 @@ export default function Posts() {
           return (
             <button
               key={item.id}
+              className={`segment-btn ${isActive ? 'active' : ''}`}
               onClick={() => setFilterType(item.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'var(--ios-bg-card, #1c1c1e)',
-                color: isActive ? '#fff' : 'var(--ios-text-secondary, #8e8e93)',
-                border: `1px solid ${isActive ? 'rgba(255,255,255,0.3)' : 'var(--ios-border, rgba(255,255,255,0.08))'}`,
+                backgroundColor: isActive ? 'var(--ios-accent)' : 'var(--ios-bg-card)',
+                color: isActive ? '#fff' : 'var(--ios-text-secondary)',
+                border: `1px solid ${isActive ? 'var(--ios-accent)' : 'var(--ios-border)'}`,
                 padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 600,
                 cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
               }}
@@ -204,11 +225,14 @@ export default function Posts() {
           </button>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '16px',
-        }}>
+        <motion.div 
+          layout
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))`,
+            gap: '16px',
+          }}
+        >
           {posts.map(post => {
             const firstMedia = post.media_items?.[0]
             const isCarousel = post.media_type === 8 || (post.media_items && post.media_items.length > 1)
@@ -223,6 +247,7 @@ export default function Posts() {
             return (
               <motion.div
                 key={post.id}
+                layout
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.025, y: -4 }}
@@ -331,7 +356,7 @@ export default function Posts() {
               </motion.div>
             )
           })}
-        </div>
+        </motion.div>
       )}
     </div>
   )

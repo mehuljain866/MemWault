@@ -103,9 +103,11 @@ def open_folder(folder: Path) -> str:
     logger.info("Opening folder in file manager: %s", folder)
 
     if sys.platform == "win32":
-        # os.startfile uses ShellExecute, which is granted foreground rights and
-        # so reliably raises the Explorer window. Popen('explorer.exe') is not.
-        os.startfile(str(folder))  # noqa: S606 - path is server-controlled
+        try:
+            os.startfile(str(folder))
+        except Exception as e:
+            logger.warning("os.startfile failed (%s), running explorer.exe", e)
+            subprocess.Popen(f'explorer.exe "{str(folder)}"', shell=True)
         return "Opened in File Explorer"
 
     if sys.platform == "darwin":

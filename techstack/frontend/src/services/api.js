@@ -193,8 +193,11 @@ export async function refreshStoryViewers(storyId) {
   return apiFetch(`/stories/${storyId}/refresh-viewers`, { method: 'POST' });
 }
 
-export async function getAdjacentStories(storyId) {
-  return apiFetch(`/stories/${storyId}/adjacent`);
+export async function getAdjacentStories(storyId, params = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.location) searchParams.set('location_name', params.location);
+  const qs = searchParams.toString();
+  return apiFetch(`/stories/${storyId}/adjacent${qs ? `?${qs}` : ''}`);
 }
 
 export async function getStoryManifest(storyId) {
@@ -418,3 +421,10 @@ export async function uploadToPortal(token, slideIndex, file, companionVideo = n
   if (!res.ok) throw new Error('Upload failed')
   return res.json()
 }
+
+export async function shutdownSystem() {
+  return apiFetch('/system/shutdown', {
+    method: 'POST',
+  })
+}
+

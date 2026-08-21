@@ -11,7 +11,7 @@ import { getUploadPortalSession, uploadToPortal } from '../services/api'
 function MemWaultVaultIcon({ size = 32 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #88744A)" />
+      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #E89E38)" />
       <path d="M7 25V13C7 9.68629 9.68629 7 13 7H19C22.3137 7 25 9.68629 25 13V25" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
       <path d="M11 25V16C11 14.3431 12.3431 13 14 13H18C19.6569 13 21 14.3431 21 16V25" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
       <circle cx="16" cy="18" r="1.5" fill="#ffffff" />
@@ -208,9 +208,9 @@ export default function MobileUploadPortal() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
           <div style={{
             width: '42px', height: '42px', borderRadius: '12px',
-            backgroundColor: 'var(--ios-accent, #88744A)', color: '#fff',
+            backgroundColor: 'var(--ios-accent, #E89E38)', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(136, 116, 74, 0.3)'
+            boxShadow: '0 4px 12px rgba(232, 158, 56, 0.3)'
           }}>
             <Sparkles size={22} />
           </div>

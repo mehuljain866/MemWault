@@ -265,7 +265,7 @@ export default function HighlightViewer() {
             onClick={() => setShowAddStoriesModal(true)}
             style={{
               width: '100%', padding: '12px', borderRadius: '12px',
-              border: '2px dashed var(--ios-accent)', background: 'rgba(10, 132, 255, 0.1)',
+              border: '2px dashed var(--ios-accent)', background: 'var(--ios-bg-card)',
               color: 'var(--ios-accent)', fontWeight: 600, fontSize: '15px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
               cursor: 'pointer'
@@ -284,7 +284,7 @@ export default function HighlightViewer() {
             {/* Floating Date Header */}
             <div style={{ position: 'sticky', top: '74px', zIndex: 30, pointerEvents: 'none', display: 'flex', padding: '8px 0' }}>
               <div style={{
-                background: 'var(--ios-glass)',
+                background: 'var(--ios-bg-card)',
                 backdropFilter: 'blur(25px) saturate(180%)',
                 border: '1px solid var(--ios-border)',
                 color: 'var(--ios-text-primary)',
@@ -292,7 +292,7 @@ export default function HighlightViewer() {
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                boxShadow: 'var(--ios-shadow-sm, 0 4px 12px rgba(0,0,0,0.05))'
               }}>
                 {dateStr}
               </div>
@@ -311,6 +311,7 @@ export default function HighlightViewer() {
                 return (
                   <div
                     key={story.id}
+                    className="ios-story-card"
                     onClick={() => {
                       if (!isEditing) {
                         const idx = stories.findIndex(s => s.id === story.id)
@@ -320,13 +321,12 @@ export default function HighlightViewer() {
                     }}
                     style={{
                       aspectRatio: '9/16',
-                      borderRadius: '12px',
+                      borderRadius: 'var(--ios-radius-md, 12px)',
                       overflow: 'hidden',
                       cursor: isEditing ? 'default' : 'pointer',
                       position: 'relative',
-                      background: 'var(--ios-border)',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      transition: 'transform 0.18s, box-shadow 0.18s',
+                      background: 'var(--ios-bg-card)',
+                      boxShadow: 'var(--ios-shadow-sm, 0 2px 8px rgba(0,0,0,0.1))',
                       opacity: isEditing ? 0.9 : 1,
                     }}
                     onMouseEnter={e => {

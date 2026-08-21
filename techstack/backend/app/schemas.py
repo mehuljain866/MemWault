@@ -162,6 +162,7 @@ class StoryViewerRead(BaseModel):
     viewed_at: Optional[datetime] = None
     has_liked: bool = False
     reaction_emoji: Optional[str] = None
+    view_count: int = 1
 
     model_config = {"from_attributes": True}
 

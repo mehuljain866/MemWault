@@ -14,32 +14,45 @@ import {
 } from 'lucide-react'
 
 // Helper for Year/Month cluster preview
+function ClusterMediaItem({ story }) {
+  if (!story) return null
+  const url = story.media_url || (story.s3_key_compressed ? `/media/${story.s3_key_compressed}` : null)
+  if (!url) return null
+  const isVideo = story.media_type === 2 || url.includes('.mp4') || url.includes('.mov')
+  if (isVideo) {
+    return (
+      <video 
+        src={`${url}#t=0.1`} 
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+        muted 
+        playsInline 
+        preload="metadata"
+      />
+    )
+  }
+  return (
+    <img 
+      src={url} 
+      alt="" 
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+      loading="lazy"
+    />
+  )
+}
+
 function ClusterPreview({ stories, size }) {
   const previews = stories.slice(0, 4)
   if (previews.length === 0) return null
 
   if (previews.length === 1 || size < 80) {
-    const s = previews[0]
-    return (
-      <img 
-        src={s.media_url || `/media/${s.s3_key_compressed}`} 
-        alt="" 
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-        loading="lazy"
-      />
-    )
+    return <ClusterMediaItem story={previews[0]} />
   }
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '1px', background: 'var(--ios-border)' }}>
       {previews.map((s, idx) => (
         <div key={s.id || idx} style={{ overflow: 'hidden', position: 'relative' }}>
-          <img 
-            src={s.media_url || `/media/${s.s3_key_compressed}`} 
-            alt="" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            loading="lazy"
-          />
+          <ClusterMediaItem story={s} />
         </div>
       ))}
     </div>
@@ -220,29 +233,28 @@ export default function Timeline({ isReelView = false }) {
     )
   }
 
-  // Segment Filter Button — animated sliding pill
-  const SegmentButton = ({ active, onClick, icon: Icon, label, layoutId }) => (
+  // Clean Segment Filter Button
+  const SegmentButton = ({ active, onClick, icon: Icon, label }) => (
     <button
+      className={`segment-btn ${active ? 'active' : ''}`}
       onClick={onClick}
       style={{
-        padding: '6px 12px', border: 'none', background: 'transparent',
-        borderRadius: '10px', color: active ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-        fontWeight: active ? 700 : 500, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: '5px', cursor: 'pointer', position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
-        whiteSpace: 'nowrap'
+        padding: '6px 12px',
+        border: 'none',
+        borderRadius: 'var(--ios-radius-sm, 8px)',
+        backgroundColor: active ? 'var(--ios-accent)' : 'transparent',
+        color: active ? '#ffffff' : 'var(--ios-text-secondary)',
+        fontWeight: active ? 700 : 500,
+        fontSize: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '5px',
+        cursor: 'pointer',
       }}
     >
-      {active && (
-        <motion.span
-          layoutId={layoutId || 'media-filter-pill'}
-          style={{
-            position: 'absolute', inset: 0, borderRadius: '10px',
-            background: 'var(--ios-bg-card, #2c2c2e)', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', zIndex: -1,
-          }}
-          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-        />
-      )}
-      {Icon && <Icon size={14} />} <span>{label}</span>
+      <Icon size={14} strokeWidth={active ? 3 : 2} />
+      {label}
     </button>
   )
 
@@ -274,8 +286,8 @@ export default function Timeline({ isReelView = false }) {
           <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Memories"}</h2>
           <span style={{
             fontSize: '12px',
-            color: 'var(--ios-text-secondary, #8e8e93)',
-            background: 'var(--ios-border, rgba(255,255,255,0.08))',
+            color: 'var(--ios-text-secondary)',
+            background: 'var(--ios-border)',
             padding: '3px 10px',
             borderRadius: '12px',
             fontWeight: 600
@@ -284,7 +296,7 @@ export default function Timeline({ isReelView = false }) {
           </span>
 
           {isSelectMode && (
-            <span style={{ fontSize: '13px', color: 'var(--ios-accent, #007aff)', fontWeight: 600 }}>
+            <span style={{ fontSize: '13px', color: 'var(--ios-accent)', fontWeight: 600 }}>
               {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'Select items'}
             </span>
           )}
@@ -292,38 +304,32 @@ export default function Timeline({ isReelView = false }) {
 
         {/* Right Section: Time Granularity & Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Clean animated 3-Pill Zoom Selector (Years / Months / Days) */}
+          {/* Zoom Selector (Years / Months / Days) */}
           {!isSelectMode && (
             <div style={{
               display: 'flex',
-              background: 'var(--ios-border, rgba(255,255,255,0.08))',
-              borderRadius: '20px',
-              padding: '2px',
-              gap: '2px'
+              background: 'var(--ios-bg-card)',
+              border: '1px solid var(--ios-border)',
+              borderRadius: '12px',
+              padding: '3px',
+              gap: '3px'
             }}>
               {[['year', 'Years'], ['month', 'Months'], ['day', 'Days']].map(([val, label]) => (
                 <button
                   key={val}
                   onClick={() => setZoomLevel(val)}
                   style={{
-                    border: 'none', background: 'transparent',
-                    color: zoomLevel === val ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
-                    padding: '5px 13px', borderRadius: '16px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: zoomLevel === val ? 'var(--ios-accent)' : 'transparent',
+                    color: zoomLevel === val ? '#ffffff' : 'var(--ios-text-secondary)',
+                    padding: '5px 12px',
                     fontWeight: zoomLevel === val ? 700 : 500,
-                    fontSize: '12px', cursor: 'pointer',
-                    position: 'relative', zIndex: 1, transition: 'color 0.2s ease',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  {zoomLevel === val && (
-                    <motion.span
-                      layoutId="zoom-pill"
-                      style={{
-                        position: 'absolute', inset: 0, borderRadius: '16px',
-                        background: 'var(--ios-bg-card, #2c2c2e)', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', zIndex: -1,
-                      }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 36 }}
-                    />
-                  )}
                   {label}
                 </button>
               ))}
@@ -339,7 +345,7 @@ export default function Timeline({ isReelView = false }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: 'var(--ios-accent, #007aff)',
+                backgroundColor: 'var(--ios-accent)',
                 color: '#ffffff',
                 border: 'none',
                 padding: '8px 16px',
@@ -384,7 +390,7 @@ export default function Timeline({ isReelView = false }) {
         </div>
       </div>
 
-      {/* ── Second Row: Filter Bar & Search Input (Balanced Full Width) ─── */}
+      {/* ── Second Row: Filter Bar & Search Input ─── */}
       {!isSelectMode && (
         <div style={{
           display: 'flex',
@@ -393,43 +399,48 @@ export default function Timeline({ isReelView = false }) {
           marginBottom: '20px',
           gap: '12px',
           paddingBottom: '14px',
-          borderBottom: '1px solid var(--ios-border, rgba(255,255,255,0.06))',
+          borderBottom: '1px solid var(--ios-border)',
           flexWrap: 'wrap',
         }}>
           {/* Left: Audience & Media Segmented Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {/* Audience Filter (All / CF / Public) */}
             <div style={{
-              display: 'flex', background: 'var(--ios-border, rgba(255,255,255,0.08))', padding: '2px',
-              borderRadius: '12px', gap: '2px'
+              display: 'flex',
+              background: 'var(--ios-bg-card)',
+              border: '1px solid var(--ios-border)',
+              padding: '3px',
+              borderRadius: '12px',
+              gap: '3px'
             }}>
               <SegmentButton 
                 active={filters.isCloseFriends === null} 
                 onClick={() => setFilters(f => ({ ...f, isCloseFriends: null }))} 
                 icon={Globe} 
                 label="All" 
-                layoutId="audience-filter-pill"
               />
               <SegmentButton 
                 active={filters.isCloseFriends === true} 
                 onClick={() => setFilters(f => ({ ...f, isCloseFriends: true }))} 
                 icon={Star} 
                 label="Close Friends" 
-                layoutId="audience-filter-pill"
               />
               <SegmentButton 
                 active={filters.isCloseFriends === false} 
                 onClick={() => setFilters(f => ({ ...f, isCloseFriends: false }))} 
                 icon={Users} 
                 label="Public" 
-                layoutId="audience-filter-pill"
               />
             </div>
 
             {/* Media Filter */}
             <div style={{
-              display: 'flex', background: 'var(--ios-border, rgba(255,255,255,0.08))', padding: '2px',
-              borderRadius: '12px', gap: '2px'
+              display: 'flex',
+              background: 'var(--ios-bg-card)',
+              border: '1px solid var(--ios-border)',
+              padding: '3px',
+              borderRadius: '12px',
+              gap: '3px'
             }}>
               <SegmentButton active={!filters.mediaType} onClick={() => setFilters(f => ({ ...f, mediaType: null }))} icon={BoxSelect} label="All" />
               <SegmentButton active={filters.mediaType === 1} onClick={() => setFilters(f => ({ ...f, mediaType: 1 }))} icon={ImageIcon} label="Photos" />
@@ -438,7 +449,7 @@ export default function Timeline({ isReelView = false }) {
           </div>
 
           {/* Right: Search Input */}
-          <div style={{
+          <div className="search-input-wrapper" style={{
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -448,9 +459,12 @@ export default function Timeline({ isReelView = false }) {
           }}>
             <Search size={14} style={{
               position: 'absolute',
-              left: '12px',
+              left: '9px',
+              top: '50%',
+              transform: 'translateY(-50%)',
               color: 'var(--ios-text-secondary, #8e8e93)',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              zIndex: 5
             }} />
             <input
               type="text"
@@ -459,7 +473,7 @@ export default function Timeline({ isReelView = false }) {
               onChange={e => setSearchInput(e.target.value)}
               style={{
                 width: '100%',
-                padding: '7px 12px 7px 34px',
+                padding: '7px 12px 7px 30px',
                 borderRadius: '14px',
                 border: '1px solid var(--ios-border)',
                 backgroundColor: 'var(--ios-bg-card)',
@@ -481,13 +495,16 @@ export default function Timeline({ isReelView = false }) {
                 style={{
                   position: 'absolute',
                   right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                   background: 'none',
                   border: 'none',
                   color: 'var(--ios-text-secondary)',
                   cursor: 'pointer',
                   padding: '2px',
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  zIndex: 5
                 }}
               >
                 <XIcon size={13} />
@@ -516,22 +533,22 @@ export default function Timeline({ isReelView = false }) {
               {/* Hierarchical Sticky Temporal Header */}
               <div style={{ position: 'sticky', top: '74px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '6px 0' }}>
                 <div style={{
-                  background: 'rgba(28, 28, 30, 0.85)',
+                  background: 'var(--ios-bg-card)',
                   backdropFilter: 'blur(20px) saturate(180%)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#fff',
+                  border: '1px solid var(--ios-border)',
+                  color: 'var(--ios-text-primary)',
                   padding: '5px 14px',
                   borderRadius: '16px',
                   fontSize: '13px',
                   fontWeight: 700,
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                  boxShadow: 'var(--ios-shadow-sm)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'
                 }}>
                   <Calendar size={13} color="var(--ios-accent)" />
                   {dateStr}
-                  <span style={{ fontSize: '11px', opacity: 0.6, fontWeight: 500 }}>({dateStories.length})</span>
+                  <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', fontWeight: 500 }}>({dateStories.length})</span>
                 </div>
               </div>
               

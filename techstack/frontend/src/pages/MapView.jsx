@@ -250,7 +250,7 @@ export default function MapView() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
                     {locs.map(loc => (
-                      <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
+                      <div key={loc.id} onClick={() => navigate(`/story/${loc.id}${loc.location_name ? `?location=${encodeURIComponent(loc.location_name)}` : ''}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
                         {loc.media_type === 2 ? (
                           <video 
                             src={`${loc.media_url}#t=0.1`} 
@@ -294,7 +294,11 @@ export default function MapView() {
     : { flex: 1, position: 'relative', height: '100%', overflow: 'hidden', background: '#000', borderRadius: 'var(--ios-radius-lg)' }
 
   return (
-    <div style={containerStyle}>
+    <motion.div 
+      layout
+      transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+      style={containerStyle}
+    >
       {/* Back Button and Full Screen Toggle */}
       <div style={{ position: 'absolute', top: immersiveFullScreen ? '40px' : '20px', left: '20px', zIndex: 1010, display: 'flex', gap: '12px' }}>
         {immersiveFullScreen && (
@@ -322,7 +326,10 @@ export default function MapView() {
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
           {locations.map(loc => (
             <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
-              <Popup><strong>{loc.location_name}</strong><br/><Link to={`/story/${loc.id}`}>View</Link></Popup>
+              <Popup>
+                <strong>{loc.location_name}</strong><br/>
+                <Link to={`/story/${loc.id}${loc.location_name ? `?location=${encodeURIComponent(loc.location_name)}` : ''}`}>View</Link>
+              </Popup>
             </Marker>
           ))}
         </MarkerClusterGroup>
@@ -342,10 +349,6 @@ export default function MapView() {
         {/* Drag Handle Area */}
         <div 
           onClick={() => {
-            // Natural toggle logic: 
-            // If collapsed, go to half. 
-            // If half, go to full. 
-            // If full, go to half.
             if (sheetState === 'collapsed') setSheetState('half')
             else if (sheetState === 'half') setSheetState('full')
             else if (sheetState === 'full') setSheetState('half')
@@ -384,7 +387,7 @@ export default function MapView() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '4px' }}>
                 {locs.map(loc => (
-                  <div key={loc.id} onClick={() => navigate(`/story/${loc.id}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
+                  <div key={loc.id} onClick={() => navigate(`/story/${loc.id}${loc.location_name ? `?location=${encodeURIComponent(loc.location_name)}` : ''}`)} style={{ aspectRatio: '2/3', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden' }}>
                     {loc.media_type === 2 ? (
                       <video 
                         src={`${loc.media_url}#t=0.1`} 
@@ -407,6 +410,6 @@ export default function MapView() {
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

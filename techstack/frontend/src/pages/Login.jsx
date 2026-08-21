@@ -5,7 +5,7 @@ import { login, register } from '../services/api'
 function MemWaultVaultIcon({ size = 48 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 16px auto', display: 'block', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>
-      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #88744A)" />
+      <rect width="32" height="32" rx="8" fill="var(--ios-accent, #E89E38)" />
       {/* Outer Arch Vault */}
       <path d="M7 25V13C7 9.68629 9.68629 7 13 7H19C22.3137 7 25 9.68629 25 13V25" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
       {/* Inner Vault Door Arch */}

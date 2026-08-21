@@ -255,6 +255,7 @@ class InstagramScraper:
                 user = v.get("user") if ("user" in v and isinstance(v["user"], dict)) else v
                 uid = str(user.get("pk") or user.get("id") or user.get("pk_id") or user.get("strong_id__") or "")
                 has_liked = bool(v.get("has_liked")) or bool(user.get("has_liked")) or (uid in liked_user_ids)
+                raw_count = v.get("view_count") or v.get("view_count_info") or (v.get("user") or {}).get("view_count") or 1
                 result.append({
                     "ig_user_id": uid,
                     "username": user.get("username", ""),
@@ -262,6 +263,7 @@ class InstagramScraper:
                     "profile_pic_url": user.get("profile_pic_url"),
                     "has_liked": has_liked,
                     "reaction_emoji": reaction_emojis.get(uid) or ("❤️" if has_liked else None),
+                    "view_count": int(raw_count) if isinstance(raw_count, (int, str)) and str(raw_count).isdigit() else 1,
                 })
             
             logger.info("Fetched %d viewers (%d likes) for story %s", len(result), sum(1 for x in result if x["has_liked"]), pk)

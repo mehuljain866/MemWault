@@ -177,7 +177,7 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
         position: 'relative',
         width: '100%',
         height: '100%',
-        backgroundColor: '#000',
+        backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
         borderRadius: '20px',
         overflow: 'hidden',
         display: 'flex',

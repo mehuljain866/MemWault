@@ -479,8 +479,11 @@ async def list_stories(
         query = query.where(Story.taken_at >= datetime.fromisoformat(date_from))
     if date_to:
         query = query.where(Story.taken_at <= datetime.fromisoformat(date_to))
-    if is_reel is not None:
-        query = query.where(Story.is_reel == is_reel)
+    if is_reel is True:
+        from sqlalchemy import or_
+        query = query.where(or_(Story.is_reel == True, Story.media_type == 2))
+    elif is_reel is False:
+        query = query.where(Story.is_reel == False, Story.media_type != 2)
     if is_memory is not None:
         query = query.where(Story.is_memory == is_memory)
     if is_trashed is not None:
@@ -717,7 +720,9 @@ async def get_story_viewers(
         raise HTTPException(status_code=404, detail="Story not found")
 
     viewers_result = await db.execute(
-        select(StoryViewer).where(StoryViewer.story_id == story_id)
+        select(StoryViewer)
+        .where(StoryViewer.story_id == story_id)
+        .order_by(StoryViewer.has_liked.desc(), StoryViewer.view_count.desc(), StoryViewer.viewed_at.desc())
     )
     return viewers_result.scalars().all()
 
@@ -750,8 +755,8 @@ async def refresh_story_viewers(
     scraper = InstagramScraper(username=ig_session.ig_username, session_data=ig_session.session_data)
     scraper.login()
     viewers_list = scraper.fetch_story_viewers(story.ig_media_id)
-    
-    # Delete old and insert fresh viewers
+
+    # Delete old and insert authentic fresh viewers from Instagram
     await db.execute(delete(StoryViewer).where(StoryViewer.story_id == story_id))
     for v in viewers_list:
         sv = StoryViewer(
@@ -762,6 +767,7 @@ async def refresh_story_viewers(
             profile_pic_url=v.get("profile_pic_url"),
             has_liked=v.get("has_liked", False),
             reaction_emoji=v.get("reaction_emoji"),
+            view_count=v.get("view_count", 1),
         )
         db.add(sv)
 
@@ -814,10 +820,11 @@ async def get_story_manifest(
 @router.get("/stories/{story_id}/adjacent", response_model=AdjacentStoriesRead)
 async def get_adjacent_stories(
     story_id: uuid.UUID,
+    location_name: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the chronologically previous (older) and next (newer) story IDs."""
+    """Get the chronologically previous (older) and next (newer) story IDs, optionally filtered by location."""
     # First get the current story's taken_at
     result = await db.execute(
         select(Story.taken_at).where(Story.id == story_id, Story.user_id == user.id)
@@ -827,20 +834,20 @@ async def get_adjacent_stories(
         raise HTTPException(status_code=404, detail="Story not found")
 
     # Prev story (older) -> max taken_at that is < current taken_at
+    prev_query = select(Story.id).where(Story.user_id == user.id, Story.taken_at < taken_at)
+    if location_name:
+        prev_query = prev_query.where(Story.location_name.ilike(f"%{location_name}%"))
     prev_result = await db.execute(
-        select(Story.id)
-        .where(Story.user_id == user.id, Story.taken_at < taken_at)
-        .order_by(Story.taken_at.desc())
-        .limit(1)
+        prev_query.order_by(Story.taken_at.desc()).limit(1)
     )
     prev_id = prev_result.scalar_one_or_none()
 
     # Next story (newer) -> min taken_at that is > current taken_at
+    next_query = select(Story.id).where(Story.user_id == user.id, Story.taken_at > taken_at)
+    if location_name:
+        next_query = next_query.where(Story.location_name.ilike(f"%{location_name}%"))
     next_result = await db.execute(
-        select(Story.id)
-        .where(Story.user_id == user.id, Story.taken_at > taken_at)
-        .order_by(Story.taken_at.asc())
-        .limit(1)
+        next_query.order_by(Story.taken_at.asc()).limit(1)
     )
     next_id = next_result.scalar_one_or_none()
 
@@ -2041,3 +2048,111 @@ async def upload_portal_files(
     await db.commit()
     await db.refresh(media)
     return {"status": "ok", "slide": _format_post_media(media, s3)}
+
+
+@router.post("/system/shutdown")
+async def shutdown_system(
+    user: User = Depends(get_current_user),
+):
+    """
+    Safely power down all MemWault background services:
+    - Vite frontend dev server (port 5173)
+    - Python uvicorn backend server (port 8000)
+    - All parent cmd.exe, powershell.exe, and Windows Terminal windows
+    """
+    import os, sys, threading, time
+
+    def run_shutdown():
+        time.sleep(0.8)  # Wait for HTTP response to be flushed to frontend
+        try:
+            import psutil
+            current_pid = os.getpid()
+            parents_to_kill = set()
+            processes_to_kill = set()
+
+            # 1. Scan all processes for MemWault, uvicorn, vite, and node
+            for p in psutil.process_iter(['pid', 'name', 'cmdline', 'ppid']):
+                try:
+                    cmdline = " ".join(p.info['cmdline'] or [])
+                    name = (p.info['name'] or '').lower()
+                    
+                    is_target = False
+                    if 'memwault' in cmdline.lower():
+                        is_target = True
+                    elif 'uvicorn' in cmdline and 'app.main:app' in cmdline:
+                        is_target = True
+                    elif 'vite' in cmdline or ('npm' in cmdline and 'dev' in cmdline):
+                        is_target = True
+                    elif name in ['node.exe', 'python.exe'] and ('5173' in cmdline or '8000' in cmdline or 'techstack' in cmdline):
+                        is_target = True
+
+                    if is_target and p.pid != current_pid:
+                        processes_to_kill.add(p.pid)
+                        ppid = p.info.get('ppid')
+                        if ppid and ppid > 0:
+                            try:
+                                parent = psutil.Process(ppid)
+                                pname = parent.name().lower()
+                                if pname in ['cmd.exe', 'powershell.exe', 'windowsterminal.exe', 'conhost.exe', 'wt.exe']:
+                                    parents_to_kill.add(ppid)
+                            except Exception:
+                                pass
+                except Exception:
+                    continue
+
+            # 2. Scan ports 5173 and 8000
+            try:
+                for conn in psutil.net_connections():
+                    if conn.laddr and conn.laddr.port in (5173, 8000):
+                        if conn.pid and conn.pid != current_pid:
+                            processes_to_kill.add(conn.pid)
+                            try:
+                                p = psutil.Process(conn.pid)
+                                ppid = p.ppid()
+                                if ppid and ppid > 0:
+                                    parent = psutil.Process(ppid)
+                                    pname = parent.name().lower()
+                                    if pname in ['cmd.exe', 'powershell.exe', 'windowsterminal.exe', 'conhost.exe', 'wt.exe']:
+                                        parents_to_kill.add(ppid)
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+            # 3. Kill all parent terminal windows (closes the window + all descendants)
+            for ppid in parents_to_kill:
+                try:
+                    parent_proc = psutil.Process(ppid)
+                    for child in parent_proc.children(recursive=True):
+                        try:
+                            child.kill()
+                        except Exception:
+                            pass
+                    parent_proc.kill()
+                except Exception:
+                    pass
+
+            # 4. Kill any remaining targeted child processes
+            for pid in processes_to_kill:
+                try:
+                    p = psutil.Process(pid)
+                    p.kill()
+                except Exception:
+                    pass
+
+            # 5. Exit backend process
+            try:
+                psutil.Process(current_pid).kill()
+            except Exception:
+                os._exit(0)
+        except Exception:
+            os._exit(0)
+
+    threading.Thread(target=run_shutdown, daemon=True).start()
+
+    return {
+        "status": "shutting_down",
+        "message": "MemWault is powering off all background services and terminal windows."
+    }
+
+

@@ -4,13 +4,31 @@ import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../servi
 import { useOutletContext } from 'react-router-dom'
 import { 
   Images, Video, Music, MapPin, Users, Database, Server, HardDrive, 
-  RefreshCcw, DownloadCloud, Menu, Star, Layers, Sparkles 
+  RefreshCcw, RefreshCw, DownloadCloud, Menu, Star, Layers, Sparkles,
+  CheckCircle2, XCircle, Clock, ArrowDown
 } from 'lucide-react'
+
+// Animated Cloud Download Icon
+function AnimatedCloudDownload({ isImporting }) {
+  return (
+    <div style={{ position: 'relative', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <DownloadCloud size={20} />
+      <motion.div
+        animate={isImporting ? { y: [ -2, 4, -2 ] } : { y: [ -1, 3, -1 ] }}
+        transition={{ repeat: Infinity, duration: isImporting ? 0.6 : 1.2, ease: "easeInOut" }}
+        style={{ position: 'absolute', top: '6px', left: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <ArrowDown size={10} strokeWidth={3} />
+      </motion.div>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { onMenuClick } = useOutletContext() || {}
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [importing, setImporting] = useState(false)
   const [toast, setToast] = useState(null)
 
@@ -34,6 +52,20 @@ export default function Dashboard() {
     }
   }
 
+  async function handleSync() {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      await triggerScrape(true)
+      await loadStats()
+      showToast('Active stories synced successfully!')
+    } catch (err) {
+      showToast(`Sync error: ${err.message}`)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   async function handleArchiveImport() {
     if (!confirm('Import ALL stories from your Instagram archive? This may take a while.')) return
     setImporting(true)
@@ -50,8 +82,8 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
-        <RefreshCcw size={32} className="spin-anim" />
-        <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading Dashboard...</div>
+        <RefreshCw size={32} className="spin-anim" />
+        <div style={{ fontSize: '16px', fontWeight: 600 }}>Loading Dashboard...</div>
       </div>
     )
   }
@@ -60,8 +92,8 @@ export default function Dashboard() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--ios-text-secondary)' }}>
         <Server size={48} color="var(--ios-danger)" />
-        <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Could not load stats</div>
-        <div style={{ fontSize: '16px' }}>Make sure the backend server is running and your session is valid.</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Could not load stats</div>
+        <div style={{ fontSize: '14px' }}>Make sure the backend server is running and your session is valid.</div>
         <button className="ios-btn" onClick={loadStats} style={{ marginTop: '16px' }}>Retry Connection</button>
       </div>
     )
@@ -72,14 +104,14 @@ export default function Dashboard() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.06,
-        delayChildren: 0.05,
+        staggerChildren: 0.05,
+        delayChildren: 0.04,
       }
     }
   }
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 16, scale: 0.98 },
+    hidden: { opacity: 0, y: 14, scale: 0.98 },
     visible: { 
       opacity: 1, y: 0, scale: 1,
       transition: { type: 'spring', stiffness: 380, damping: 26 }
@@ -90,24 +122,32 @@ export default function Dashboard() {
   const BentoStat = ({ icon: Icon, color, label, value }) => (
     <motion.div 
       variants={cardVariants}
-      whileHover={{ scale: 1.03, y: -4 }}
+      whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
       className="ios-card" 
-      style={{ display: 'flex', flexDirection: 'column', gap: '16px', cursor: 'pointer' }}
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between',
+        aspectRatio: '1 / 1',
+        padding: '14px',
+        cursor: 'pointer' 
+      }}
     >
       <div style={{ 
-        width: '48px', height: '48px', borderRadius: '50%', 
-        backgroundColor: `${color}20`, color: color, 
-        display: 'flex', alignItems: 'center', justifyContent: 'center' 
+        width: '32px', height: '32px', borderRadius: '10px', 
+        backgroundColor: `${color}18`, color: color, 
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0
       }}>
-        <Icon size={24} strokeWidth={2.5} />
+        <Icon size={18} strokeWidth={2.5} />
       </div>
       <div>
-        <div style={{ fontSize: '36px', fontWeight: 700, letterSpacing: '-1px', marginBottom: '4px' }}>
+        <div style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '2px', color: 'var(--ios-text-primary)', lineHeight: 1.1 }}>
           {value}
         </div>
-        <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ios-text-secondary)' }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ios-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {label}
         </div>
       </div>
@@ -119,17 +159,69 @@ export default function Dashboard() {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      style={{ paddingTop: '20px' }}
+      style={{ paddingTop: '10px' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-        <button
-          className="ios-btn-secondary"
-          onClick={onMenuClick}
-          style={{ display: window.innerWidth <= 768 ? 'flex' : 'none', padding: '8px', borderRadius: '8px' }}
-        >
-          <Menu size={24} />
-        </button>
-        <h2 className="ios-title" style={{ margin: 0 }}>Overview</h2>
+      {/* Header with LED Archive Counter */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        marginBottom: '20px',
+        padding: '12px 16px',
+        backgroundColor: 'var(--ios-bg-card)',
+        borderRadius: '12px',
+        border: '1px solid var(--ios-border)',
+        boxShadow: 'var(--ios-shadow-sm)'
+      }} className="settings-section-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <button
+            className="ios-btn-secondary"
+            onClick={onMenuClick}
+            style={{ display: window.innerWidth <= 768 ? 'flex' : 'none', padding: '8px', borderRadius: '8px' }}
+          >
+            <Menu size={22} />
+          </button>
+          <div>
+            <h2 className="ios-title status-title" style={{ margin: 0, fontSize: '20px', lineHeight: 1.2 }}>MemWault Overview</h2>
+            <div className="status-subtitle" style={{ fontSize: '12px', color: 'var(--ios-text-secondary)', marginTop: '2px' }}>
+              Personal Archive & Media Vault
+            </div>
+          </div>
+        </div>
+
+        {/* LED Archival Counter */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          backgroundColor: '#000000',
+          padding: '6px 14px',
+          borderRadius: '8px',
+          border: '1px solid var(--win98-dark-shadow, #808080)',
+          boxShadow: 'inset 1px 1px #000'
+        }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '9px', color: '#808080', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Archived Total
+            </div>
+            <div style={{ fontSize: '10px', color: '#00D26A', fontWeight: 700 }}>
+              ONLINE
+            </div>
+          </div>
+          <div style={{
+            fontSize: '32px',
+            fontWeight: 900,
+            color: '#00ff66',
+            fontFamily: 'monospace, "Courier New"',
+            letterSpacing: '2px',
+            lineHeight: 1,
+            textShadow: '0 0 8px rgba(0, 255, 102, 0.6)'
+          }}>
+            {String(stats.total_stories || 0).padStart(4, '0')}
+          </div>
+        </div>
       </div>
       
       {/* ── Stats Grid (Bento) ──────────────────────── */}
@@ -137,91 +229,147 @@ export default function Dashboard() {
         variants={containerVariants}
         style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-          gap: '24px', 
-          marginBottom: '40px' 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
+          gap: '12px', 
+          marginBottom: '20px' 
         }}
       >
-        <motion.div 
-          variants={cardVariants}
-          whileHover={{ scale: 1.01, y: -2 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="ios-card hero-card" 
-          style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(135deg, #007aff 0%, #5856d6 100%)', color: 'white', cursor: 'pointer' }}
-        >
-          <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.85 }}>Archived Records</div>
-          <div style={{ fontSize: '64px', fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 }}>{stats.total_stories}</div>
-        </motion.div>
-        
         <BentoStat icon={Images} color="#ff9500" label="Photos" value={stats.total_photos} />
         <BentoStat icon={Video} color="#ff2d55" label="Videos" value={stats.total_videos} />
         <BentoStat icon={Layers} color="#5856d6" label="Feed Posts" value={stats.total_feed_posts || 0} />
-        <BentoStat icon={Sparkles} color="#88744A" label="RAW Masters Preserved" value={stats.total_with_raw_master || 0} />
+        <BentoStat icon={Sparkles} color="#E89E38" label="RAW Masters" value={stats.total_with_raw_master || 0} />
         <BentoStat icon={Star} color="#00D26A" label="Close Friends" value={stats.total_close_friends || 0} />
         <BentoStat icon={Music} color="#af52de" label="With Music" value={stats.total_with_music} />
         <BentoStat icon={MapPin} color="#34c759" label="With Location" value={stats.total_with_location} />
         <BentoStat icon={Users} color="#00c7be" label="Mentions" value={stats.total_mentions} />
       </motion.div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+      {/* ── Action & Status Split ───────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
+        
         {/* ── Quick Actions ───────────────────── */}
-        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h3 style={{ fontSize: '22px', fontWeight: 700 }}>Quick Actions</h3>
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            className="ios-btn" 
-            onClick={() => triggerScrape(true).then(loadStats)}
-          >
-            <RefreshCcw size={18} /> Sync Active Stories
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            className="ios-btn-secondary ios-btn" 
-            onClick={handleArchiveImport} 
-            disabled={importing}
-          >
-            {importing ? <><RefreshCcw size={18} className="spin-anim" /> Importing...</> : <><DownloadCloud size={18} /> Import Full Archive</>}
-          </motion.button>
+        <div className="ios-card settings-section-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', boxSizing: 'border-box' }}>
+          <h3 className="settings-section-header" style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Quick Actions</h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, justifyContent: 'center' }}>
+            <motion.button 
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className="ios-btn" 
+              onClick={handleSync}
+              disabled={syncing}
+              style={{
+                padding: '10px 16px', fontSize: '13px', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}
+            >
+              <RefreshCw size={16} className={syncing ? "spin-anim" : "spin-on-hover"} />
+              <span>{syncing ? 'Syncing Active Stories...' : 'Sync Active Stories'}</span>
+            </motion.button>
+
+            <motion.button 
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className="ios-btn-secondary ios-btn" 
+              onClick={handleArchiveImport} 
+              disabled={importing}
+              style={{
+                padding: '10px 16px', fontSize: '13px', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}
+            >
+              <AnimatedCloudDownload isImporting={importing} />
+              <span>{importing ? 'Importing Archive Stories...' : 'Import Full Archive'}</span>
+            </motion.button>
+          </div>
         </div>
 
-        {/* ── System & Storage ───────────────────── */}
-        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <h3 style={{ fontSize: '22px', fontWeight: 700 }}>System Status</h3>
+        {/* ── System Status ───────────────────── */}
+        <div className="ios-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--ios-text-primary)' }}>System Status</h3>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <HardDrive size={32} color="var(--ios-accent)" />
-            <div>
-              <div style={{ fontSize: '18px', fontWeight: 700 }}>{stats.storage_used_mb} MB</div>
-              <div style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>Total Storage Used</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Server size={32} color={stats.ig_session_valid ? "var(--ios-success)" : "var(--ios-danger)"} />
-            <div>
-              <div style={{ fontSize: '18px', fontWeight: 700 }}>Instagram Session</div>
-              <div style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>
-                {stats.ig_session_valid ? 'Connected & Active' : 'Not Connected'}
-              </div>
-            </div>
-          </div>
-
-          {stats.last_scrape && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <Database size={32} color={stats.last_scrape.status === 'success' ? "var(--ios-success)" : "var(--ios-warning)"} />
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: 700 }}>Last Scrape</div>
-                <div style={{ fontSize: '14px', color: 'var(--ios-text-secondary)', fontWeight: 600 }}>
-                  {new Date(stats.last_scrape.started_at).toLocaleString()} · {stats.last_scrape.stories_new} new
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Storage Metric */}
+            <div className="dashboard-status-row" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
+              border: '1px solid var(--ios-border)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <HardDrive size={22} color="var(--ios-accent)" />
+                <div>
+                  <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                    Total Storage
+                  </div>
+                  <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                    Local disk allocation
+                  </div>
                 </div>
               </div>
+              <div className="status-val" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--ios-text-primary)' }}>
+                {stats.storage_used_mb} MB
+              </div>
             </div>
-          )}
+
+            {/* Instagram Session Metric */}
+            <div className="dashboard-status-row" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
+              border: '1px solid var(--ios-border)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Server size={22} color={stats.ig_session_valid ? "#34c759" : "var(--ios-danger)"} />
+                <div>
+                  <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                    Instagram Session
+                  </div>
+                  <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                    Automated background scraper
+                  </div>
+                </div>
+              </div>
+              <span className={`dashboard-status-badge ${stats.ig_session_valid ? 'badge-active' : ''}`} style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                backgroundColor: stats.ig_session_valid ? 'rgba(52, 199, 89, 0.15)' : 'rgba(255, 59, 48, 0.15)',
+                color: stats.ig_session_valid ? '#34c759' : '#ff3b30'
+              }}>
+                {stats.ig_session_valid ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                {stats.ig_session_valid ? 'Active' : 'Expired'}
+              </span>
+            </div>
+
+            {/* Last Ingestion Metric */}
+            {stats.last_scrape && (
+              <div className="dashboard-status-row" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: '12px', background: 'var(--ios-bg-app)',
+                border: '1px solid var(--ios-border)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Clock size={22} color="var(--ios-accent)" />
+                  <div>
+                    <div className="status-title" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                      Last Sync
+                    </div>
+                    <div className="status-subtitle" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                      {new Date(stats.last_scrape.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                <span className="dashboard-status-badge badge-sync" style={{
+                  padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                  backgroundColor: 'rgba(232, 158, 56, 0.15)', color: 'var(--ios-accent)'
+                }}>
+                  +{stats.last_scrape.stories_new} new
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
           <motion.div 

@@ -163,8 +163,8 @@ export default function LocationModal({ isOpen, onClose, onSave, initialLocation
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           {mode === 'search' ? (
             <div style={{ padding: '16px' }}>
-              <form onSubmit={handleSearch} style={{ position: 'relative', marginBottom: '24px' }}>
-                <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ios-text-secondary)' }}>
+              <form onSubmit={handleSearch} className="search-input-wrapper" style={{ position: 'relative', marginBottom: '24px' }}>
+                <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ios-text-secondary)', zIndex: 5 }}>
                   <Search size={18} />
                 </div>
                 <input

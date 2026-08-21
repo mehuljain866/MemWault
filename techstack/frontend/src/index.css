@@ -1,44 +1,239 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   MemWault â iOS Native Overhaul (Bento Box Architecture)
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ══════════════════════════════════════════════════════════════
-   MemWault — 4-Combination Design System Matrix
-   1. Modern + Dark
-   2. Modern + Light
-   3. Skeuomorphic + Dark (The Canonical Vault)
-   4. Skeuomorphic + Light (Archival Desk Paper)
+   MemWault — Universal 17-Theme Design System Matrix
+   8 Material Worlds + 7 Design Eras + 2 Canonical Bases
    ══════════════════════════════════════════════════════════════ */
 
-/* ── 1. MODERN + LIGHT ───────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   1. MATERIAL WORLDS
+   ────────────────────────────────────────────────────────────── */
+
+/* ── 1.1 DARKROOM (Default Photographic Vault) ───────────────── */
 :root,
-:root[data-design='modern'][data-theme='light'] {
-  --ios-bg-app: #f2f2f7;
-  --ios-bg-card: #ffffff;
-  --ios-bg-sidebar: #111111;
-  --ios-text-primary: #1c1c1e;
-  --ios-text-secondary: #8e8e93;
-  --ios-text-inverse: #ffffff;
-  --ios-border: rgba(0, 0, 0, 0.08);
-  --ios-accent: #007aff;
-  --ios-accent-hover: #005bb5;
+:root[data-theme-id='darkroom'],
+:root[data-theme-id='darkroom'][data-theme='dark'] {
+  --mat-bg-base: #0e0c0c;
+  --mat-bg-elevated: #1a1515;
+  --mat-bg-overlay: #261e1e;
+  --mat-accent-primary: #e05a36;
+  --mat-accent-hover: #f06a46;
+  --mat-accent-secondary: #ff9e7d;
+  --mat-glow-specular: rgba(224, 90, 54, 0.4);
+  --mat-border-rim: rgba(224, 90, 54, 0.2);
+  --mat-text-primary: #f0e6df;
+  --mat-text-secondary: #a3928a;
+  --mat-text-muted: #6b5c55;
+  --mat-grain-opacity: 0.05;
+  --mat-border-radius: 20px;
+  --mat-transition: 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+
+  --ios-bg-app: #0e0c0c;
+  --ios-bg-card: #1a1515;
+  --ios-bg-sidebar: #130f0f;
+  --ios-text-primary: #f0e6df;
+  --ios-text-secondary: #a3928a;
+  --ios-text-inverse: #f0e6df;
+  --ios-border: rgba(224, 90, 54, 0.15);
+  --ios-accent: #e05a36;
+  --ios-accent-hover: #f06a46;
   --ios-success: #34c759;
   --ios-danger: #ff3b30;
-  --ios-glass: rgba(255, 255, 255, 0.7);
-  --ios-glass-sidebar: rgba(17, 17, 17, 0.85);
-  --ios-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
-  --ios-shadow-md: 0 12px 24px rgba(0, 0, 0, 0.06);
-  --ios-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.08);
-  --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --ios-glass: rgba(26, 21, 21, 0.85);
+  --ios-glass-sidebar: rgba(19, 15, 15, 0.95);
+  --ios-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 158, 125, 0.08);
+  --ios-shadow-md: 0 12px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 158, 125, 0.12);
+  --ios-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 158, 125, 0.15);
+  --ios-shadow-sheen: inset 0 1px 0 rgba(255, 158, 125, 0.15), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
   --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
-  --bg-grain: none;
 }
 
-/* ── 2. MODERN + DARK ────────────────────────────────────────── */
-:root[data-theme='dark'],
-:root[data-design='modern'][data-theme='dark'] {
+:root[data-theme-id='darkroom'][data-theme='light'] {
+  --ios-bg-app: #f5ede6;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #1a1515;
+  --ios-text-primary: #2b1f1a;
+  --ios-text-secondary: #7a665d;
+  --ios-border: rgba(224, 90, 54, 0.18);
+  --ios-accent: #e05a36;
+  --ios-glass: rgba(255, 255, 255, 0.9);
+  --ios-shadow-sm: 0 4px 12px rgba(43, 31, 26, 0.06);
+  --ios-shadow-md: 0 12px 24px rgba(43, 31, 26, 0.1);
+  --ios-shadow-lg: 0 24px 48px rgba(43, 31, 26, 0.15);
+}
+
+/* ── 1.2 VAULT CLASSIC (Archival Molten Amber & Brass) ───────── */
+:root[data-theme-id='vault-classic'],
+:root[data-design='skeuomorphic'] {
+  --mw-vault: #181818;
+  --mw-vault-raised: #2c2c2c;
+  --mw-paper: #e6e2d9;
+  --mw-brass: #e89e38;
+  --mw-brass-light: #f5b968;
+  --mw-brass-dark: #b87318;
+  --mw-stone: #6f6a60;
+  --mw-stone-light: #8b857b;
+
+  --ios-bg-app: #181818;
+  --ios-bg-card: #2c2c2c;
+  --ios-bg-sidebar: #131313;
+  --ios-text-primary: #e6e2d9;
+  --ios-text-secondary: #8b857b;
+  --ios-text-inverse: #e6e2d9;
+  --ios-border: rgba(230, 226, 217, 0.12);
+  --ios-accent: #e89e38;
+  --ios-accent-hover: #f5b968;
+  --ios-success: #60884a;
+  --ios-danger: #a84840;
+  --ios-glass: rgba(44, 44, 44, 0.88);
+  --ios-glass-sidebar: rgba(19, 19, 19, 0.95);
+  --ios-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(230, 226, 217, 0.1);
+  --ios-shadow-md: 0 8px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(230, 226, 217, 0.12);
+  --ios-shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(230, 226, 217, 0.15);
+  --ios-shadow-sheen: inset 0 1px 0 rgba(230, 226, 217, 0.15), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  --font-serif: "Newsreader", "Playfair Display", "Cinzel", Georgia, serif;
+}
+
+:root[data-theme-id='vault-classic'][data-theme='light'] {
+  --ios-bg-app: #e6e2d9;
+  --ios-bg-card: #f3efe6;
+  --ios-bg-sidebar: #181818;
+  --ios-text-primary: #181818;
+  --ios-text-secondary: #5f5a52;
+  --ios-border: rgba(24, 24, 24, 0.14);
+  --ios-accent: #e89e38;
+  --ios-glass: rgba(243, 239, 230, 0.92);
+}
+
+/* ── 1.3 FIELD NOTES (Kraft Paper & Terracotta) ───────────────── */
+:root[data-theme-id='field-notes'] {
+  --ios-bg-app: #1e1b18;
+  --ios-bg-card: #282420;
+  --ios-bg-sidebar: #151310;
+  --ios-text-primary: #f5ede0;
+  --ios-text-secondary: #a89a88;
+  --ios-text-inverse: #f5ede0;
+  --ios-border: rgba(200, 125, 67, 0.2);
+  --ios-accent: #c87d43;
+  --ios-accent-hover: #dc9259;
+  --ios-glass: rgba(40, 36, 32, 0.88);
+  --ios-glass-sidebar: rgba(21, 19, 16, 0.95);
+  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
+}
+
+:root[data-theme-id='field-notes'][data-theme='light'] {
+  --ios-bg-app: #f5ede0;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #282420;
+  --ios-text-primary: #2b1810;
+  --ios-text-secondary: #6e5445;
+  --ios-border: rgba(200, 125, 67, 0.25);
+  --ios-accent: #c87d43;
+  --ios-glass: rgba(255, 255, 255, 0.92);
+}
+
+/* ── 1.4 OBSERVATORY (Celestial Indigo & Starlight Gold) ──────── */
+:root[data-theme-id='observatory'] {
+  --ios-bg-app: #0b101b;
+  --ios-bg-card: #121a2c;
+  --ios-bg-sidebar: #070a12;
+  --ios-text-primary: #f0f4ff;
+  --ios-text-secondary: #8a9fc4;
+  --ios-text-inverse: #f0f4ff;
+  --ios-border: rgba(226, 184, 88, 0.2);
+  --ios-accent: #e2b858;
+  --ios-accent-hover: #f3cc72;
+  --ios-glass: rgba(18, 26, 44, 0.88);
+  --ios-glass-sidebar: rgba(7, 10, 18, 0.95);
+  --ios-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 20px rgba(226, 184, 88, 0.15);
+  --font-serif: "Cinzel", "Playfair Display", serif;
+}
+
+/* ── 1.5 CABINET 1974 (Charcoal Steel & Typewriter Red) ──────── */
+:root[data-theme-id='cabinet-1974'] {
+  --ios-bg-app: #171a19;
+  --ios-bg-card: #222725;
+  --ios-bg-sidebar: #101312;
+  --ios-text-primary: #e6ece9;
+  --ios-text-secondary: #8d9a94;
+  --ios-text-inverse: #e6ece9;
+  --ios-border: rgba(184, 93, 67, 0.22);
+  --ios-accent: #b85d43;
+  --ios-accent-hover: #cf7156;
+  --ios-glass: rgba(34, 39, 37, 0.88);
+  --ios-glass-sidebar: rgba(16, 19, 18, 0.95);
+}
+
+/* ── 1.6 SCRIPTORIUM (Charred Oak & Wax Seal Crimson) ────────── */
+:root[data-theme-id='scriptorium'] {
+  --ios-bg-app: #181310;
+  --ios-bg-card: #261e19;
+  --ios-bg-sidebar: #100c0a;
+  --ios-text-primary: #fcf4ec;
+  --ios-text-secondary: #9c8a7e;
+  --ios-text-inverse: #fcf4ec;
+  --ios-border: rgba(150, 40, 40, 0.25);
+  --ios-accent: #962828;
+  --ios-accent-hover: #b33636;
+  --ios-glass: rgba(38, 30, 25, 0.88);
+  --ios-glass-sidebar: rgba(16, 12, 10, 0.95);
+  --font-serif: "Newsreader", "Cinzel", Georgia, serif;
+}
+
+/* ── 1.7 MID-CENTURY (Danish Teak & Spun Gold) ───────────────── */
+:root[data-theme-id='mid-century'] {
+  --ios-bg-app: #131b16;
+  --ios-bg-card: #1c2720;
+  --ios-bg-sidebar: #0c120e;
+  --ios-text-primary: #f4faee;
+  --ios-text-secondary: #8ea394;
+  --ios-text-inverse: #f4faee;
+  --ios-border: rgba(212, 175, 55, 0.22);
+  --ios-accent: #d4af37;
+  --ios-accent-hover: #e8c454;
+  --ios-glass: rgba(28, 39, 32, 0.88);
+  --ios-glass-sidebar: rgba(12, 18, 14, 0.95);
+  --font-serif: "Playfair Display", serif;
+}
+
+/* ── 1.8 MONOLITH (Anthracite Slate & Titanium) ──────────────── */
+:root[data-theme-id='monolith'] {
+  --ios-bg-app: #121214;
+  --ios-bg-card: #1a1a1e;
+  --ios-bg-sidebar: #0a0a0c;
+  --ios-text-primary: #f4f4f6;
+  --ios-text-secondary: #888892;
+  --ios-text-inverse: #f4f4f6;
+  --ios-border: rgba(255, 255, 255, 0.1);
+  --ios-accent: #a0a5b5;
+  --ios-accent-hover: #c0c5d5;
+  --ios-glass: rgba(26, 26, 30, 0.88);
+  --ios-glass-sidebar: rgba(10, 10, 12, 0.95);
+}
+
+/* ── 1.9 POLAROID (Instant Film Emulsion) ────────────────────── */
+:root[data-theme-id='polaroid'] {
+  --ios-bg-app: #1e2022;
+  --ios-bg-card: #282b30;
+  --ios-bg-sidebar: #131416;
+  --ios-text-primary: #f2f5f8;
+  --ios-text-secondary: #8e96a0;
+  --ios-text-inverse: #f2f5f8;
+  --ios-border: rgba(102, 168, 166, 0.2);
+  --ios-accent: #66a8a6;
+  --ios-accent-hover: #7ebdbb;
+  --ios-glass: rgba(40, 43, 48, 0.88);
+  --ios-glass-sidebar: rgba(19, 20, 22, 0.95);
+}
+
+:root[data-theme-id='polaroid'] .ios-card,
+:root[data-theme-id='polaroid'] .ios-story-card {
+  border: 4px solid #ffffff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* ── 1.10 BASIC (Clean Flat Default) ─────────────────────────── */
+:root[data-theme-id='basic'] {
   --ios-bg-app: #000000;
   --ios-bg-card: #1c1c1e;
   --ios-bg-sidebar: #111111;
@@ -48,89 +243,526 @@
   --ios-border: rgba(255, 255, 255, 0.1);
   --ios-accent: #007aff;
   --ios-accent-hover: #005bb5;
-  --ios-success: #34c759;
-  --ios-danger: #ff3b30;
   --ios-glass: rgba(28, 28, 30, 0.7);
   --ios-glass-sidebar: rgba(17, 17, 17, 0.85);
-  --ios-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --ios-shadow-md: 0 12px 24px rgba(0, 0, 0, 0.5);
-  --ios-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.7);
-  --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
-  --bg-grain: none;
+  --font-serif: "Inter", sans-serif;
 }
 
-/* ── 3. SKEUOMORPHIC + DARK (The Vault) ──────────────────────── */
-:root[data-design='skeuomorphic'][data-theme='dark'],
-:root[data-design='skeuomorphic'] {
-  --mw-vault: #181818;
-  --mw-vault-raised: #2C2C2C;
-  --mw-paper: #E6E2D9;
-  --mw-brass: #88744A;
-  --mw-brass-light: #A18C61;
-  --mw-brass-dark: #665635;
-  --mw-stone: #6F6A60;
-  --mw-stone-light: #8B857B;
-
-  --ios-bg-app: #181818;
-  --ios-bg-card: #2C2C2C;
-  --ios-bg-sidebar: #131313;
-  --ios-text-primary: #E6E2D9;
-  --ios-text-secondary: #8B857B;
-  --ios-text-inverse: #E6E2D9;
-  --ios-border: rgba(230, 226, 217, 0.12);
-  --ios-accent: #88744A;
-  --ios-accent-hover: #A18C61;
-  --ios-success: #60884A;
-  --ios-danger: #A84840;
-
-  --ios-glass: rgba(44, 44, 44, 0.85);
-  --ios-glass-sidebar: rgba(19, 19, 19, 0.95);
-
-  --ios-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(230, 226, 217, 0.08);
-  --ios-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(230, 226, 217, 0.09);
-  --ios-shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(230, 226, 217, 0.10);
-  --ios-shadow-sheen: inset 0 1px 0 rgba(230, 226, 217, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.5);
-
-  --font-serif: "Newsreader", "Playfair Display", "Cinzel", Georgia, serif;
-  --bg-grain: url('/textures/vault-grain.svg');
+:root[data-theme-id='basic'][data-theme='light'] {
+  --ios-bg-app: #f2f2f7;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #111111;
+  --ios-text-primary: #1c1c1e;
+  --ios-text-secondary: #8e8e93;
+  --ios-border: rgba(0, 0, 0, 0.08);
+  --ios-accent: #007aff;
+  --ios-glass: rgba(255, 255, 255, 0.7);
 }
 
-/* ── 4. SKEUOMORPHIC + LIGHT (Archival Desk Paper) ───────────── */
-:root[data-design='skeuomorphic'][data-theme='light'] {
-  --mw-vault: #181818;
-  --mw-vault-raised: #2C2C2C;
-  --mw-paper: #E6E2D9;
-  --mw-brass: #88744A;
-  --mw-brass-light: #A18C61;
-  --mw-brass-dark: #665635;
-  --mw-stone: #6F6A60;
-  --mw-stone-light: #8B857B;
 
-  --ios-bg-app: #E6E2D9;
-  --ios-bg-card: #F3EFE6;
-  --ios-bg-sidebar: #181818;
-  --ios-text-primary: #181818;
-  --ios-text-secondary: #5F5A52;
-  --ios-text-inverse: #E6E2D9;
-  --ios-border: rgba(24, 24, 24, 0.14);
-  --ios-accent: #88744A;
-  --ios-accent-hover: #665635;
-  --ios-success: #3E6B2C;
-  --ios-danger: #962820;
+/* ──────────────────────────────────────────────────────────────
+   2. DESIGN ERAS
+   ────────────────────────────────────────────────────────────── */
 
-  --ios-glass: rgba(243, 239, 230, 0.90);
-  --ios-glass-sidebar: rgba(24, 24, 24, 0.96);
-
-  --ios-shadow-sm: 0 2px 6px rgba(24, 24, 24, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --ios-shadow-md: 0 6px 16px rgba(24, 24, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  --ios-shadow-lg: 0 16px 36px rgba(24, 24, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --ios-shadow-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
-
-  --font-serif: "Newsreader", "Playfair Display", "Cinzel", Georgia, serif;
-  --bg-grain: url('/textures/paper-grain.svg');
+/* ── 2.1 WINDOWS 98 (System Vault '98) ───────────────────────── */
+/* ── 2.2 Y2K CHROME CYBER (2001) ─────────────────────────────── */
+:root[data-theme-id='y2k'] {
+  --ios-bg-app: #06080f;
+  --ios-bg-card: rgba(15, 22, 36, 0.85);
+  --ios-bg-sidebar: #0e1320;
+  --ios-text-primary: #e6f0fa;
+  --ios-text-secondary: #7f95ac;
+  --ios-text-inverse: #06080f;
+  --ios-border: rgba(0, 240, 255, 0.3);
+  --ios-accent: #00f0ff;
+  --ios-accent-hover: #00b8cc;
+  --ios-success: #39ff14;
+  --ios-danger: #ff007f;
+  --ios-glass: rgba(0, 240, 255, 0.08);
+  --ios-glass-sidebar: rgba(14, 19, 32, 0.95);
+  --ios-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  --ios-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(0, 240, 255, 0.5);
+  --ios-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 240, 255, 0.25);
+  --font-ios: "Space Grotesk", "Orbitron", sans-serif;
+  --font-serif: "Orbitron", sans-serif;
+  --font-mono: "Share Tech Mono", monospace;
 }
 
+[data-theme-id='y2k'] .ios-card {
+  background: radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.15) 0%, rgba(0, 240, 255, 0.08) 40%, rgba(0, 85, 255, 0.04) 100%) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  box-shadow: inset 0 1.5px 0.5px rgba(255, 255, 255, 0.8), 0 12px 32px rgba(0, 20, 50, 0.4) !important;
+}
+
+[data-theme-id='y2k'] .ios-btn {
+  background: linear-gradient(180deg, #ffffff 0%, #d4e2ed 24%, #8ba4b9 48%, #3b4856 50%, #1d2631 52%, #56697d 78%, #ffffff 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #7d93a8 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0, 240, 255, 0.35) !important;
+  font-family: "Orbitron", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em;
+}
+
+/* ── 2.3 MAC OS X AQUA (2002) ────────────────────────────────── */
+:root[data-theme-id='aqua'] {
+  --ios-bg-app: #eceff4;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #d8dde6;
+  --ios-text-primary: #1e293b;
+  --ios-text-secondary: #64748b;
+  --ios-text-inverse: #1e293b;
+  --ios-border: rgba(0, 0, 0, 0.12);
+  --ios-accent: #388bfd;
+  --ios-accent-hover: #1e60d0;
+  --font-ios: "Lucida Grande", "Segoe UI", sans-serif;
+}
+
+[data-theme-id='aqua'] .ios-btn {
+  border-radius: 9999px !important;
+  color: #ffffff !important;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid #1c5296 !important;
+  background: 
+    linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.15) 49%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.15) 100%),
+    linear-gradient(180deg, #539dfc 0%, #1e6ce4 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.25) !important;
+}
+
+/* ── 2.4 iOS 7 THIN AIR (2013) ───────────────────────────────── */
+:root[data-theme-id='ios7'] {
+  --ios-bg-app: #efeff4;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: rgba(247, 247, 247, 0.88);
+  --ios-text-primary: #000000;
+  --ios-text-secondary: #8f8e94;
+  --ios-text-inverse: #000000;
+  --ios-border: #c8c7cc;
+  --ios-accent: #007aff;
+  --ios-accent-hover: #005bb5;
+  --ios-glass: rgba(247, 247, 247, 0.82);
+  --ios-glass-sidebar: rgba(247, 247, 247, 0.95);
+  --font-ios: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+[data-theme-id='ios7'] .ios-card {
+  border-radius: 0px !important;
+  border: none !important;
+  border-top: 0.5px solid #c8c7cc !important;
+  border-bottom: 0.5px solid #c8c7cc !important;
+  box-shadow: none !important;
+}
+
+[data-theme-id='ios7'] .ios-btn {
+  background: transparent !important;
+  color: #007aff !important;
+  box-shadow: none !important;
+  border: none !important;
+  font-weight: 400 !important;
+  padding: 8px 12px !important;
+}
+
+/* ── 2.5 MATERIAL DESIGN 1.0 (2014) ──────────────────────────── */
+:root[data-theme-id='material'] {
+  --ios-bg-app: #eceff1;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #303f9f;
+  --ios-text-primary: rgba(0, 0, 0, 0.87);
+  --ios-text-secondary: rgba(0, 0, 0, 0.54);
+  --ios-text-inverse: #ffffff;
+  --ios-border: rgba(0, 0, 0, 0.12);
+  --ios-accent: #ff4081; /* Pink A200 FAB */
+  --ios-accent-hover: #f50057;
+  --font-ios: "Roboto", "Noto Sans", sans-serif;
+  --ios-radius-md: 2px !important;
+  --ios-radius-lg: 2px !important;
+}
+
+[data-theme-id='material'] .ios-card {
+  border-radius: 2px !important;
+  border: none !important;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20) !important;
+  transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme-id='material'] .ios-card:hover {
+  box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20) !important;
+}
+
+/* ── 2.6 INSTAGRAM 2016 (Gradient Season) ────────────────────── */
+:root[data-theme-id='insta2016'] {
+  --ios-bg-app: #f8f9fb;
+  --ios-bg-card: #ffffff;
+  --ios-bg-sidebar: #1a1a24;
+  --ios-text-primary: #2a2f45;
+  --ios-text-secondary: #8792a2;
+  --ios-text-inverse: #ffffff;
+  --ios-border: #e3e8ee;
+  --ios-accent: #e1306c;
+  --ios-accent-hover: #c13584;
+  --ios-glass: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme-id='insta2016'] .ios-btn {
+  background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d, #f56040, #fcaf45) !important;
+  border-radius: 50px !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(225, 48, 108, 0.45) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+}
+
+[data-theme-id='insta2016'] .ios-card {
+  border-radius: 8px !important;
+  box-shadow: 0 2px 5px rgba(50, 50, 93, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04) !important;
+  transition: transform 0.25s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.25s ease !important;
+}
+
+[data-theme-id='insta2016'] .ios-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 15px 35px rgba(50, 50, 93, 0.12), 0 5px 15px rgba(0, 0, 0, 0.07) !important;
+}
+
+/* ── 2.7 NEUMORPHIC (Soft Clay 2019) ─────────────────────────── */
+:root[data-theme-id='neumorphic'] {
+  --ios-bg-app: #e0e5ec;
+  --ios-bg-card: #e0e5ec;
+  --ios-bg-sidebar: #e0e5ec;
+  --ios-text-primary: #31344b;
+  --ios-text-secondary: #74798c;
+  --ios-text-inverse: #31344b;
+  --ios-border: transparent;
+  --ios-accent: #635bff;
+  --ios-accent-hover: #4f46e5;
+  --ios-glass: #e0e5ec;
+  --ios-glass-sidebar: #e0e5ec;
+}
+
+[data-theme-id='neumorphic'] .ios-card {
+  background: #e0e5ec !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 9px 9px 16px rgba(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme-id='neumorphic'] .ios-btn {
+  background: #e0e5ec !important;
+  color: var(--ios-accent) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6), -6px -6px 12px rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme-id='neumorphic'] .ios-btn:active {
+  box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.8) !important;
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   3. LIVE ANIMATED SPECTRUM EQUALIZER
+   ────────────────────────────────────────────────────────────── */
+@keyframes eq-dance-1 { 0%, 100% { height: 4px; } 25% { height: 22px; } 50% { height: 10px; } 75% { height: 18px; } }
+@keyframes eq-dance-2 { 0%, 100% { height: 16px; } 20% { height: 6px; } 45% { height: 24px; } 80% { height: 12px; } }
+@keyframes eq-dance-3 { 0%, 100% { height: 8px; } 30% { height: 20px; } 60% { height: 4px; } 85% { height: 22px; } }
+@keyframes eq-dance-4 { 0%, 100% { height: 20px; } 35% { height: 8px; } 65% { height: 24px; } 90% { height: 14px; } }
+@keyframes eq-dance-5 { 0%, 100% { height: 6px; } 25% { height: 18px; } 55% { height: 24px; } 75% { height: 10px; } }
+@keyframes eq-dance-6 { 0%, 100% { height: 22px; } 40% { height: 10px; } 70% { height: 20px; } 90% { height: 6px; } }
+@keyframes eq-dance-7 { 0%, 100% { height: 12px; } 30% { height: 24px; } 60% { height: 8px; } 80% { height: 18px; } }
+@keyframes eq-dance-8 { 0%, 100% { height: 5px; } 20% { height: 16px; } 50% { height: 8px; } 75% { height: 22px; } }
+
+.eq-bar {
+  display: inline-block;
+  height: 4px;
+  min-height: 3px;
+}
+
+.eq-bar.is-playing.eq-bar-1 { animation: eq-dance-1 0.85s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-2 { animation: eq-dance-2 0.72s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-3 { animation: eq-dance-3 0.94s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-4 { animation: eq-dance-4 0.65s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-5 { animation: eq-dance-5 0.88s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-6 { animation: eq-dance-6 0.78s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-7 { animation: eq-dance-7 0.91s ease-in-out infinite alternate; }
+.eq-bar.is-playing.eq-bar-8 { animation: eq-dance-8 0.68s ease-in-out infinite alternate; }
+
+
+/* ──────────────────────────────────────────────────────────────
+   4. RETRO CRT MODE
+   ────────────────────────────────────────────────────────────── */
+[data-crt='true'] .app-container::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%),
+              linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   5. OS SHELL STYLES
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Y2K Cyber Shell ── */
+.y2k-cyber-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.y2k-hardware-chassis {
+  position: relative;
+  background: linear-gradient(180deg, #c4ced9 0%, #e8eef5 25%, #8d9baa 50%, #b5c4d2 75%, #6c7a8a 100%);
+  border: 1px solid #5a6675;
+  border-radius: 16px;
+  padding: 14px 20px;
+  box-shadow: 0 8px 24px rgba(0, 240, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+  margin-bottom: 16px;
+}
+
+.y2k-hex-screw {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 20%, #475569 80%);
+  box-shadow: inset 0 1px 1px #000, 0 1px 1px rgba(255,255,255,0.8);
+}
+.y2k-hex-screw.top-left { top: 6px; left: 6px; }
+.y2k-hex-screw.top-right { top: 6px; right: 6px; }
+.y2k-hex-screw.bottom-left { bottom: 6px; left: 6px; }
+.y2k-hex-screw.bottom-right { bottom: 6px; right: 6px; }
+
+.y2k-chassis-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.y2k-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.y2k-chrome-text {
+  font-family: "Orbitron", sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  background: linear-gradient(180deg, #ffffff 0%, #dbe8f2 35%, #869eb5 48%, #2c3947 52%, #536b82 75%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+  letter-spacing: 0.05em;
+}
+
+.y2k-sparkle {
+  color: #00f0ff;
+  font-size: 16px;
+  animation: pulse 1.5s infinite alternate;
+}
+
+.y2k-vfd-display {
+  flex: 1;
+  max-width: 500px;
+  background: #090a10;
+  border: 1.5px solid #00f0ff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.y2k-vfd-dot {
+  color: #39ff14;
+  font-size: 14px;
+  animation: pulse 1s infinite;
+}
+
+.y2k-vfd-text {
+  font-family: "Share Tech Mono", monospace;
+  font-size: 11px;
+  color: #00f0ff;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+}
+
+.y2k-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #00f0ff 0%, #0088cc 100%);
+  color: #06080f;
+  border: 1px solid #7d93a8;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: "Orbitron", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.4);
+}
+
+.y2k-subnav {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.y2k-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(14, 19, 32, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 12px;
+  padding: 6px 12px;
+  color: #a0aec0;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.y2k-nav-pill.is-active {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: #00f0ff;
+  color: #00f0ff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+}
+
+.y2k-viewport-canvas {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Aqua OS X Shell ── */
+.aqua-window-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.aqua-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 12px 12px 0 0;
+  background: repeating-linear-gradient(180deg, #ffffff 0px, #ffffff 1px, #e5e5e5 1px, #e5e5e5 2px);
+  border: 1px solid #b8b8b8;
+  border-bottom: 1px solid #8e8e8e;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.aqua-traffic-lights {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.aqua-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.aqua-light.red { background: radial-gradient(circle at 35% 35%, #ff8580 0%, #e0443e 100%); color: #4a0000; }
+.aqua-light.yellow { background: radial-gradient(circle at 35% 35%, #ffdc66 0%, #dea123 100%); color: #5a3e00; }
+.aqua-light.green { background: radial-gradient(circle at 35% 35%, #66e678 0%, #1aab29 100%); color: #003a08; }
+
+.aqua-window-title {
+  font-family: "Lucida Grande", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.aqua-gel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 12px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid #1c5296;
+  background: 
+    linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.15) 49%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.15) 100%),
+    linear-gradient(180deg, #539dfc 0%, #1e6ce4 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
+@keyframes aqua-pulse {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 0 4px rgba(83, 157, 252, 0.4); }
+  50% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 0 14px rgba(83, 157, 252, 0.85); }
+}
+.aqua-gel-btn.is-breathing {
+  animation: aqua-pulse 1.8s ease-in-out infinite;
+}
+
+.aqua-tab-bar {
+  display: flex;
+  background: #d8dde6;
+  border-bottom: 1px solid #b8b8b8;
+  padding: 4px 12px;
+  gap: 4px;
+}
+
+.aqua-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.aqua-tab-btn.is-active {
+  background: #ffffff;
+  border-color: #b8b8b8;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.aqua-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   6. CORE LAYOUT & ATOMIC UTILITIES
+   ────────────────────────────────────────────────────────────── */
 :root {
   --ios-radius-sm: 8px;
   --ios-radius-md: 16px;
@@ -142,129 +774,6 @@
   
   --font-ios: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-/* Skeuomorphic grain overlay */
-[data-design='skeuomorphic'] .app-container::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.35;
-  mix-blend-mode: overlay;
-  background-image: var(--bg-grain);
-  background-repeat: repeat;
-  background-size: 200px 200px;
-}
-
-[data-design='skeuomorphic'][data-theme='light'] .app-container::before {
-  opacity: 0.45;
-  mix-blend-mode: multiply;
-}
-
-/* Archival Labels */
-.archive-label {
-  font-family: var(--font-ios);
-  font-size: 10px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ios-text-secondary);
-}
-
-[data-design='skeuomorphic'] .archive-label {
-  color: var(--mw-stone, #6F6A60);
-}
-
-/* Tactile push button effects */
-[data-design='skeuomorphic'] .ios-btn,
-[data-design='skeuomorphic'] button {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
-}
-
-[data-design='skeuomorphic'] .ios-btn:active,
-[data-design='skeuomorphic'] button:active {
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
-  transform: translateY(1px);
-}
-
-/* Skeuomorphic Title & Hero Card enhancements */
-[data-design='skeuomorphic'] .ios-title {
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
-}
-
-[data-design='skeuomorphic'] .hero-card {
-  background: linear-gradient(135deg, #181818 0%, #2C2C2C 100%) !important;
-  border: 1px solid rgba(230, 226, 217, 0.15) !important;
-  color: #E6E2D9 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-[data-design='skeuomorphic'][data-theme='light'] .hero-card {
-  background: linear-gradient(135deg, #2C2C2C 0%, #181818 100%) !important;
-  border: 1px solid rgba(24, 24, 24, 0.2) !important;
-  color: #E6E2D9 !important;
-}
-
-/* Skeuomorphic Card Materiality & Lighting */
-[data-design='skeuomorphic'] .ios-card {
-  box-shadow: var(--ios-shadow-md), var(--ios-shadow-sheen);
-  border: 1px solid var(--ios-border);
-  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease;
-}
-
-[data-design='skeuomorphic'] .ios-card:hover {
-  box-shadow: var(--ios-shadow-lg), var(--ios-shadow-sheen);
-}
-
-/* Tactile Machined Brass Buttons */
-[data-design='skeuomorphic'] .ios-btn {
-  background: linear-gradient(180deg, var(--mw-brass-light, #A18C61) 0%, var(--mw-brass, #88744A) 50%, var(--mw-brass-dark, #665635) 100%);
-  color: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.4);
-  border-top-color: rgba(255, 255, 255, 0.35);
-  border-bottom-color: rgba(0, 0, 0, 0.6);
-  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.6);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-[data-design='skeuomorphic'] .ios-btn:hover {
-  background: linear-gradient(180deg, #b39d70 0%, #948054 50%, #73613c 100%);
-  box-shadow: 0 5px 14px rgba(136, 116, 74, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-[data-design='skeuomorphic'] .ios-btn:active {
-  transform: translateY(2px);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-}
-
-[data-design='skeuomorphic'] .ios-btn-secondary {
-  background: var(--ios-bg-card);
-  color: var(--ios-text-primary);
-  border: 1px solid var(--ios-border);
-  box-shadow: var(--ios-shadow-sm), var(--ios-shadow-sheen);
-  text-shadow: none;
-}
-
-[data-design='skeuomorphic'] .ios-sidebar {
-  border-right: 1px solid rgba(230, 226, 217, 0.08);
-}
-
-[data-design='skeuomorphic'] .ios-nav-item.active {
-  background-color: var(--mw-brass, #88744A);
-  color: #ffffff;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
-}
-
-/* Editorial Serif for Journaling */
-[data-design='skeuomorphic'] .editorial-text,
-[data-design='skeuomorphic'] .journal-preview,
-[data-design='skeuomorphic'] textarea {
-  font-family: var(--font-serif);
 }
 
 * {
@@ -283,21 +792,14 @@ body {
   overflow-x: hidden;
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
-}
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
 
-ul {
-  list-style: none;
-}
-
-/* ââ APP SHELL âââââââââââââââ */
 #root {
   display: flex;
   height: 100vh;
   width: 100vw;
-  padding: 16px; /* Floating app shell effect */
+  padding: 16px;
 }
 
 .app-container {
@@ -311,7 +813,7 @@ ul {
   position: relative;
 }
 
-/* ââ SIDEBAR âââââââââââââââ */
+/* Sidebar */
 .ios-sidebar {
   width: 280px;
   background-color: var(--ios-bg-sidebar);
@@ -360,7 +862,7 @@ ul {
 .ios-nav-item.active {
   background-color: var(--ios-accent);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(232, 158, 56, 0.3);
 }
 
 .ios-nav-item svg {
@@ -368,45 +870,77 @@ ul {
   height: 22px;
 }
 
-/* ââ MAIN CONTENT AREA âââââââââââââââ */
+.ios-nav-bottom {
+  margin-top: auto !important;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Main Content Area */
 .ios-main-content {
   flex: 1;
   background-color: var(--ios-bg-app);
-  border-top-left-radius: var(--ios-radius-lg);
-  border-bottom-left-radius: var(--ios-radius-lg);
-  margin-left: -16px; /* Pull it slightly over the sidebar if needed, or keep gap */
+  border-radius: var(--ios-radius-xl);
+  margin: 12px 12px 12px 0;
+  box-shadow: var(--ios-shadow-sm);
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 40px;
 }
 
-/* We don't overlap, we make sidebar and main distinct */
-.app-container {
-  background-color: var(--ios-bg-sidebar);
-}
-.ios-main-content {
-  border-radius: var(--ios-radius-xl);
-  margin: 12px 12px 12px 0;
-  box-shadow: var(--ios-shadow-sm);
-}
-
-/* ââ TYPOGRAPHY âââââââââââââââ */
+/* Typography */
 .ios-title {
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -1px;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
   margin-bottom: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", sans-serif;
 }
 
 .ios-subtitle {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   color: var(--ios-text-secondary);
 }
 
-/* ââ CARDS (Bento Box) âââââââââââââââ */
+/* Animations */
+@keyframes spinContinuous {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes cloudArrowGlide {
+  0% { transform: translateY(-4px); opacity: 0.6; }
+  50% { transform: translateY(3px); opacity: 1; }
+  100% { transform: translateY(-4px); opacity: 0.6; }
+}
+
+.cloud-arrow-anim {
+  animation: cloudArrowGlide 1.2s ease-in-out infinite;
+}
+
+.spin-anim {
+  animation: spinContinuous 1s linear infinite;
+}
+
+.spin-on-hover:hover {
+  animation: spinContinuous 0.75s linear infinite;
+}
+
+/* Equalizer Bars */
+@keyframes eqDance1 { 0%, 100% { height: 3px; } 50% { height: 13px; } }
+@keyframes eqDance2 { 0%, 100% { height: 12px; } 50% { height: 4px; } }
+@keyframes eqDance3 { 0%, 100% { height: 5px; } 50% { height: 14px; } }
+@keyframes eqDance4 { 0%, 100% { height: 13px; } 50% { height: 6px; } }
+
+.eq-bar-1 { animation: eqDance1 0.7s ease-in-out infinite; }
+.eq-bar-2 { animation: eqDance2 0.5s ease-in-out infinite; }
+.eq-bar-3 { animation: eqDance3 0.8s ease-in-out infinite; }
+.eq-bar-4 { animation: eqDance4 0.6s ease-in-out infinite; }
+
+/* Cards */
 .ios-card {
   background-color: var(--ios-bg-card);
   border-radius: var(--ios-radius-lg);
@@ -461,7 +995,7 @@ ul {
   opacity: 1;
 }
 
-/* ââ BUTTONS âââââââââââââââ */
+/* Buttons */
 .ios-btn {
   display: inline-flex;
   align-items: center;
@@ -476,7 +1010,7 @@ ul {
   border: none;
   cursor: pointer;
   transition: all var(--ios-spring-fast);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(232, 158, 56, 0.35);
 }
 
 .ios-btn:hover {
@@ -494,11 +1028,12 @@ ul {
   box-shadow: var(--ios-shadow-sm), var(--ios-shadow-sheen);
   border: 1px solid var(--ios-border);
 }
+
 .ios-btn-secondary:hover {
   background-color: var(--ios-bg-app);
 }
 
-/* ââ TOGGLE SWITCH âââââââââââââââ */
+/* Toggle Switch */
 .ios-toggle {
   appearance: none;
   width: 51px;
@@ -536,14 +1071,14 @@ ul {
   transform: translateX(20px);
 }
 
-/* ── FROSTED GLASS (Liquid) ────────────────────────── */
+/* Frosted Glass */
 .ios-glass {
   background-color: var(--ios-glass);
   backdrop-filter: blur(25px) saturate(180%);
   -webkit-backdrop-filter: blur(25px) saturate(180%);
 }
 
-/* ── UTILS ────────────────────────── */
+/* Utils */
 .flex-row { display: flex; align-items: center; }
 .flex-col { display: flex; flex-direction: column; }
 .gap-2 { gap: 8px; }
@@ -552,7 +1087,7 @@ ul {
 .w-full { width: 100%; }
 .h-full { height: 100%; }
 
-/* Scrollbar */
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -587,8 +1122,8 @@ ul {
 }
 
 @keyframes mw-pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(136, 116, 74, 0.4); }
-  50% { box-shadow: 0 0 16px 4px rgba(136, 116, 74, 0.2); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 158, 56, 0.4); }
+  50% { box-shadow: 0 0 16px 4px rgba(232, 158, 56, 0.2); }
 }
 .pulse-glow {
   animation: mw-pulse-glow 3s infinite ease-in-out;
@@ -602,13 +1137,7 @@ ul {
   animation: mw-float 4s ease-in-out infinite;
 }
 
-/* Tactile Click & Active Transitions */
-button:active, .ios-btn:active, .ios-card:active {
-  transform: scale(0.985);
-  transition: transform 0.08s ease;
-}
-
-/* ── Highlights Tab ─────────────────────────────────────────── */
+/* Highlights Grid */
 .album-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -674,6 +1203,1011 @@ button:active, .ios-btn:active, .ios-card:active {
   text-overflow: ellipsis;
 }
 
+/* ==========================================================================
+   WIN98.CSS - DEFINITIVE WINDOWS 98 STYLESHEET SPECIFICATION
+   ========================================================================== */
 
-/* Sidebar Bottom Nav */
-.ios-nav-bottom { margin-top: auto !important; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+:root[data-theme-id='win98'] {
+  --win98-desktop: #008080;
+  --win98-face: #C0C0C0;
+  --win98-light: #DFDFDF;
+  --win98-highlight: #FFFFFF;
+  --win98-shadow: #808080;
+  --win98-dark-shadow: #000000;
+  --win98-window-bg: #FFFFFF;
+  --win98-window-text: #000000;
+  --win98-active-title-l: #000080;
+  --win98-active-title-r: #1084D0;
+  --win98-inactive-title-l: #808080;
+  --win98-inactive-title-r: #B5B5B5;
+  --win98-selection: #000080;
+  --win98-selection-text: #FFFFFF;
+  --win98-tooltip: #FFFFE1;
+  --win98-font: "MS Sans Serif", Tahoma, "Segoe UI", Arial, sans-serif;
+  
+  --ios-bg-app: var(--win98-desktop) !important;
+  --ios-bg-card: var(--win98-face) !important;
+  --ios-bg-sidebar: var(--win98-face) !important;
+  --ios-text-primary: var(--win98-window-text) !important;
+  --ios-text-secondary: var(--win98-window-text) !important;
+  --ios-border: var(--win98-shadow) !important;
+  --ios-accent: var(--win98-selection) !important;
+  --ios-glass: var(--win98-face) !important;
+}
+
+[data-theme-id='win98'] {
+  background-color: var(--win98-desktop) !important;
+  color: var(--win98-window-text) !important;
+  font-family: var(--win98-font) !important;
+  font-size: 11px !important;
+  line-height: normal !important;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: geometricPrecision !important;
+}
+
+[data-theme-id='win98'] * {
+  font-family: var(--win98-font) !important;
+  -webkit-font-smoothing: none !important;
+  border-radius: 0px !important;
+}
+
+[data-theme-id='win98'] .ios-title, [data-theme-id='win98'] h1, [data-theme-id='win98'] h2, [data-theme-id='win98'] h3, [data-theme-id='win98'] h4 {
+  font-family: var(--win98-font) !important;
+  font-weight: bold !important;
+  color: var(--win98-window-text) !important;
+}
+
+[data-theme-id='win98'] .ios-card,
+[data-theme-id='win98'] .ios-glass,
+[data-theme-id='win98'] .ios-story-card {
+  border-radius: 0px !important;
+  background-color: var(--win98-face) !important;
+  border: none !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-dark-shadow) !important;
+  color: var(--win98-window-text) !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+[data-theme-id='win98'] .ios-sidebar {
+  border-radius: 0px !important;
+  background-color: var(--win98-face) !important;
+  border-right: 2px solid var(--win98-shadow) !important;
+  box-shadow: inset 1px 1px 0px var(--win98-highlight), inset -1px -1px 0px var(--win98-dark-shadow) !important;
+  padding: 12px 8px !important;
+}
+
+[data-theme-id='win98'] .ios-btn,
+[data-theme-id='win98'] .ios-btn-secondary,
+[data-theme-id='win98'] .ios-nav-item,
+[data-theme-id='win98'] button:not(.win98-title-btn):not(.win98-toolbar-btn):not(.win98-menu-item-btn):not(.win-ignore) {
+  border-radius: 0px !important;
+  background-color: var(--win98-face) !important;
+  color: var(--win98-window-text) !important;
+  font-size: 11px !important;
+  border: none !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow) !important;
+  padding: 4px 12px !important;
+  transition: none !important;
+  outline: none !important;
+  margin: 1px !important;
+  cursor: default !important;
+}
+
+[data-theme-id='win98'] .ios-btn:active,
+[data-theme-id='win98'] .ios-btn-secondary:active,
+[data-theme-id='win98'] button:not(.win98-title-btn):not(.win98-toolbar-btn):not(.win98-menu-item-btn):not(.win-ignore):active {
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light) !important;
+  padding: 5px 11px 3px 13px !important; 
+}
+
+[data-theme-id='win98'] .ios-nav-item.active {
+  background-color: var(--win98-selection) !important;
+  color: var(--win98-selection-text) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light) !important;
+}
+
+[data-theme-id='win98'] input[type="text"],
+[data-theme-id='win98'] input[type="search"],
+[data-theme-id='win98'] input[type="password"],
+[data-theme-id='win98'] textarea {
+  border-radius: 0px !important;
+  background-color: var(--win98-window-bg) !important;
+  color: var(--win98-window-text) !important;
+  border: none !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow),
+    inset -2px -2px 0px 0px var(--win98-light) !important;
+  padding: 4px 6px;
+}
+
+[data-theme-id='win98'] .search-input-wrapper input {
+  padding-left: 28px !important;
+}
+
+[data-theme-id='win98'] .search-input-wrapper svg {
+  color: #555555 !important;
+  z-index: 5 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   WIN98 AUTHENTIC DESKTOP & WINDOW SYSTEM
+   ────────────────────────────────────────────────────────────── */
+
+/* Win98 Root & Desktop Layout */
+[data-theme-id='win98'],
+[data-theme-id='win98'] body,
+[data-theme-id='win98'] html,
+[data-theme-id='win98'] #root {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+[data-theme-id='win98'] .app-container {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: var(--win98-desktop, #008080) !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+[data-theme-id='win98'] .ios-main-content {
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  background-color: var(--win98-desktop, #008080) !important;
+}
+
+/* ── Windows 98 Desktop Environment ── */
+[data-theme-id='win98'] .win98-desktop-environment {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  background-color: var(--win98-desktop, #008080);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Desktop Shortcuts Grid */
+[data-theme-id='win98'] .win98-desktop-shortcuts {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 16px 20px;
+  align-content: flex-start;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+[data-theme-id='win98'] .win98-desktop-icon {
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px;
+  border: 1px dotted transparent;
+  user-select: none;
+}
+
+[data-theme-id='win98'] .win98-desktop-icon:hover {
+  border: 1px dotted rgba(255, 255, 255, 0.4);
+}
+
+[data-theme-id='win98'] .win98-desktop-icon.is-selected {
+  border: 1px dotted #ffffff;
+}
+
+[data-theme-id='win98'] .win98-desktop-icon-img {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  filter: drop-shadow(1px 1px 0px #000000);
+}
+
+[data-theme-id='win98'] .win98-desktop-icon-label {
+  font-family: var(--win98-font);
+  font-size: 11px;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+  text-shadow: 1px 1px 0px #000000;
+  padding: 1px 3px;
+}
+
+[data-theme-id='win98'] .win98-desktop-icon.is-selected .win98-desktop-icon-label {
+  background-color: var(--win98-selection, #000080);
+  color: #ffffff;
+  border: 1px dotted #ffff80;
+}
+
+/* Win98 Window Component */
+[data-theme-id='win98'] .win98-outer-window {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--win98-face);
+  padding: 3px;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-dark-shadow);
+  border: 1px solid var(--win98-dark-shadow);
+  box-sizing: border-box;
+  z-index: 20;
+  position: relative;
+}
+
+[data-theme-id='win98'] .win98-outer-window.is-maximized {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: calc(100vh - 30px);
+  max-height: calc(100vh - 30px);
+  margin: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+[data-theme-id='win98'] .win98-outer-window.is-windowed {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100vw - 32px);
+  max-width: 1400px;
+  height: calc(100vh - 46px);
+  max-height: calc(100vh - 46px);
+  box-sizing: border-box;
+  overflow: hidden;
+  box-shadow: 4px 4px 12px rgba(0,0,0,0.5),
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-dark-shadow);
+}
+
+[data-theme-id='win98'] .win98-title-bar {
+  height: 18px;
+  min-height: 18px;
+  padding: 1px 2px 1px 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  background: linear-gradient(90deg, var(--win98-active-title-l) 0%, var(--win98-active-title-r) 100%);
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+[data-theme-id='win98'] .win98-title-text {
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+[data-theme-id='win98'] .win98-title-controls {
+  display: flex;
+  gap: 2px;
+}
+
+[data-theme-id='win98'] .win98-title-btn {
+  width: 16px;
+  height: 14px;
+  background-color: var(--win98-face);
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow);
+  cursor: default;
+  color: var(--win98-window-text);
+  font-size: 9px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+[data-theme-id='win98'] .win98-title-btn:active {
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  padding: 1px 0 0 1px;
+}
+
+[data-theme-id='win98'] .win98-menu-bar {
+  display: flex;
+  height: 19px;
+  align-items: center;
+  background-color: var(--win98-face);
+  padding: 1px 0;
+}
+
+[data-theme-id='win98'] .win98-menu-item-btn {
+  padding: 2px 6px;
+  color: var(--win98-window-text);
+  background: transparent;
+  border: none;
+  cursor: default;
+  font-family: var(--win98-font);
+  font-size: 11px;
+}
+
+[data-theme-id='win98'] .win98-menu-item-btn.is-active,
+[data-theme-id='win98'] .win98-menu-item-btn:hover {
+  background-color: var(--win98-selection);
+  color: var(--win98-selection-text);
+}
+
+[data-theme-id='win98'] .win98-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--win98-face);
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow);
+  border: 1px solid var(--win98-dark-shadow);
+  padding: 2px;
+  min-width: 150px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme-id='win98'] .win98-dropdown-row {
+  padding: 3px 6px;
+  cursor: default;
+  color: var(--win98-window-text);
+}
+
+[data-theme-id='win98'] .win98-dropdown-row:hover {
+  background-color: var(--win98-selection);
+  color: var(--win98-selection-text);
+}
+
+[data-theme-id='win98'] .win98-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  background-color: var(--win98-face);
+  border-bottom: 1px solid var(--win98-shadow);
+  box-shadow: 0 1px 0 var(--win98-highlight);
+  gap: 2px;
+}
+
+[data-theme-id='win98'] .win98-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: default;
+  color: var(--win98-window-text);
+  font-family: var(--win98-font);
+}
+
+[data-theme-id='win98'] .win98-toolbar-btn:active {
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  padding: 5px 3px 3px 5px;
+}
+
+[data-theme-id='win98'] .win98-sunken-viewport {
+  flex: 1;
+  min-height: 0;
+  background-color: var(--win98-desktop);
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  margin: 2px 0;
+  padding: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+[data-theme-id='win98'] .win98-status-bar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 0 0 0;
+  background-color: var(--win98-face);
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+[data-theme-id='win98'] .win98-status-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--win98-window-text);
+}
+
+/* ── Taskbar ── */
+[data-theme-id='win98'] .win98-taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  height: 30px;
+  background-color: var(--win98-face, #c0c0c0);
+  border-top: 2px solid var(--win98-highlight, #ffffff);
+  box-shadow: inset 0 1px 0 var(--win98-light, #dfdfdf);
+  display: flex;
+  align-items: center;
+  padding: 2px 3px;
+  gap: 4px;
+  z-index: 9999;
+  box-sizing: border-box;
+}
+
+[data-theme-id='win98'] .win98-start-btn {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px 2px 4px;
+  background-color: var(--win98-face, #c0c0c0);
+  border: none;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow);
+  cursor: pointer;
+  font-family: var(--win98-font);
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--win98-window-text, #000000);
+  user-select: none;
+}
+
+[data-theme-id='win98'] .win98-start-btn:active,
+[data-theme-id='win98'] .win98-start-btn.is-active {
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  padding: 3px 5px 1px 5px;
+  background-color: #d4d0c8;
+}
+
+/* MemWault 4-tile retro logo */
+[data-theme-id='win98'] .win98-start-logo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1.5px;
+  width: 14px;
+  height: 14px;
+  transform: skew(-5deg, 0);
+}
+[data-theme-id='win98'] .win98-logo-tile.red { background-color: #ff3333; }
+[data-theme-id='win98'] .win98-logo-tile.green { background-color: #33cc33; }
+[data-theme-id='win98'] .win98-logo-tile.blue { background-color: #0066ff; }
+[data-theme-id='win98'] .win98-logo-tile.yellow { background-color: #ffcc00; }
+
+[data-theme-id='win98'] .win98-taskbar-tasks {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 0 2px;
+}
+
+[data-theme-id='win98'] .win98-task-btn {
+  height: 22px;
+  min-width: 100px;
+  max-width: 150px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  background-color: var(--win98-face, #c0c0c0);
+  border: none;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow);
+  cursor: pointer;
+  font-family: var(--win98-font);
+  font-size: 11px;
+  color: var(--win98-window-text, #000000);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+[data-theme-id='win98'] .win98-task-btn.is-active {
+  background-color: #dfdfdf;
+  background-image: radial-gradient(circle, #dfdfdf 25%, #c0c0c0 25%);
+  background-size: 2px 2px;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  font-weight: bold;
+  padding: 1px 5px 0 7px;
+}
+
+[data-theme-id='win98'] .win98-system-tray {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight);
+  border: 1px solid var(--win98-face);
+  background-color: var(--win98-face);
+  font-family: var(--win98-font);
+  font-size: 11px;
+  color: var(--win98-window-text);
+  white-space: nowrap;
+}
+
+[data-theme-id='win98'] .win98-tray-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--win98-shadow);
+  border-right: 1px solid var(--win98-highlight);
+}
+
+[data-theme-id='win98'] .win98-tray-clock {
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+/* ── Start Menu ── */
+[data-theme-id='win98'] .win98-start-menu {
+  position: fixed;
+  bottom: 28px;
+  left: 2px;
+  width: 200px;
+  background-color: var(--win98-face);
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow),
+    3px 3px 12px rgba(0,0,0,0.5);
+  border: 1px solid var(--win98-dark-shadow);
+  display: flex;
+  z-index: 10000;
+  user-select: none;
+}
+
+[data-theme-id='win98'] .win98-start-menu-banner {
+  width: 24px;
+  background: linear-gradient(180deg, #000080 0%, #1084d0 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+[data-theme-id='win98'] .win98-start-menu-banner-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--win98-font);
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+[data-theme-id='win98'] .win98-start-menu-items {
+  flex: 1;
+  padding: 3px 2px;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme-id='win98'] .win98-start-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  font-family: var(--win98-font);
+  font-size: 11px;
+  color: var(--win98-window-text);
+  cursor: pointer;
+  position: relative;
+}
+
+[data-theme-id='win98'] .win98-start-menu-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-theme-id='win98'] .win98-start-menu-item:hover {
+  background-color: var(--win98-selection, #000080);
+  color: var(--win98-selection-text, #ffffff);
+}
+
+[data-theme-id='win98'] .win98-start-menu-item:hover svg {
+  color: #ffffff !important;
+}
+
+[data-theme-id='win98'] .win98-menu-divider {
+  height: 1px;
+  background: var(--win98-shadow);
+  border-bottom: 1px solid var(--win98-highlight);
+  margin: 3px 2px;
+}
+
+[data-theme-id='win98'] .win98-start-submenu {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  width: 170px;
+  background-color: var(--win98-face);
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow),
+    3px 3px 12px rgba(0,0,0,0.5);
+  border: 1px solid var(--win98-dark-shadow);
+  padding: 3px 2px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10001;
+}
+
+/* ── Win98 System Resource Popup ── */
+[data-theme-id='win98'] .win98-resource-popup {
+  position: fixed;
+  bottom: 32px;
+  right: 6px;
+  width: 290px;
+  background-color: var(--win98-face, #c0c0c0);
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow),
+    4px 4px 16px rgba(0,0,0,0.5);
+  border: 1px solid var(--win98-dark-shadow);
+  padding: 3px;
+  z-index: 10002;
+  box-sizing: border-box;
+}
+
+[data-theme-id='win98'] .win98-resource-body {
+  background-color: #ffffff;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow),
+    inset -2px -2px 0px 0px var(--win98-light);
+  padding: 8px 10px;
+  margin-top: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: var(--win98-font);
+  font-size: 11px;
+}
+
+[data-theme-id='win98'] .win98-resource-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dotted #e0e0e0;
+  padding-bottom: 3px;
+}
+
+[data-theme-id='win98'] .win98-resource-row .res-label {
+  color: #555555;
+  font-weight: 500;
+}
+
+[data-theme-id='win98'] .win98-resource-row .res-val {
+  color: #000000;
+}
+
+[data-theme-id='win98'] .win98-resource-row .res-val.bold {
+  font-weight: bold;
+}
+
+[data-theme-id='win98'] .win98-resource-row .res-val.status-ok {
+  color: #008000;
+  font-weight: bold;
+}
+
+/* Universal Win98 Sunken Pressed State for Active Controls & Tabs */
+[data-theme-id='win98'] button.segment-btn,
+[data-theme-id='win98'] .tab-btn,
+[data-theme-id='win98'] .filter-btn,
+[data-theme-id='win98'] .view-mode-btn,
+[data-theme-id='win98'] .btn-win98 {
+  background-color: var(--win98-face) !important;
+  color: var(--win98-window-text) !important;
+  border: none !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow),
+    inset 2px 2px 0px 0px var(--win98-light),
+    inset -2px -2px 0px 0px var(--win98-shadow) !important;
+  border-radius: 0 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  font-family: var(--win98-font) !important;
+}
+
+[data-theme-id='win98'] button.segment-btn.active,
+[data-theme-id='win98'] .tab-btn.active,
+[data-theme-id='win98'] .filter-btn.active,
+[data-theme-id='win98'] .view-mode-btn.active,
+[data-theme-id='win98'] button[aria-pressed="true"],
+[data-theme-id='win98'] .is-pressed,
+[data-theme-id='win98'] button.active {
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight),
+    inset 2px 2px 0px 0px var(--win98-shadow),
+    inset -2px -2px 0px 0px var(--win98-light) !important;
+  background-color: #dfdfdf !important;
+  background-image: radial-gradient(circle, #dfdfdf 25%, #c0c0c0 25%) !important;
+  background-size: 2px 2px !important;
+  color: var(--win98-window-text) !important;
+  font-weight: bold !important;
+  transform: translate(1px, 1px) !important;
+}
+
+/* Fix Dashboard Hero Card Background Override */
+[data-theme-id='win98'] .ios-card.hero-card {
+  background: var(--win98-face) !important;
+  color: var(--win98-window-text) !important;
+}
+
+/* Fix Highlights Filmstrip */
+[data-theme-id='win98'] .filmstrip-thumb {
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-dark-shadow) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow),
+    inset -1px -1px 0px 0px var(--win98-highlight) !important;
+}
+[data-theme-id='win98'] .filmstrip-thumb.active {
+  border: 2px solid var(--win98-selection) !important;
+  box-shadow: none !important;
+}
+[data-theme-id='win98'] .hide-scrollbar {
+  border-top: 1px solid var(--win98-shadow) !important;
+}
+
+/* Fix Lucide Icons slightly for Win98 */
+[data-theme-id='win98'] svg.lucide {
+  stroke-width: 2.5px;
+}
+
+/* Windows 98 System Status Row & Inset Styling */
+[data-theme-id='win98'] .dashboard-status-row {
+  background-color: var(--win98-window, #ffffff) !important;
+  color: var(--win98-window-text, #000000) !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-dark-shadow, #000000) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow, #808080),
+    inset -1px -1px 0px 0px var(--win98-highlight, #ffffff),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow, #000000),
+    inset -2px -2px 0px 0px var(--win98-light, #dfdfdf) !important;
+  padding: 8px 12px !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-row .status-title {
+  color: #000080 !important; /* Authentic Win98 Navy Title */
+  font-weight: bold !important;
+  font-family: var(--win98-font) !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-row .status-subtitle {
+  color: #555555 !important;
+  font-family: var(--win98-font) !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-row .status-val {
+  color: #000000 !important;
+  font-weight: bold !important;
+  font-family: var(--win98-font) !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-badge {
+  border-radius: 0 !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow, #808080),
+    inset -1px -1px 0px 0px var(--win98-highlight, #ffffff) !important;
+  background-color: #f0f0f0 !important;
+  border: 1px solid var(--win98-dark-shadow, #000000) !important;
+  font-family: var(--win98-font) !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-badge.badge-active {
+  background-color: #e6f9e6 !important;
+  color: #008000 !important;
+  font-weight: bold !important;
+}
+
+[data-theme-id='win98'] .dashboard-status-badge.badge-sync {
+  background-color: #fff9e6 !important;
+  color: #805500 !important;
+  font-weight: bold !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   WIN98 SETTINGS & CONTROL PANEL AUTHENTIC 3D INSET SYSTEM
+   ────────────────────────────────────────────────────────────── */
+
+/* Section Outer Group Card (Win98 Group Box) */
+[data-theme-id='win98'] .settings-section-card,
+[data-theme-id='win98'] .settings-list-group {
+  background-color: var(--win98-face, #c0c0c0) !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-dark-shadow, #000000) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-highlight, #ffffff),
+    inset -1px -1px 0px 0px var(--win98-dark-shadow, #000000),
+    inset 2px 2px 0px 0px var(--win98-light, #dfdfdf),
+    inset -2px -2px 0px 0px var(--win98-shadow, #808080) !important;
+  padding: 16px !important;
+  margin-bottom: 24px !important;
+}
+
+/* Section Header Legend */
+[data-theme-id='win98'] .settings-section-header {
+  color: #000080 !important;
+  font-family: var(--win98-font) !important;
+  font-weight: bold !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding-left: 2px !important;
+  margin-bottom: 6px !important;
+}
+
+/* Inner Setting Rows & List Items (3D Sunken White Canvas) */
+[data-theme-id='win98'] .settings-list-item,
+[data-theme-id='win98'] .settings-row-panel {
+  background-color: var(--win98-window, #ffffff) !important;
+  color: var(--win98-window-text, #000000) !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-dark-shadow, #000000) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow, #808080),
+    inset -1px -1px 0px 0px var(--win98-highlight, #ffffff),
+    inset 2px 2px 0px 0px var(--win98-dark-shadow, #000000),
+    inset -2px -2px 0px 0px var(--win98-light, #dfdfdf) !important;
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+}
+
+[data-theme-id='win98'] .settings-item-title {
+  color: #000000 !important;
+  font-weight: bold !important;
+  font-family: var(--win98-font) !important;
+  font-size: 13px !important;
+}
+
+[data-theme-id='win98'] .settings-item-val {
+  color: #555555 !important;
+  font-family: var(--win98-font) !important;
+  font-size: 11px !important;
+}
+
+/* Theme Swatch Cards in Settings */
+[data-theme-id='win98'] .settings-theme-swatch {
+  background-color: #ffffff !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--win98-dark-shadow, #000000) !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-shadow, #808080),
+    inset -1px -1px 0px 0px var(--win98-highlight, #ffffff) !important;
+  color: #000000 !important;
+  font-family: var(--win98-font) !important;
+}
+
+[data-theme-id='win98'] .settings-theme-swatch.is-selected {
+  background-color: #000080 !important;
+  color: #ffffff !important;
+  border: 1px dotted #ffff80 !important;
+  box-shadow: 
+    inset 1px 1px 0px 0px var(--win98-dark-shadow, #000000),
+    inset -1px -1px 0px 0px var(--win98-highlight, #ffffff) !important;
+}
+
+[data-theme-id='win98'] .settings-theme-swatch.is-selected * {
+  color: #ffffff !important;
+}

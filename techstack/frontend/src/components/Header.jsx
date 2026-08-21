@@ -49,12 +49,12 @@ export default function Header({ onMenuClick }) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '16px 24px',
     position: 'sticky',
     top: 0,
     zIndex: 50,
     borderBottom: '1px solid var(--ios-border)',
-    margin: '-40px -40px 40px -40px',
+    margin: '0 0 24px 0',
     transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
     transform: isVisible ? 'translateY(0)' : 'translateY(-100%)'
   }

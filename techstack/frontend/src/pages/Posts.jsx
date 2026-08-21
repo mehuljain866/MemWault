@@ -65,7 +65,11 @@ export default function Posts() {
       minHeight: '100%',
       backgroundColor: 'transparent',
       color: 'var(--ios-text-primary)',
-      padding: '24px 32px 100px 32px',
+      padding: '16px 20px 60px 20px',
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
     }}>
       {/* -- Top Header ------------------------------------------- */}
       <div style={{

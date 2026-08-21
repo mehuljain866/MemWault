@@ -87,16 +87,24 @@ export default function Archives() {
   }
 
   return (
-    <div style={{ position: 'relative', height: '100%', paddingBottom: '40px' }}>
+    <div style={{
+      position: 'relative',
+      minHeight: '100%',
+      padding: '16px 20px 60px 20px',
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+    }}>
 
-      {/* ── Sticky Header ───────────────────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', alignItems: 'center',
         justifyContent: 'space-between', zIndex: 60,
-        paddingTop: '20px', paddingBottom: '20px',
-        margin: '-40px -40px 0 -40px',
-        position: 'sticky', top: '-1px',
-        gap: '16px'
+        paddingBottom: '16px',
+        marginBottom: '20px',
+        borderBottom: '1px solid var(--ios-border)',
+        gap: '12px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {/* Mobile hamburger */}
@@ -111,23 +119,23 @@ export default function Archives() {
             <Menu size={20} />
           </button>
 
-          <Archive size={28} color="var(--ios-accent)" strokeWidth={2} />
+          <Archive size={26} color="var(--ios-accent)" strokeWidth={2} />
           <h2 className="ios-title" style={{ margin: 0 }}>Archives</h2>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
             color: 'var(--ios-text-secondary)', fontWeight: 600,
-            fontSize: '14px'
+            fontSize: '13px'
           }}>
             {stories.length} {stories.length === 1 ? 'item' : 'items'}
           </div>
           <button
             className="ios-btn ios-btn-secondary"
             onClick={loadArchivedStories}
-            style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '16px' }}
+            style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <RefreshCcw size={16} />
+            <RefreshCcw size={14} />
             Refresh
           </button>
         </div>

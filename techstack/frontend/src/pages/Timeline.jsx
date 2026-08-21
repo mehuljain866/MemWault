@@ -264,7 +264,15 @@ export default function Timeline({ isReelView = false }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.25 }}
-      style={{ position: 'relative', height: '100%', paddingBottom: '40px' }}
+      style={{
+        position: 'relative',
+        minHeight: '100%',
+        padding: '16px 20px 60px 20px',
+        boxSizing: 'border-box',
+        width: '100%',
+        maxWidth: '100%',
+        overflowX: 'hidden',
+      }}
     >
       <FastScrollbar items={stories} getDate={(s) => new Date(s.taken_at)} scrollContainerSelector=".ios-main-content" />
 

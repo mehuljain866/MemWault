@@ -206,7 +206,16 @@ export default function Highlights() {
   }
 
   return (
-    <div style={{ padding: '20px 20px 60px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{
+      padding: '16px 20px 60px 20px',
+      minHeight: '100%',
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
 
       {/* ── Header ─────────────────────────── */}
       <div style={{

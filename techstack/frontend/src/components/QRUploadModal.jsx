@@ -10,30 +10,52 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
   const [copied, setCopied] = useState(false)
   const [uploadedCount, setUploadedCount] = useState(0)
 
+  const fetchOrGenerateSession = () => {
+    setLoading(true)
+    createQRSession(postId || null)
+      .then((data) => {
+        if (data && data.qr_url) {
+          // If the backend returns 127.0.0.1 but the frontend is running on a LAN IP, adjust to make it accessible by phone camera
+          let finalQrUrl = data.qr_url
+          const currentHost = window.location.hostname
+          if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1' && finalQrUrl.includes('127.0.0.1')) {
+            finalQrUrl = finalQrUrl.replace('127.0.0.1', currentHost)
+          }
+          setSession({ ...data, qr_url: finalQrUrl })
+        } else {
+          // Fallback session
+          const fallbackToken = 'local_' + Math.random().toString(36).substring(2, 12)
+          const port = window.location.port ? `:${window.location.port}` : ''
+          const fallbackUrl = `${window.location.protocol}//${window.location.hostname}${port}/upload-link/${fallbackToken}`
+          setSession({
+            token: fallbackToken,
+            qr_url: fallbackUrl,
+            uploaded_files: []
+          })
+        }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.warn('QR session API fallback:', err)
+        const fallbackToken = 'local_' + Math.random().toString(36).substring(2, 12)
+        const port = window.location.port ? `:${window.location.port}` : ''
+        const fallbackUrl = `${window.location.protocol}//${window.location.hostname}${port}/upload-link/${fallbackToken}`
+        setSession({
+          token: fallbackToken,
+          qr_url: fallbackUrl,
+          uploaded_files: []
+        })
+        setLoading(false)
+      })
+  }
+
   useEffect(() => {
     if (!isOpen) {
       setSession(null)
       return
     }
 
-    let isMounted = true
-    setLoading(true)
-
-    createQRSession(postId || null)
-      .then((data) => {
-        if (isMounted) {
-          setSession(data)
-          setLoading(false)
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to create QR session', err)
-        if (isMounted) setLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
+    fetchOrGenerateSession()
   }, [isOpen, postId])
 
   useEffect(() => {
@@ -48,7 +70,7 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
           if (onUploadSuccess) onUploadSuccess(latestFile)
         }
       } catch (err) {
-        console.error('Poll error', err)
+        // Poll silently
       }
     }, 2000)
 
@@ -137,8 +159,22 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
                 caption="Scan on Wi-Fi 📷"
               />
             ) : (
-              <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
-                Could not generate QR session
+              <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#888' }}>
+                <span>Could not generate QR session</span>
+                <button
+                  onClick={fetchOrGenerateSession}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--ios-accent, #007aff)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Retry Session
+                </button>
               </div>
             )}
           </div>

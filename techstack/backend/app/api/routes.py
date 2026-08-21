@@ -1886,9 +1886,7 @@ async def replace_post_media_raw(
 
 
 @router.post("/upload/qr-session", response_model=QRUploadSessionRead)
-@router.post("/posts/{post_id}/qr-session", response_model=QRUploadSessionRead)
-async def create_qr_upload_session(
-    post_id: Optional[uuid.UUID] = None,
+async def create_general_qr_upload_session(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1898,11 +1896,50 @@ async def create_qr_upload_session(
     import secrets
     from datetime import timedelta
 
-    if post_id:
-        result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
-        post = result.scalar_one_or_none()
-        if not post:
-            raise HTTPException(status_code=404, detail="Post not found")
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    
+    session = QRUploadSession(
+        user_id=user.id,
+        post_id=None,
+        token=token,
+        expires_at=expires_at,
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    lan_ip = get_local_lan_ip()
+    qr_url = f"http://{lan_ip}:5173/upload-link/{token}"
+
+    return {
+        "id": session.id,
+        "post_id": session.post_id,
+        "token": session.token,
+        "qr_url": qr_url,
+        "expires_at": session.expires_at,
+        "is_completed": session.is_completed,
+        "uploaded_files": session.uploaded_files or [],
+        "created_at": session.created_at,
+    }
+
+
+@router.post("/posts/{post_id}/qr-session", response_model=QRUploadSessionRead)
+async def create_post_qr_upload_session(
+    post_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate a local Wi-Fi QR code session for uploading master files to a specific post.
+    """
+    import secrets
+    from datetime import timedelta
+
+    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)

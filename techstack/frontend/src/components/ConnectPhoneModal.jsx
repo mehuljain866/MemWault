@@ -128,7 +128,7 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
             </div>
 
             {/* URL Details */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
               <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#000000' }}>
                 1. Scan with Phone Camera
               </div>
@@ -145,8 +145,9 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
                 backgroundColor: '#f0f0f0',
                 padding: '4px 6px',
                 border: '1px solid #808080',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap',
+                wordBreak: 'break-all',
+                maxHeight: '48px',
+                overflowY: 'auto'
               }}>
                 {lanUrl || `http://${lanIp}:5173/pocket`}
               </div>

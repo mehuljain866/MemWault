@@ -1528,19 +1528,33 @@ ul { list-style: none; }
 }
 
 /* Authentic GroupBox */
-.win98-fieldset {
-  border: 1px solid #808080;
-  box-shadow: inset 1px 1px #ffffff;
-  padding: 8px 10px 10px 10px;
-  margin: 2px 0 6px 0;
-  box-sizing: border-box;
+.win98-fieldset,
+[data-theme-id='win98'] fieldset {
+  border: 1px solid #808080 !important;
+  box-shadow: 1px 1px 0px 0px #ffffff, inset 1px 1px 0px 0px #ffffff !important;
+  padding: 10px 10px 10px 10px !important;
+  margin: 8px 0 8px 0 !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: block !important;
 }
 
-.win98-fieldset legend {
-  padding: 0 4px;
-  font-size: 11px;
-  color: #000000;
-  font-weight: normal;
+.win98-fieldset legend,
+[data-theme-id='win98'] fieldset legend {
+  background-color: var(--win98-face, #c0c0c0) !important;
+  padding: 0 6px !important;
+  margin-left: 8px !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  color: #000000 !important;
+  font-weight: normal !important;
+  line-height: 14px !important;
+  position: relative !important;
+  display: inline-block !important;
+  float: none !important;
+  width: auto !important;
+  max-width: none !important;
+  z-index: 5 !important;
 }
 
 /* Authentic Sunken ListBox */

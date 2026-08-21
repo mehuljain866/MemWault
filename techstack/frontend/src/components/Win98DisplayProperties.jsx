@@ -229,7 +229,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
               {/* Wallpaper Selection Controls */}
               <fieldset className="win98-fieldset">
-                <legend>Wallpaper</legend>
+                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Wallpaper</legend>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '8px' }}>
                   {/* Listbox */}
@@ -341,7 +341,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           {activeTab === 'widgets' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
-                <legend>Desktop Paradigm</legend>
+                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Desktop Paradigm</legend>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 2px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -369,7 +369,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
               </fieldset>
 
               <fieldset className="win98-fieldset">
-                <legend>Active Desktop Items</legend>
+                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Active Desktop Items</legend>
 
                 <div style={{ fontSize: '11px', color: '#222222', marginBottom: '6px' }}>
                   Select the individual gadget boxes displayed on the wallpaper:
@@ -428,7 +428,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           {activeTab === 'sounds' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
-                <legend>Sound Scheme & Visuals</legend>
+                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Sound Scheme & Visuals</legend>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 2px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -452,7 +452,7 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
               </fieldset>
 
               <fieldset className="win98-fieldset">
-                <legend>Audio Event Preview</legend>
+                <legend style={{ backgroundColor: 'var(--win98-face, #c0c0c0)', padding: '0 6px', marginLeft: '6px', fontSize: '11px', color: '#000000', display: 'inline-block', lineHeight: '14px' }}>Audio Event Preview</legend>
 
                 <div style={{ fontSize: '11px', color: '#222222', marginBottom: '8px' }}>
                   Test bit-for-bit official 1998 Microsoft Windows WAV samples:

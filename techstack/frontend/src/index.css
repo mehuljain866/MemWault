@@ -1350,6 +1350,63 @@ ul { list-style: none; }
   z-index: 5 !important;
 }
 
+/* Authentic Win98 Checkbox & Radio Buttons */
+.win98-dialog-window input[type="checkbox"],
+.win98-dialog-window input[type="radio"],
+[data-theme-id='win98'] input[type="checkbox"],
+[data-theme-id='win98'] input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  background-color: #ffffff;
+  border: 1px solid #000000;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.win98-dialog-window input[type="radio"],
+[data-theme-id='win98'] input[type="radio"] {
+  border-radius: 50%;
+}
+
+.win98-dialog-window input[type="checkbox"]:checked::after,
+[data-theme-id='win98'] input[type="checkbox"]:checked::after {
+  content: '✓';
+  font-size: 11px;
+  font-weight: 900;
+  color: #000000;
+  line-height: 11px;
+  margin-top: -1px;
+}
+
+.win98-dialog-window input[type="radio"]:checked::after,
+[data-theme-id='win98'] input[type="radio"]:checked::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background-color: #000000;
+  border-radius: 50%;
+}
+
+.win98-dialog-window label,
+[data-theme-id='win98'] label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 14px;
+  color: #000000;
+  cursor: pointer;
+  user-select: none;
+}
+
 /* ──────────────────────────────────────────────────────────────
    WIN98 PROPERTY SHEET & DIALOG DESIGN SYSTEM
    ────────────────────────────────────────────────────────────── */
@@ -1361,12 +1418,12 @@ ul { list-style: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.35);
 }
 
 .win98-dialog-window {
-  width: 395px;
-  max-width: 95vw;
+  width: 416px;
+  max-width: 96vw;
   background-color: var(--win98-face, #c0c0c0);
   border: 1px solid var(--win98-dark-shadow, #000000);
   box-shadow: 
@@ -1374,7 +1431,7 @@ ul { list-style: none; }
     inset -1px -1px 0px 0px var(--win98-dark-shadow, #000000),
     inset 2px 2px 0px 0px var(--win98-light, #dfdfdf),
     inset -2px -2px 0px 0px var(--win98-shadow, #808080),
-    4px 4px 16px rgba(0, 0, 0, 0.5);
+    4px 4px 20px rgba(0, 0, 0, 0.5);
   padding: 3px;
   font-family: var(--win98-font, "MS Sans Serif", Tahoma, Arial, sans-serif);
   font-size: 11px;
@@ -1436,7 +1493,7 @@ ul { list-style: none; }
   border-top-left-radius: 3px;
   border-top-right-radius: 3px;
   box-shadow: inset 1px 1px #ffffff, inset -1px 0px #808080;
-  padding: 3px 8px;
+  padding: 3px 10px;
   font-family: inherit;
   font-size: 11px;
   color: #000000;
@@ -1448,7 +1505,7 @@ ul { list-style: none; }
 
 .win98-tab-button.active {
   font-weight: bold;
-  padding: 4px 10px 5px 10px;
+  padding: 4px 12px 6px 12px;
   top: 2px;
   z-index: 5;
   background-color: #c0c0c0;
@@ -1460,10 +1517,10 @@ ul { list-style: none; }
   border: 1px solid #000000;
   border-top: 1px solid #ffffff;
   box-shadow: inset 1px 1px #ffffff, inset -1px -1px #808080;
-  padding: 12px;
+  padding: 10px;
   position: relative;
   z-index: 1;
-  min-height: 275px;
+  min-height: 310px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1475,7 +1532,7 @@ ul { list-style: none; }
   border: 1px solid #808080;
   box-shadow: inset 1px 1px #ffffff;
   padding: 8px 10px 10px 10px;
-  margin: 4px 0 8px 0;
+  margin: 2px 0 6px 0;
   box-sizing: border-box;
 }
 
@@ -1501,6 +1558,7 @@ ul { list-style: none; }
   font-size: 11px;
   color: #000000;
   cursor: pointer;
+  line-height: 14px;
 }
 
 .win98-listbox-item.selected {
@@ -1512,7 +1570,7 @@ ul { list-style: none; }
 .win98-standard-btn {
   min-width: 75px;
   height: 23px;
-  padding: 0 8px;
+  padding: 0 10px;
   font-family: inherit;
   font-size: 11px;
   color: #000000;
@@ -1537,7 +1595,7 @@ ul { list-style: none; }
     inset -1px -1px #ffffff,
     inset 2px 2px #808080,
     inset -2px -2px #dfdfdf;
-  padding: 1px 7px 0px 9px;
+  padding: 1px 9px 0px 11px;
 }
 
 /* Footer Actions */
@@ -1545,7 +1603,7 @@ ul { list-style: none; }
   display: flex;
   justify-content: flex-end;
   gap: 6px;
-  padding: 10px 4px 4px 4px;
+  padding: 8px 2px 2px 2px;
 }
 
 /* ──────────────────────────────────────────────────────────────

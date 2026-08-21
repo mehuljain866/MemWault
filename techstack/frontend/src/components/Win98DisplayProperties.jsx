@@ -339,12 +339,12 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
           {/* ── TAB 2: WIDGETS & DESKTOP ── */}
           {activeTab === 'widgets' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
                 <legend>Desktop Paradigm</legend>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '2px 0' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="dashboardMode"
@@ -352,10 +352,10 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                       checked={(currentSettings.win98DashboardMode || 'dashboard') === 'dashboard'}
                       onChange={() => handleUpdate('win98DashboardMode', 'dashboard')}
                     />
-                    <span>Standard Application Window (Dashboard Window)</span>
+                    <span>Standard Application Window (Dashboard inside Window)</span>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="dashboardMode"
@@ -363,46 +363,59 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                       checked={currentSettings.win98DashboardMode === 'widget'}
                       onChange={() => handleUpdate('win98DashboardMode', 'widget')}
                     />
-                    <span>Active Desktop Gadgets (Floating on Wallpaper)</span>
+                    <span>Active Desktop Mode (Floating Gadgets on Wallpaper)</span>
                   </label>
                 </div>
               </fieldset>
 
               <fieldset className="win98-fieldset">
-                <legend>Active Gadget Items</legend>
+                <legend>Active Desktop Items</legend>
 
-                <div style={{ fontSize: '11px', color: '#444444', marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#222222', marginBottom: '6px' }}>
                   Select the individual gadget boxes displayed on the wallpaper:
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', padding: '2px 0' }}>
+                <div className="win98-listbox" style={{ height: '114px', overflowY: 'auto', padding: '2px' }}>
                   {[
-                    { key: 'memoryCounter', label: 'Memory Counter' },
-                    { key: 'statGrid', label: 'Media Breakdown Grid' },
-                    { key: 'quickActions', label: 'Quick Action Buttons' },
-                    { key: 'systemHealth', label: 'System Resource Monitor' },
-                    { key: 'auditLog', label: 'Sync & Scrape Logs' },
+                    { key: 'memoryCounter', label: 'Memory Counter (Stories, Reels, Highlights)' },
+                    { key: 'statGrid', label: 'Media Breakdown Grid (Photos, Videos, Live Masters)' },
+                    { key: 'quickActions', label: 'Quick Action Ribbon (Sync, Search, Phone Transfer)' },
+                    { key: 'systemHealth', label: 'System Resource Monitor (CPU, Storage, Net)' },
+                    { key: 'auditLog', label: 'Sync & Scrape Activity Log' },
                   ].map(w => (
-                    <label key={w.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <label 
+                      key={w.key} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        padding: '3px 4px', 
+                        cursor: 'pointer',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        borderBottom: '1px solid #f0f0f0'
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={currentSettings.win98WidgetVisibility?.[w.key] !== false}
                         onChange={() => handleWidgetToggle(w.key)}
                       />
-                      <span>{w.label}</span>
+                      <span style={{ fontSize: '11px', color: '#000000' }}>{w.label}</span>
                     </label>
                   ))}
                 </div>
 
-                <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10px', color: '#666666' }}>Drag gadgets to reposition</span>
+                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: '#555555' }}>Drag gadget titlebars to reposition.</span>
                   <button
                     onClick={() => {
                       handleUpdate('win98WidgetPositions', {})
-                      setFeedbackMsg('Widget coordinates reset.')
-                      setTimeout(() => setFeedbackMsg(''), 2500)
+                      setFeedbackMsg('Widget coordinates reset to default.')
+                      setTimeout(() => setFeedbackMsg(''), 3000)
                     }}
                     className="win98-standard-btn"
+                    style={{ height: '22px', fontSize: '10px', padding: '0 8px' }}
                   >
                     Reset Positions
                   </button>
@@ -413,47 +426,50 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
           {/* ── TAB 3: SOUND FX ── */}
           {activeTab === 'sounds' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <fieldset className="win98-fieldset">
-                <legend>Sound Scheme & Boot Splash</legend>
+                <legend>Sound Scheme & Visuals</legend>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '2px 0' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={currentSettings.win98SoundEnabled !== false}
                       onChange={(e) => handleUpdate('win98SoundEnabled', e.target.checked)}
                     />
-                    <span><strong>Enable Authentic Microsoft Windows 98 WAV Audio</strong></span>
+                    <span>Enable authentic Microsoft Windows 98 WAV sound effects</span>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={currentSettings.win98BootScreen !== false}
                       onChange={(e) => handleUpdate('win98BootScreen', e.target.checked)}
                     />
-                    <span><strong>Show Boot Splash Screen on Startup</strong></span>
+                    <span>Show BIOS and Windows 98 boot splash screen on startup</span>
                   </label>
                 </div>
               </fieldset>
 
               <fieldset className="win98-fieldset">
-                <legend>Audio Preview</legend>
+                <legend>Audio Event Preview</legend>
 
-                <div style={{ fontSize: '11px', color: '#444444', marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#222222', marginBottom: '8px' }}>
                   Test bit-for-bit official 1998 Microsoft Windows WAV samples:
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-                  <button onClick={playWin98Startup} className="win98-standard-btn" style={{ height: '26px' }}>
-                    ▶ Startup
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button onClick={playWin98Startup} className="win98-standard-btn" style={{ height: '26px', gap: '4px' }}>
+                    ▶ Start Windows
                   </button>
-                  <button onClick={playWin98Chord} className="win98-standard-btn" style={{ height: '26px' }}>
-                    ▶ Chord
+                  <button onClick={playWin98Chord} className="win98-standard-btn" style={{ height: '26px', gap: '4px' }}>
+                    ▶ Critical Stop (Chord)
                   </button>
-                  <button onClick={playWin98Shutdown} className="win98-standard-btn" style={{ height: '26px' }}>
-                    ▶ Logoff
+                  <button onClick={playWin98Shutdown} className="win98-standard-btn" style={{ height: '26px', gap: '4px' }}>
+                    ▶ Exit Windows (Logoff)
+                  </button>
+                  <button onClick={playWin98Ding} className="win98-standard-btn" style={{ height: '26px', gap: '4px' }}>
+                    ▶ Default Beep (Ding)
                   </button>
                 </div>
               </fieldset>
@@ -466,6 +482,9 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
               fontWeight: 'bold',
               fontSize: '11px',
               marginTop: '4px',
+              padding: '2px 4px',
+              backgroundColor: '#ffffcc',
+              border: '1px solid #808080'
             }}>
               {feedbackMsg}
             </div>
@@ -477,19 +496,21 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           <button
             onClick={handleSaveAndClose}
             className="win98-standard-btn"
-            style={{ fontWeight: 'bold' }}
+            style={{ fontWeight: 'bold', minWidth: '70px' }}
           >
             OK
           </button>
           <button
             onClick={() => { playWin98Click(); onClose(); }}
             className="win98-standard-btn"
+            style={{ minWidth: '70px' }}
           >
             Cancel
           </button>
           <button
             onClick={handleApplyOnly}
             className="win98-standard-btn"
+            style={{ minWidth: '70px' }}
           >
             Apply
           </button>

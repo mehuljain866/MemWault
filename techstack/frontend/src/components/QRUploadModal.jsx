@@ -50,8 +50,9 @@ export default function QRUploadModal({ isOpen, onClose, postId, onUploadSuccess
       try {
         const data = await getUploadPortalSession(session.token)
         if (data.uploaded_files && data.uploaded_files.length > uploadedCount) {
+          const latestFile = data.uploaded_files[data.uploaded_files.length - 1]
           setUploadedCount(data.uploaded_files.length)
-          if (onUploadSuccess) onUploadSuccess()
+          if (onUploadSuccess) onUploadSuccess(latestFile)
         }
       } catch (err) {
         console.error('Poll error', err)

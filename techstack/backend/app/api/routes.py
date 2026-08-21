@@ -1624,11 +1624,15 @@ def _format_post_media(media: PostMedia, s3) -> dict:
     if media.s3_key_live_video:
         live_vid_url = s3.get_presigned_url(media.s3_key_live_video, expires_in=86400)
 
+    media_url = raw_url or ig_url
+
     return {
         "id": media.id,
         "post_id": media.post_id,
         "slide_index": media.slide_index,
         "media_type": media.media_type,
+        "media_url": media_url,
+        "display_url": media_url,
         "s3_key_instagram": media.s3_key_instagram,
         "instagram_media_url": ig_url,
         "instagram_width": media.instagram_width,
@@ -1995,30 +1999,12 @@ async def get_upload_portal_session(
         raise HTTPException(status_code=410, detail="QR upload session has expired")
 
     post = session.post
-    if post:
-        formatted_post = _format_post(post, s3)
-    else:
-        formatted_post = {
-            "id": "general-transfer",
-            "caption": "MemWault Mobile Media & Wallpaper Transfer",
-            "date": session.created_at.isoformat(),
-            "is_carousel": False,
-            "total_slides": 1,
-            "media_items": [
-                {
-                    "id": "slot-0",
-                    "slide_index": 0,
-                    "media_type": "IMAGE",
-                    "display_url": None,
-                    "has_raw_master": len(session.uploaded_files or []) > 0,
-                    "is_live_photo": False,
-                }
-            ]
-        }
+    formatted_post = _format_post(post, s3) if post else None
 
     return {
         "session_id": session.id,
         "token": session.token,
+        "is_general_transfer": post is None,
         "post": formatted_post,
         "expires_at": session.expires_at,
         "is_completed": session.is_completed,

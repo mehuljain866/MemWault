@@ -20,6 +20,35 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false)
   const [feedbackMsg, setFeedbackMsg] = useState('')
 
+  const [customWallpapers, setCustomWallpapers] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('mw_custom_wallpapers') || '[]')
+      return Array.isArray(saved) ? saved : []
+    } catch {
+      return []
+    }
+  })
+
+  const addCustomWallpaper = (url, label = 'Uploaded Image') => {
+    const newItem = {
+      id: 'custom_' + Date.now(),
+      label,
+      url,
+      date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+    setCustomWallpapers(prev => {
+      const filtered = prev.filter(p => p.url !== url)
+      const updated = [newItem, ...filtered]
+      try {
+        localStorage.setItem('mw_custom_wallpapers', JSON.stringify(updated))
+      } catch (e) {
+        console.error('Failed to save wallpaper list', e)
+      }
+      return updated
+    })
+    handleUpdate('win98Wallpaper', url)
+  }
+
   const handleUpdate = (key, value) => {
     setCurrentSettings(prev => ({
       ...prev,
@@ -42,7 +71,8 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
     if (!file) return
     const reader = new FileReader()
     reader.onload = (event) => {
-      handleUpdate('win98Wallpaper', event.target.result)
+      const name = `📁 ${file.name}`
+      addCustomWallpaper(event.target.result, name)
       setFeedbackMsg('Wallpaper loaded from PC.')
       setTimeout(() => setFeedbackMsg(''), 3000)
     }
@@ -203,7 +233,10 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '8px' }}>
                   {/* Listbox */}
-                  <div className="win98-listbox" style={{ height: '84px' }}>
+                  <div className="win98-listbox" style={{ height: '96px', overflowY: 'auto' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#555', padding: '1px 3px', borderBottom: '1px solid #d0d0d0', backgroundColor: '#e4e4e4' }}>
+                      ── SYSTEM PRESETS ──
+                    </div>
                     {PRESET_WALLPAPERS.map(item => {
                       const isSelected = (item.url === currentSettings.win98Wallpaper) || (!item.url && !currentSettings.win98Wallpaper);
                       return (
@@ -216,9 +249,38 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
                         </div>
                       )
                     })}
-                    {currentSettings.win98Wallpaper && !PRESET_WALLPAPERS.some(p => p.url === currentSettings.win98Wallpaper) && (
+
+                    {customWallpapers.length > 0 && (
+                      <>
+                        <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#555', padding: '1px 3px', borderTop: '1px solid #d0d0d0', borderBottom: '1px solid #d0d0d0', backgroundColor: '#e4e4e4', marginTop: '2px' }}>
+                          ── MY UPLOADED WALLPAPERS ──
+                        </div>
+                        {customWallpapers.map(cw => {
+                          const isSelected = (cw.url === currentSettings.win98Wallpaper);
+                          return (
+                            <div
+                              key={cw.id}
+                              onClick={() => handleUpdate('win98Wallpaper', cw.url)}
+                              className={`win98-listbox-item ${isSelected ? 'selected' : ''}`}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            >
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }} title={cw.label}>
+                                {cw.label}
+                              </span>
+                              <span style={{ fontSize: '9px', opacity: 0.7, marginLeft: '4px' }}>
+                                {cw.date}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
+
+                    {currentSettings.win98Wallpaper && 
+                      !PRESET_WALLPAPERS.some(p => p.url === currentSettings.win98Wallpaper) &&
+                      !customWallpapers.some(p => p.url === currentSettings.win98Wallpaper) && (
                       <div className="win98-listbox-item selected">
-                        [Custom User Image]
+                        [Active Custom Image]
                       </div>
                     )}
                   </div>
@@ -441,9 +503,10 @@ export default function Win98DisplayProperties({ isOpen, onClose, onApply }) {
           onClose={() => setIsQRModalOpen(false)}
           onUploadSuccess={(latestFile) => {
             if (latestFile?.url) {
-              handleUpdate('win98Wallpaper', latestFile.url)
-              setFeedbackMsg('Wallpaper received from smartphone!')
-              setTimeout(() => setFeedbackMsg(''), 3500)
+              const name = latestFile.filename ? `📱 ${latestFile.filename}` : '📱 Mobile Wallpaper'
+              addCustomWallpaper(latestFile.url, name)
+              setFeedbackMsg('Wallpaper received from smartphone and applied!')
+              setTimeout(() => setFeedbackMsg(''), 4000)
             }
           }}
         />

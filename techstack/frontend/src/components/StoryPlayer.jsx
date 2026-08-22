@@ -298,19 +298,19 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
           }}
           style={{
             position: 'absolute', inset: 0, zIndex: 50,
-            background: isWin98 ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.75)',
+            background: 'rgba(0,0,0,0.7)',
             backdropFilter: isWin98 ? 'none' : 'blur(10px)',
             display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-            padding: '16px',
+            padding: '14px',
           }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
             style={isWin98 ? {
               backgroundColor: '#c0c0c0',
-              border: '1px solid #000000',
-              boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 12px rgba(0,0,0,0.6)',
-              padding: '14px 16px',
+              border: '2px solid #2e7d32',
+              boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 0 0 16px rgba(0, 210, 106, 0.4)',
+              padding: '12px',
               color: '#000000',
               fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
               fontSize: '11px',
@@ -319,30 +319,34 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
               background: 'var(--ios-bg-card, #1c1c1e)',
               borderRadius: '20px', padding: '20px',
               color: 'var(--ios-text-primary, #fff)',
-              boxShadow: '0 -4px 24px rgba(0,0,0,0.4)',
+              border: '1.5px solid #00D26A',
+              boxShadow: '0 -4px 28px rgba(0,210,106,0.3)',
               maxHeight: '80%', overflowY: 'auto',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={isWin98 ? {
-                display: 'flex', alignItems: 'center', gap: '6px',
-                fontWeight: 'bold', fontSize: '11px', color: '#000000',
-                background: '#5cb85c', border: '1px solid #000',
-                boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
-                padding: '3px 8px'
-              } : {
+            {/* Modal Title Bar with Rich Green Branding */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginBottom: '12px',
+              background: isWin98 ? 'linear-gradient(90deg, #1b5e20 0%, #388e3c 100%)' : 'transparent',
+              padding: isWin98 ? '4px 8px' : '0',
+              borderRadius: isWin98 ? '0' : '0',
+              color: isWin98 ? '#ffffff' : '#00D26A'
+            }}>
+              <div style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
-                fontWeight: 700, fontSize: '16px', color: '#00D26A'
+                fontWeight: 800, fontSize: isWin98 ? '12px' : '16px',
+                color: isWin98 ? '#ffffff' : '#00D26A'
               }}>
-                <Star size={isWin98 ? 13 : 18} fill="#fff" stroke={isWin98 ? "#000" : "none"} strokeWidth={isWin98 ? 1.5 : 0} />
+                <Star size={isWin98 ? 14 : 18} fill="#ffffff" stroke={isWin98 ? "#000000" : "none"} strokeWidth={isWin98 ? 1.5 : 0} />
                 Close Friends Snapshot
               </div>
               <button 
                 onClick={() => setShowAudienceModal(false)}
                 style={isWin98 ? {
-                  background: '#c0c0c0', border: '1px solid #000',
-                  boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
-                  color: '#000000', width: '20px', height: '20px',
+                  background: '#c0c0c0', border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                  color: '#000000', width: '18px', height: '18px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '11px', fontWeight: 'bold', cursor: 'pointer',
                   padding: 0
@@ -354,46 +358,60 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
                 ✕
               </button>
             </div>
+
             <div style={{
               fontSize: isWin98 ? '11px' : '13px',
-              color: isWin98 ? '#000000' : 'var(--ios-text-secondary, #aaa)',
+              color: isWin98 ? '#111111' : 'var(--ios-text-secondary, #aaa)',
               marginBottom: '12px',
               lineHeight: 1.4
             }}>
               This memory was shared exclusively with your Close Friends list at the time of posting.
             </div>
+
             {story.audience_snapshot && story.audience_snapshot.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{
                   fontSize: isWin98 ? '11px' : '12px',
-                  fontWeight: 'bold',
+                  fontWeight: 800,
                   textTransform: 'uppercase',
-                  color: isWin98 ? '#000000' : 'var(--ios-text-secondary, #aaa)'
+                  color: isWin98 ? '#1b5e20' : '#00D26A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}>
-                  AUDIENCE MEMBERS ({story.audience_snapshot.length}):
+                  <Users size={13} />
+                  Audience Members ({story.audience_snapshot.length}):
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {story.audience_snapshot.map((u, i) => (
                     <span
                       key={i}
                       style={isWin98 ? {
-                        background: '#ffffff',
-                        border: '1px solid #808080',
-                        boxShadow: 'inset 1px 1px #000000, inset -1px -1px #ffffff',
-                        color: '#005500',
-                        padding: '3px 8px',
+                        background: '#5cb85c',
+                        border: '1px solid #000000',
+                        boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+                        color: '#000000',
+                        padding: '3px 10px',
                         fontSize: '11px',
-                        fontWeight: 'bold',
-                        fontFamily: 'monospace'
+                        fontWeight: 800,
+                        fontFamily: '"MS Sans Serif", Tahoma, Arial, monospace',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
                       } : {
-                        background: 'rgba(0,210,106,0.15)',
+                        background: 'rgba(0,210,106,0.2)',
+                        border: '1px solid #00D26A',
                         color: '#00D26A',
                         padding: '4px 10px',
                         borderRadius: '12px',
                         fontSize: '13px',
-                        fontWeight: 600
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
                       }}
                     >
+                      <Star size={10} fill={isWin98 ? "#fff" : "#00D26A"} stroke={isWin98 ? "#000" : "none"} />
                       @{u}
                     </span>
                   ))}
@@ -402,14 +420,14 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
             ) : (
               <div style={{
                 fontSize: isWin98 ? '11px' : '13px',
-                color: isWin98 ? '#333333' : 'var(--ios-text-secondary, #aaa)',
+                color: isWin98 ? '#2e7d32' : 'var(--ios-text-secondary, #aaa)',
                 fontStyle: 'italic',
-                background: isWin98 ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                border: isWin98 ? '1px inset #808080' : 'none',
-                padding: '8px',
+                background: isWin98 ? '#e8f5e9' : 'rgba(0,210,106,0.08)',
+                border: isWin98 ? '1px solid #81c784' : '1px solid rgba(0,210,106,0.2)',
+                padding: '8px 12px',
                 borderRadius: isWin98 ? '0' : '10px'
               }}>
-                Audience Snapshot captured with Close Friends privacy protection.
+                ⭐ Audience Snapshot captured with Close Friends privacy protection.
               </div>
             )}
           </div>

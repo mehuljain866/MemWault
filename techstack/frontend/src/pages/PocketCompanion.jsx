@@ -377,8 +377,6 @@ export default function PocketCompanion() {
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   // ── System Status Engine ──────────────────────────────────────────────────
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState({ percent: 0, stage: '' });
   const [toastMessage, setToastMessage] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [batteryLevel, setBatteryLevel] = useState(null);

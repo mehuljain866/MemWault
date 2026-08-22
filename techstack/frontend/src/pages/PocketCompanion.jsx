@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Image as ImageIcon, Film, BookOpen, Search, 
-  Wifi, Battery, Plus, ArrowLeft, RefreshCw,
+  Wifi, Battery, Plus, ArrowLeft, ArrowRight, RefreshCw,
   Settings as SettingsIcon, X, Camera, Music, 
   MapPin, Check, ExternalLink, Calendar, Edit3, 
   Save, Trash2, HardDrive, Smartphone, Sparkles, 

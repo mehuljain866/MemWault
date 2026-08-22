@@ -5,7 +5,7 @@ import {
   Wifi, Battery, Plus, ArrowLeft, ArrowRight, RefreshCw,
   Settings as SettingsIcon, X, Camera, Music, 
   MapPin, Check, ExternalLink, Calendar, Edit3, 
-  Save, Trash2, HardDrive, Smartphone, Sparkles, 
+  Save, Trash2, HardDrive, Smartphone, Sparkles, Star,
   Volume2, VolumeX, ShieldCheck, Download, Play, 
   Pause, ChevronLeft, ChevronRight, Grid, List, 
   Heart, MessageCircle, Share2, Layers, Bookmark,
@@ -1475,6 +1475,7 @@ export default function PocketCompanion() {
     if (filterType === 'videos') return s.media_type === 2;
     if (filterType === 'journaled') return Boolean(s.journal_note && s.journal_note.trim().length > 0);
     if (filterType === 'music') return Boolean(s.music?.track_title || s.music_title);
+    if (filterType === 'cf') return Boolean(s.is_close_friends || s.audience === 'close_friends');
     return true;
   });
 
@@ -2053,7 +2054,25 @@ export default function PocketCompanion() {
                   )}
                 </div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{activeHighlight.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{activeHighlight.title}</div>
+                    {(highlightStories[highlightStoryIndex]?.is_close_friends || highlightStories[highlightStoryIndex]?.audience === 'close_friends') && (
+                      <span style={{
+                        backgroundColor: '#00D26A',
+                        color: '#FFFFFF',
+                        padding: '1px 5px',
+                        borderRadius: '2px',
+                        fontSize: '8px',
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px'
+                      }}>
+                        <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
+                        <span>CF</span>
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '10px', opacity: 0.75 }}>
                     {highlightStories[highlightStoryIndex]?.taken_at ? new Date(highlightStories[highlightStoryIndex].taken_at).toLocaleDateString() : 'Highlight'}
                   </div>
@@ -2750,8 +2769,16 @@ export default function PocketCompanion() {
                                 )}
                                 <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
                                   <div>
-                                    <div style={{ display: 'inline-block', backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 6px', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', marginBottom: '4px' }}>
-                                      {currentFlashback?.badgeText || 'ON THIS DAY'}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                                      <div style={{ display: 'inline-block', backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 6px', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em' }}>
+                                        {currentFlashback?.badgeText || 'ON THIS DAY'}
+                                      </div>
+                                      {(currentFlashback?.is_close_friends || currentFlashback?.audience === 'close_friends') && (
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#00D26A', color: '#FFFFFF', padding: '2px 4px', borderRadius: '2px', fontSize: '8px', fontWeight: 800 }}>
+                                          <Star size={7} fill="#FFFFFF" color="#FFFFFF" />
+                                          <span>CF</span>
+                                        </div>
+                                      )}
                                     </div>
                                     <div style={{ fontSize: '14px', fontWeight: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                       {currentFlashback?.location_name || (currentFlashback?.taken_at ? new Date(currentFlashback.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'MemWault Vault')}
@@ -3565,6 +3592,7 @@ export default function PocketCompanion() {
                   { id: 'all', label: 'all' },
                   { id: 'photos', label: 'photos' },
                   { id: 'videos', label: 'videos' },
+                  { id: 'cf', label: 'close friends', isCF: true },
                   { id: 'journaled', label: 'journaled' },
                   { id: 'music', label: 'soundtracks' },
                 ].map(f => (
@@ -3572,18 +3600,22 @@ export default function PocketCompanion() {
                     key={f.id}
                     onClick={() => { triggerSound(); setFilterType(f.id); }}
                     style={{
-                      backgroundColor: filterType === f.id ? accent : surfaceColor,
-                      color: filterType === f.id ? '#FFFFFF' : textColor,
-                      border: 'none',
+                      backgroundColor: filterType === f.id ? (f.isCF ? '#00D26A' : accent) : surfaceColor,
+                      color: filterType === f.id ? '#FFFFFF' : (f.isCF ? '#00D26A' : textColor),
+                      border: f.isCF ? `1px solid #00D26A` : 'none',
                       padding: '6px 14px',
                       fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'lowercase',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
-                    {f.label}
+                    {f.isCF && <Star size={10} fill={filterType === f.id ? '#FFFFFF' : '#00D26A'} color={filterType === f.id ? '#FFFFFF' : '#00D26A'} />}
+                    <span>{f.label}</span>
                   </button>
                 ))}
               </div>
@@ -3601,6 +3633,7 @@ export default function PocketCompanion() {
               }}>
                 {filteredStories.map(story => {
                   const track = story.music?.track_title || story.music_title;
+                  const isCF = story.is_close_friends || story.audience === 'close_friends';
                   return (
                     <motion.div
                       key={story.id}
@@ -3612,6 +3645,9 @@ export default function PocketCompanion() {
                         position: 'relative',
                         cursor: 'pointer',
                         overflow: 'hidden',
+                        border: isCF ? '2px solid #00D26A' : 'none',
+                        boxShadow: isCF ? '0 0 8px rgba(0, 210, 106, 0.3)' : 'none',
+                        boxSizing: 'border-box',
                       }}
                     >
                       <OfflineMedia
@@ -3621,6 +3657,29 @@ export default function PocketCompanion() {
                         alt="Memory"
                       />
                       
+                      {/* Close Friends Emerald Badge (Top Left) */}
+                      {isCF && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '4px',
+                          left: '4px',
+                          backgroundColor: '#00D26A',
+                          color: '#FFFFFF',
+                          fontSize: '8px',
+                          fontWeight: 800,
+                          padding: '2px 4px',
+                          borderRadius: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          boxShadow: '0 2px 6px rgba(0,210,106,0.4)',
+                          zIndex: 3,
+                        }}>
+                          <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
+                          <span>CF</span>
+                        </div>
+                      )}
+
                       {story.journal_note && (
                         <div style={{
                           position: 'absolute',
@@ -3639,7 +3698,7 @@ export default function PocketCompanion() {
                       {track && (
                         <div style={{
                           position: 'absolute',
-                          top: '4px',
+                          bottom: '22px',
                           left: '4px',
                           backgroundColor: '#1DB954',
                           color: '#000000',
@@ -3793,8 +3852,22 @@ export default function PocketCompanion() {
                         <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Calendar size={11} />
                           <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : 'Undated Memory'}</span>
-                          {selectedStory.is_close_friends && (
-                            <span style={{ color: '#008A00', fontWeight: 'bold' }}>🟢 Close Friends</span>
+                          {(selectedStory.is_close_friends || selectedStory.audience === 'close_friends') && (
+                            <span style={{
+                              backgroundColor: '#00D26A',
+                              color: '#FFFFFF',
+                              padding: '2px 6px',
+                              borderRadius: '2px',
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              letterSpacing: '0.04em'
+                            }}>
+                              <Star size={9} fill="#FFFFFF" color="#FFFFFF" />
+                              <span>CLOSE FRIENDS</span>
+                            </span>
                           )}
                         </div>
                       </div>

@@ -260,19 +260,65 @@ function OfflineMedia({
 }
 
 /**
- * Resilient Soundtrack Album Cover Thumbnail
- * Displays the real album/story thumbnail artwork with proxy fallback and placeholder
+ * Global Album Artwork Cache to avoid redundant network lookups
  */
-function SoundtrackArtwork({ src, title, size = 42 }) {
+const SOUNDTRACK_ARTWORK_CACHE = new Map();
+
+/**
+ * Resilient Soundtrack Album Cover Thumbnail
+ * Displays the real album cover artwork (from iTunes / memory preview) with global caching
+ */
+function SoundtrackArtwork({ src, title, artist, size = 44 }) {
+  const cacheKey = `${title || ''}_${artist || ''}`.trim().toLowerCase();
   const [hasError, setHasError] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
-  const [imgSrc, setImgSrc] = useState(src);
+  const [imgSrc, setImgSrc] = useState(() => {
+    if (src) return src;
+    if (cacheKey && SOUNDTRACK_ARTWORK_CACHE.has(cacheKey)) {
+      return SOUNDTRACK_ARTWORK_CACHE.get(cacheKey);
+    }
+    return null;
+  });
 
   useEffect(() => {
-    setImgSrc(src);
-    setHasError(false);
-    setTriedProxy(false);
-  }, [src]);
+    let isMounted = true;
+
+    if (src) {
+      setImgSrc(src);
+      setHasError(false);
+      return;
+    }
+
+    if (cacheKey && SOUNDTRACK_ARTWORK_CACHE.has(cacheKey)) {
+      setImgSrc(SOUNDTRACK_ARTWORK_CACHE.get(cacheKey));
+      setHasError(false);
+      return;
+    }
+
+    if (title) {
+      const query = encodeURIComponent(`${title} ${artist || ''}`.trim());
+      fetch(`https://itunes.apple.com/search?term=${query}&limit=1&entity=song`)
+        .then(res => res.json())
+        .then(data => {
+          if (!isMounted) return;
+          if (data.results && data.results.length > 0 && data.results[0].artworkUrl100) {
+            const artUrl = data.results[0].artworkUrl100.replace('100x100bb', '300x300bb');
+            SOUNDTRACK_ARTWORK_CACHE.set(cacheKey, artUrl);
+            setImgSrc(artUrl);
+            setHasError(false);
+          } else {
+            setHasError(true);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setHasError(true);
+        });
+    } else {
+      setHasError(true);
+    }
+
+    return () => { isMounted = false; };
+  }, [src, title, artist, cacheKey]);
 
   if (!imgSrc || hasError) {
     return (
@@ -308,9 +354,23 @@ function SoundtrackArtwork({ src, title, size = 42 }) {
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         loading="lazy"
         onError={() => {
-          if (!triedProxy && typeof src === 'string' && src.startsWith('http')) {
+          if (!triedProxy && typeof imgSrc === 'string' && imgSrc.startsWith('http') && !imgSrc.includes('apple.com')) {
             setTriedProxy(true);
-            setImgSrc(`/api/v1/proxy/image?url=${encodeURIComponent(src)}`);
+            setImgSrc(`/api/v1/proxy/image?url=${encodeURIComponent(imgSrc)}`);
+          } else if (!hasError && title && !imgSrc.includes('apple.com')) {
+            const query = encodeURIComponent(`${title} ${artist || ''}`.trim());
+            fetch(`https://itunes.apple.com/search?term=${query}&limit=1&entity=song`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.results && data.results.length > 0 && data.results[0].artworkUrl100) {
+                  const artUrl = data.results[0].artworkUrl100.replace('100x100bb', '300x300bb');
+                  SOUNDTRACK_ARTWORK_CACHE.set(cacheKey, artUrl);
+                  setImgSrc(artUrl);
+                } else {
+                  setHasError(true);
+                }
+              })
+              .catch(() => setHasError(true));
           } else {
             setHasError(true);
           }
@@ -5150,7 +5210,7 @@ export default function PocketCompanion() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                           {/* Real Album/Story Cover Artwork */}
-                          <SoundtrackArtwork src={item.cover_art} title={item.track_title} size={44} />
+                          <SoundtrackArtwork src={item.cover_art} title={item.track_title} artist={item.artist_name} size={44} />
                           
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: isCur ? accent : textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

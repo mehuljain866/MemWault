@@ -10,7 +10,9 @@ import {
   Pause, ChevronLeft, ChevronRight, Grid, List, 
   Heart, MessageCircle, Share2, Layers, Bookmark,
   User as UserIcon, CheckCircle2, AlertCircle, Smile,
-  Maximize2, Disc, Sliders, Palette
+  Maximize2, Disc, Sliders, Palette, Brush, Eraser,
+  RotateCcw, Compass, CheckSquare, Square, Tag,
+  Move, Paperclip, Info
 } from 'lucide-react';
 import { 
   getOfflineMemories, getOfflinePosts, getOfflineHighlights, 
@@ -51,7 +53,19 @@ const METRO_ACCENTS = [
   { name: 'Brown', hex: '#825A2C' },
 ];
 
-const JOURNAL_STICKERS = ['✨', '💖', '🌴', '☕', '📸', '🎵', '⭐', '📍', '🥂', '🌸', '🥑', '🎨', '🚀', '⛺', '🌈', '🍦'];
+const DRAWING_COLORS = [
+  '#0050EF', '#1BA1E2', '#008A00', '#A4C400', '#F09609', 
+  '#A20025', '#D80073', '#AA00FF', '#FFFFFF', '#000000'
+];
+
+const CUSTOM_STICKER_SETS = [
+  { id: 'stamp_vault', label: 'VAULT SEAL', bg: '#A20025', text: 'MEMWAULT ARCHIVE', icon: '🏛️' },
+  { id: 'stamp_loc', label: 'PASSPORT', bg: '#0050EF', text: 'VERIFIED LOCATION', icon: '✈️' },
+  { id: 'stamp_sound', label: 'VINYL', bg: '#1DB954', text: 'SOUNDTRACK 33⅓', icon: '🎵' },
+  { id: 'stamp_date', label: 'TIMECODE', bg: '#FA6800', text: 'ON THIS DAY', icon: '⏳' },
+  { id: 'stamp_polaroid', label: 'POLAROID', bg: '#E8E8E8', text: 'ORIGINAL SHOT', icon: '📸', darkText: true },
+  { id: 'stamp_fav', label: 'FAVORITE', bg: '#D80073', text: 'CORE MEMORY', icon: '💖' },
+];
 
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
@@ -116,12 +130,26 @@ export default function PocketCompanion() {
 
   // ── Navigation & Content States ───────────────────────────────────────────
   const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'settings'
+  const [journalSubTab, setJournalSubTab] = useState('notes'); // 'notes' | 'places'
   const [stories, setStories] = useState([]);
   const [posts, setPosts] = useState([]);
   const [highlights, setHighlights] = useState([]);
   const [pendingUploads, setPendingUploads] = useState([]);
   const [stats, setStats] = useState({ memoryCount: 0, postCount: 0, pendingCount: 0, highlightCount: 0, storageMb: '0.00' });
   const [igSession, setIgSession] = useState(null);
+
+  // ── Places to Visit State (Full Desktop Parity) ───────────────────────────
+  const [places, setPlaces] = useState(() => {
+    const saved = localStorage.getItem('memwault_places_to_visit');
+    return saved ? JSON.parse(saved) : [
+      { id: '1', title: 'Northern Lights in Tromsø', location: 'Norway', category: 'Nature', completed: false, notes: 'Winter trip' },
+      { id: '2', title: 'Fushimi Inari at Dawn', location: 'Kyoto, Japan', category: 'Culture', completed: false, notes: 'Walk the thousand torii gates' },
+      { id: '3', title: 'Roadtrip across Amalfi Coast', location: 'Italy', category: 'Roadtrip', completed: true, notes: 'Stay in Positano' }
+    ];
+  });
+  const [newPlaceTitle, setNewPlaceTitle] = useState('');
+  const [newPlaceLocation, setNewPlaceLocation] = useState('');
+  const [newPlaceCategory, setNewPlaceCategory] = useState('Travel');
 
   // ── Selection & Filter States ─────────────────────────────────────────────
   const [selectedStory, setSelectedStory] = useState(null);
@@ -151,26 +179,28 @@ export default function PocketCompanion() {
   const [audioDuration, setAudioDuration] = useState(30);
   const previewAudioRef = useRef(null);
 
-  // ── Camera Viewfinder Modal States ────────────────────────────────────────
+  // ── Live Camera Viewfinder Modal States ───────────────────────────────────
   const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // ── Journal Creator & Stickers States ─────────────────────────────────────
+  // ── Journal & Scrapbook Interactive Canvas States ─────────────────────────
   const [newJournalModalOpen, setNewJournalModalOpen] = useState(false);
   const [journalAttachType, setJournalAttachType] = useState('story'); // 'story' | 'post'
   const [selectedItemForJournal, setSelectedItemForJournal] = useState(null);
   const [journalNoteText, setJournalNoteText] = useState('');
-  const [journalStickers, setJournalStickers] = useState([]);
+  const [placedStickers, setPlacedStickers] = useState([]);
+  const [attachedDoodleUrl, setAttachedDoodleUrl] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
   const [journalDraft, setJournalDraft] = useState('');
   const [isSavingJournal, setIsSavingJournal] = useState(false);
 
-  // ── Paint / Doodle Modal States ───────────────────────────────────────────
+  // ── MS Paint / Finger Doodling Studio States ──────────────────────────────
   const [paintModalOpen, setPaintModalOpen] = useState(false);
+  const [paintTool, setPaintTool] = useState('brush'); // 'pencil' | 'brush' | 'highlighter' | 'eraser'
   const [drawingColor, setDrawingColor] = useState('#0050EF');
-  const [drawingSize, setDrawingSize] = useState(3);
+  const [brushSize, setBrushSize] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
   const paintCanvasRef = useRef(null);
 
@@ -203,6 +233,7 @@ export default function PocketCompanion() {
 
   const fileInputRef = useRef(null);
   const highlightTimerRef = useRef(null);
+  const scrapbookRef = useRef(null);
 
   const isDark = themeMode === 'dark';
   const bgColor = isDark ? '#000000' : '#FFFFFF';
@@ -300,15 +331,13 @@ export default function PocketCompanion() {
   useEffect(() => {
     if (!enableLiveFlip || stories.length === 0) return;
 
-    // Flip wide Flashback tile every 7s
     const t1 = setInterval(() => setFlipToday(f => !f), 7000);
     const t2 = setInterval(() => setFlipFeed(f => !f), 9500);
     const t3 = setInterval(() => setFlipJournal(f => !f), 11000);
     const t4 = setInterval(() => setFlipHighlights(f => !f), 12500);
 
-    // Staggered individual cell flips for Photos Hub Live Tile
     const cellTimers = [0, 1, 2, 3].map((cellIdx, i) => {
-      const interval = 3500 + i * 1800; // 3.5s, 5.3s, 7.1s, 8.9s
+      const interval = 3500 + i * 1800;
       return setInterval(() => {
         setPhotoSubTileFlips(prev => {
           const next = [...prev];
@@ -464,7 +493,109 @@ export default function PocketCompanion() {
     showToast('✓ Photo captured and saved to offline vault!');
   };
 
-  // ── 7. Native PWA Install Prompt ──────────────────────────────────────────
+  // ── 7. MS Paint / Touch Doodle Canvas Engine ──────────────────────────────
+  const handleOpenPaint = () => {
+    triggerSound();
+    setPaintModalOpen(true);
+    setTimeout(() => {
+      const canvas = paintCanvasRef.current;
+      if (canvas) {
+        canvas.width = canvas.parentElement.clientWidth || 360;
+        canvas.height = canvas.parentElement.clientHeight || 420;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }, 150);
+  };
+
+  const getCanvasPos = (e) => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  };
+
+  const handlePaintStart = (e) => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    setIsDrawing(true);
+    const ctx = canvas.getContext('2d');
+    const pos = getCanvasPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = paintTool === 'eraser' ? '#FFFFFF' : drawingColor;
+    ctx.lineWidth = paintTool === 'highlighter' ? brushSize * 3 : brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = paintTool === 'highlighter' ? 0.35 : 1.0;
+  };
+
+  const handlePaintMove = (e) => {
+    if (!isDrawing) return;
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getCanvasPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const handlePaintEnd = () => {
+    setIsDrawing(false);
+  };
+
+  const handleSavePaintDoodle = () => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    triggerSound();
+    const dataUrl = canvas.toDataURL('image/png');
+    setAttachedDoodleUrl(dataUrl);
+    setPaintModalOpen(false);
+    showToast('✓ Doodle attached to Journal!');
+  };
+
+  // ── 8. Places to Visit Functions (Full Desktop Parity) ─────────────────────
+  const handleAddPlace = (e) => {
+    e.preventDefault();
+    if (!newPlaceTitle.trim()) return;
+    triggerSound();
+    const newEntry = {
+      id: Date.now().toString(),
+      title: newPlaceTitle.trim(),
+      location: newPlaceLocation.trim() || 'Worldwide',
+      category: newPlaceCategory,
+      completed: false,
+      notes: ''
+    };
+    const updated = [newEntry, ...places];
+    setPlaces(updated);
+    localStorage.setItem('memwault_places_to_visit', JSON.stringify(updated));
+    setNewPlaceTitle('');
+    setNewPlaceLocation('');
+    showToast('✓ Travel Goal Added!');
+  };
+
+  const togglePlaceCompleted = (id) => {
+    triggerSound();
+    const updated = places.map(p => p.id === id ? { ...p, completed: !p.completed } : p);
+    setPlaces(updated);
+    localStorage.setItem('memwault_places_to_visit', JSON.stringify(updated));
+  };
+
+  const deletePlace = (id) => {
+    triggerSound();
+    const updated = places.filter(p => p.id !== id);
+    setPlaces(updated);
+    localStorage.setItem('memwault_places_to_visit', JSON.stringify(updated));
+  };
+
+  // ── 9. Native PWA Install Prompt ──────────────────────────────────────────
   const handleInstallPwa = async () => {
     triggerSound();
     if (deferredPrompt) {
@@ -485,7 +616,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 8. ActiveSync Engine (Binary Blobs + Full Storage) ─────────────────────
+  // ── 10. ActiveSync Engine ─────────────────────────────────────────────────
   const handleRunSync = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -525,7 +656,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 9. Save Journal Note from Modal or Inline ─────────────────────────────
+  // ── 11. Save Journal Note from Modal or Inline ────────────────────────────
   const handleSaveNewJournalEntry = async () => {
     const isStoryTarget = journalAttachType === 'story';
     const targetItem = selectedItemForJournal || (isStoryTarget ? stories[0] : posts[0]);
@@ -537,7 +668,14 @@ export default function PocketCompanion() {
     setIsSavingJournal(true);
     triggerSound();
     try {
-      const fullNote = journalStickers.length > 0 ? `${journalNoteText}\n\nStickers: ${journalStickers.join(' ')}` : journalNoteText;
+      let fullNote = journalNoteText;
+      if (placedStickers.length > 0) {
+        fullNote += `\n\nStickers: ${placedStickers.map(s => s.text).join(' • ')}`;
+      }
+
+      if (attachedDoodleUrl) {
+        localStorage.setItem(`memwault_doodles_${targetItem.id}`, JSON.stringify([{ id: Date.now(), url: attachedDoodleUrl }]));
+      }
 
       if (isAuthenticated()) {
         if (isStoryTarget) {
@@ -559,7 +697,8 @@ export default function PocketCompanion() {
       
       setNewJournalModalOpen(false);
       setJournalNoteText('');
-      setJournalStickers([]);
+      setPlacedStickers([]);
+      setAttachedDoodleUrl(null);
       setSelectedItemForJournal(null);
       showToast('✓ Journal Entry Saved to Vault!');
     } catch (err) {
@@ -604,7 +743,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 10. File Pick Fallback ────────────────────────────────────────────────
+  // ── 12. File Pick Fallback ────────────────────────────────────────────────
   const handleFilePicked = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -631,7 +770,7 @@ export default function PocketCompanion() {
     reader.readAsDataURL(file);
   };
 
-  // ── 11. Clear Offline Storage ─────────────────────────────────────────────
+  // ── 13. Clear Offline Storage ─────────────────────────────────────────────
   const handleClearCache = async () => {
     try {
       const db = await openMobileDB();
@@ -659,11 +798,11 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 12. Flashback Memories Array ──────────────────────────────────────────
+  // ── 14. Flashback Memories Array ──────────────────────────────────────────
   const flashbacks = getOnThisDayMemories(stories);
   const currentFlashback = flashbacks[flashbackIndex] || flashbacks[0] || stories[0] || null;
 
-  // ── 13. Filtered Stories ──────────────────────────────────────────────────
+  // ── 15. Filtered Stories ──────────────────────────────────────────────────
   const filteredStories = stories.filter(s => {
     const musicTitle = s.music?.track_title || s.music_title || '';
     const musicArtist = s.music?.artist_name || s.music_artist || '';
@@ -865,6 +1004,103 @@ export default function PocketCompanion() {
             </div>
 
             <div style={{ width: '40px' }} />
+          </div>
+        </div>
+      )}
+
+      {/* ── MS PAINT / FINGER DOODLING STUDIO MODAL ─────────── */}
+      {paintModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.92)',
+          zIndex: 100005,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '12px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', color: '#FFF' }}>
+            <div style={{ fontSize: '14px', fontWeight: 300, color: '#008A00' }}>🎨 MS Paint Doodle Studio</div>
+            <X size={20} style={{ cursor: 'pointer' }} onClick={() => setPaintModalOpen(false)} />
+          </div>
+
+          {/* Tool Selector Bar */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', backgroundColor: surfaceColor, padding: '6px' }}>
+            <button
+              onClick={() => setPaintTool('brush')}
+              style={{ backgroundColor: paintTool === 'brush' ? accent : 'transparent', color: '#FFF', border: 'none', padding: '6px 10px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Brush size={12} /> Brush
+            </button>
+            <button
+              onClick={() => setPaintTool('highlighter')}
+              style={{ backgroundColor: paintTool === 'highlighter' ? accent : 'transparent', color: '#FFF', border: 'none', padding: '6px 10px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Palette size={12} /> Glow
+            </button>
+            <button
+              onClick={() => setPaintTool('eraser')}
+              style={{ backgroundColor: paintTool === 'eraser' ? accent : 'transparent', color: '#FFF', border: 'none', padding: '6px 10px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Eraser size={12} /> Eraser
+            </button>
+          </div>
+
+          {/* Color Palette Row */}
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '8px', scrollbarWidth: 'none' }}>
+            {DRAWING_COLORS.map(c => (
+              <div
+                key={c}
+                onClick={() => setDrawingColor(c)}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: c,
+                  border: drawingColor === c ? '3px solid #FFF' : '1px solid #666',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Drawing Canvas */}
+          <div style={{ flex: 1, backgroundColor: '#FFF', borderRadius: '4px', overflow: 'hidden', touchAction: 'none' }}>
+            <canvas
+              ref={paintCanvasRef}
+              onMouseDown={handlePaintStart}
+              onMouseMove={handlePaintMove}
+              onMouseUp={handlePaintEnd}
+              onTouchStart={handlePaintStart}
+              onTouchMove={handlePaintMove}
+              onTouchEnd={handlePaintEnd}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          </div>
+
+          {/* Bottom Action Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+            <button
+              onClick={() => {
+                const canvas = paintCanvasRef.current;
+                if (canvas) {
+                  const ctx = canvas.getContext('2d');
+                  ctx.fillStyle = '#FFFFFF';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+              }}
+              style={{ background: 'none', border: `1px solid ${borderColor}`, color: '#FFF', padding: '6px 12px', fontSize: '11px', cursor: 'pointer' }}
+            >
+              Clear
+            </button>
+
+            <button
+              onClick={handleSavePaintDoodle}
+              style={{ backgroundColor: '#008A00', border: 'none', color: '#FFF', padding: '8px 20px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              Attach Doodle ✓
+            </button>
           </div>
         </div>
       )}
@@ -1150,7 +1386,6 @@ export default function PocketCompanion() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {/* Pause/Play Button */}
                 <button
                   onClick={() => setIsHighlightPaused(!isHighlightPaused)}
                   style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
@@ -1276,7 +1511,7 @@ export default function PocketCompanion() {
         )}
       </AnimatePresence>
 
-      {/* ── CREATE NEW JOURNAL ENTRY MODAL ─────────────────── */}
+      {/* ── CREATE NEW JOURNAL ENTRY & SCRAPBOOK MODAL ─────── */}
       {newJournalModalOpen && (
         <div style={{
           position: 'fixed',
@@ -1286,20 +1521,20 @@ export default function PocketCompanion() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '16px',
+          padding: '12px',
         }}>
           <div style={{
             backgroundColor: surfaceColor,
             borderLeft: `4px solid #008A00`,
-            padding: '18px',
-            maxWidth: '480px',
+            padding: '16px',
+            maxWidth: '520px',
             width: '100%',
             color: textColor,
-            maxHeight: '90vh',
+            maxHeight: '92vh',
             overflowY: 'auto',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ fontSize: '18px', fontWeight: 300, color: '#008A00' }}>+ new journal entry</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ fontSize: '18px', fontWeight: 300, color: '#008A00' }}>+ new journal scrap & note</div>
               <X size={18} style={{ cursor: 'pointer' }} onClick={() => setNewJournalModalOpen(false)} />
             </div>
 
@@ -1335,8 +1570,8 @@ export default function PocketCompanion() {
               </button>
             </div>
 
-            <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '8px' }}>
-              1. TAP PHOTO TO ATTACH JOURNAL NOTE:
+            <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '6px' }}>
+              1. TAP PHOTO FOR JOURNAL ENTRY:
             </div>
 
             {/* Item Picker */}
@@ -1344,9 +1579,9 @@ export default function PocketCompanion() {
               display: 'flex',
               gap: '6px',
               overflowX: 'auto',
-              paddingBottom: '8px',
+              paddingBottom: '6px',
               scrollbarWidth: 'none',
-              marginBottom: '12px',
+              marginBottom: '10px',
             }}>
               {(journalAttachType === 'story' ? stories : posts).map(item => {
                 const isSelected = selectedItemForJournal?.id === item.id;
@@ -1382,46 +1617,120 @@ export default function PocketCompanion() {
               })}
             </div>
 
-            {/* Sticker Tray */}
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '4px' }}>
-                ATTACH STICKERS:
+            {/* Interactive Scrapbooking Canvas with Drag & Drop Stickers */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '11px', color: subTextColor }}>
+                  2. DRAG & DROP CUSTOM STICKERS ON CANVAS:
+                </span>
+                <button
+                  onClick={handleOpenPaint}
+                  style={{ backgroundColor: '#008A00', border: 'none', color: '#FFF', padding: '3px 8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Brush size={10} /> Draw Doodle
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
-                {JOURNAL_STICKERS.map(s => {
-                  const active = journalStickers.includes(s);
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        triggerSound();
-                        if (active) setJournalStickers(journalStickers.filter(x => x !== s));
-                        else setJournalStickers([...journalStickers, s]);
-                      }}
-                      style={{
-                        backgroundColor: active ? '#008A00' : cardColor,
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
+
+              {/* Scrapbook Viewport */}
+              <div
+                ref={scrapbookRef}
+                style={{
+                  width: '100%',
+                  height: '140px',
+                  backgroundColor: '#000',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '4px',
+                  border: `1px solid ${borderColor}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {selectedItemForJournal ? (
+                  <OfflineMedia
+                    src={getMediaUrl(selectedItemForJournal)}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
+                    alt="Scrapbook Background"
+                  />
+                ) : (
+                  <div style={{ fontSize: '11px', color: subTextColor }}>Select a photo above</div>
+                )}
+
+                {/* Attached Doodle Layer */}
+                {attachedDoodleUrl && (
+                  <img
+                    src={attachedDoodleUrl}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+                    alt="Doodle Layer"
+                  />
+                )}
+
+                {/* Draggable Custom Stickers */}
+                {placedStickers.map((stk, idx) => (
+                  <motion.div
+                    key={idx}
+                    drag
+                    dragConstraints={scrapbookRef}
+                    whileDrag={{ scale: 1.18, zIndex: 100 }}
+                    style={{
+                      position: 'absolute',
+                      backgroundColor: stk.bg,
+                      color: stk.darkText ? '#000' : '#FFF',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'grab',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    <span>{stk.icon}</span>
+                    <span>{stk.text}</span>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Sticker Tray (Tap to add to scrapbook) */}
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '6px 0', scrollbarWidth: 'none' }}>
+                {CUSTOM_STICKER_SETS.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      triggerSound();
+                      setPlacedStickers([...placedStickers, s]);
+                      showToast(`+ Added ${s.text} to Scrapbook! (Drag to position)`);
+                    }}
+                    style={{
+                      backgroundColor: s.bg,
+                      color: s.darkText ? '#000' : '#FFF',
+                      border: 'none',
+                      padding: '4px 8px',
+                      borderRadius: '3px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {s.icon} {s.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '4px' }}>
-              2. WRITE YOUR JOURNAL NOTE:
+              3. WRITE YOUR JOURNAL REFLECTIONS:
             </div>
             <textarea
               value={journalNoteText}
               onChange={(e) => setJournalNoteText(e.target.value)}
               placeholder="What happened on this day? Write thoughts, reflections, and context..."
-              rows={5}
+              rows={4}
               style={{
                 width: '100%',
                 backgroundColor: cardColor,
@@ -1432,7 +1741,7 @@ export default function PocketCompanion() {
                 fontFamily: 'inherit',
                 boxSizing: 'border-box',
                 outline: 'none',
-                marginBottom: '14px',
+                marginBottom: '12px',
               }}
             />
 
@@ -1445,7 +1754,7 @@ export default function PocketCompanion() {
               </button>
               <button
                 onClick={handleSaveNewJournalEntry}
-                disabled={isSavingJournal || (!journalNoteText.trim() && journalStickers.length === 0)}
+                disabled={isSavingJournal || (!journalNoteText.trim() && placedStickers.length === 0 && !attachedDoodleUrl)}
                 style={{
                   backgroundColor: '#008A00',
                   border: 'none',
@@ -1454,7 +1763,7 @@ export default function PocketCompanion() {
                   fontSize: '12px',
                   fontWeight: 'bold',
                   cursor: 'pointer',
-                  opacity: (journalNoteText.trim() || journalStickers.length > 0) ? 1 : 0.5,
+                  opacity: (journalNoteText.trim() || placedStickers.length > 0 || attachedDoodleUrl) ? 1 : 0.5,
                 }}
               >
                 {isSavingJournal ? 'saving...' : 'save to vault'}
@@ -1825,7 +2134,7 @@ export default function PocketCompanion() {
                       <Sparkles size={28} />
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 400 }}>highlights</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || stories.length ? (highlights.length || 'Albums') : 0}</div>
+                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || stories.length ? (highlights.length || 'Reels') : 0}</div>
                       </div>
                     </div>
 
@@ -1910,7 +2219,7 @@ export default function PocketCompanion() {
                   </motion.div>
                 </motion.div>
 
-                {/* Tile 5: Journal Tile */}
+                {/* Tile 5: Journal & Places Tile */}
                 <motion.div
                   whileTap={{ scale: 0.96 }}
                   onClick={() => { triggerSound(); setActivePivot('journal'); }}
@@ -1947,8 +2256,8 @@ export default function PocketCompanion() {
                     }}>
                       <BookOpen size={28} />
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 400 }}>journal</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 400 }}>journal & bucket</div>
+                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length + places.length}</div>
                       </div>
                     </div>
 
@@ -1965,8 +2274,8 @@ export default function PocketCompanion() {
                       justifyContent: 'space-between',
                       borderLeft: `4px solid #008A00`,
                     }}>
-                      <div style={{ fontSize: '11px', color: '#008A00', fontWeight: 700 }}>notes hub</div>
-                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{journaledItems[0]?.journal_note?.slice(0, 45) || 'write notes'}...</div>
+                      <div style={{ fontSize: '11px', color: '#008A00', fontWeight: 700 }}>scrapbook hub</div>
+                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{places.length} travel goals • {journaledItems.length} notes</div>
                       <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to open</div>
                     </div>
                   </motion.div>
@@ -2336,15 +2645,30 @@ export default function PocketCompanion() {
                 </div>
               )}
 
-              {/* Timestamp & Location Metadata */}
+              {/* Timestamp & Location Metadata + Map Link */}
               <div style={{ backgroundColor: surfaceColor, padding: '12px' }}>
-                <div style={{ fontSize: '16px', fontWeight: 300 }}>
-                  {selectedStory.location_name || 'Archived Story Memory'}
-                </div>
-                <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : ''}</span>
-                  {selectedStory.is_close_friends && (
-                    <span style={{ color: '#008A00', fontWeight: 'bold' }}>🟢 Close Friends</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 300 }}>
+                      {selectedStory.location_name || 'Archived Story Memory'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : ''}</span>
+                      {selectedStory.is_close_friends && (
+                        <span style={{ color: '#008A00', fontWeight: 'bold' }}>🟢 Close Friends</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedStory.location_name && (
+                    <a
+                      href={`https://maps.google.com/?q=${encodeURIComponent(selectedStory.location_name)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ backgroundColor: accent, color: '#FFF', padding: '4px 8px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <MapPin size={10} /> Map ↗
+                    </a>
                   )}
                 </div>
 
@@ -2621,16 +2945,29 @@ export default function PocketCompanion() {
                     return (
                       <div key={post.id} style={{ backgroundColor: surfaceColor, borderBottom: `2px solid ${accent}` }}>
                         {/* Card Header */}
-                        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 'bold' }}>
-                            MW
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '12px', fontWeight: 600 }}>Instagram Post</div>
-                            <div style={{ fontSize: '10px', color: subTextColor }}>
-                              {post.taken_at ? new Date(post.taken_at).toLocaleDateString() : ''}
+                        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 'bold' }}>
+                              MW
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '12px', fontWeight: 600 }}>Instagram Post</div>
+                              <div style={{ fontSize: '10px', color: subTextColor }}>
+                                {post.taken_at ? new Date(post.taken_at).toLocaleDateString() : ''}
+                              </div>
                             </div>
                           </div>
+
+                          {post.location_name && (
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(post.location_name)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: accent, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                            >
+                              <MapPin size={10} /> {post.location_name}
+                            </a>
+                          )}
                         </div>
 
                         {/* Image Canvas */}
@@ -2793,96 +3130,209 @@ export default function PocketCompanion() {
           )}
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 5: JOURNAL & NOTEBOOK HUB
+              PIVOT 5: JOURNAL & BUCKET LIST (DESKTOP PARITY)
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'journal' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
-                  {journaledItems.length} JOURNAL ENTRIES
-                </div>
-
+              
+              {/* Segmented Tab: [Memories Notes] vs [Places to Visit] */}
+              <div style={{ display: 'flex', gap: '8px', borderBottom: `2px solid ${borderColor}`, paddingBottom: '6px' }}>
                 <button
-                  onClick={() => { triggerSound(); setNewJournalModalOpen(true); }}
+                  onClick={() => setJournalSubTab('notes')}
                   style={{
-                    backgroundColor: '#008A00',
+                    backgroundColor: journalSubTab === 'notes' ? '#008A00' : 'transparent',
+                    color: journalSubTab === 'notes' ? '#FFF' : textColor,
                     border: 'none',
-                    color: '#FFF',
-                    padding: '6px 12px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
                     cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
                   }}
                 >
-                  <Plus size={14} />
-                  <span>+ NEW ENTRY</span>
+                  Memories & Scrapbook ({journaledItems.length})
+                </button>
+                <button
+                  onClick={() => setJournalSubTab('places')}
+                  style={{
+                    backgroundColor: journalSubTab === 'places' ? '#008A00' : 'transparent',
+                    color: journalSubTab === 'places' ? '#FFF' : textColor,
+                    border: 'none',
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Places to Visit ({places.length})
                 </button>
               </div>
 
-              {journaledItems.length === 0 ? (
-                <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center' }}>
-                  <BookOpen size={36} color="#008A00" style={{ margin: '0 auto 10px auto' }} />
-                  <div style={{ fontSize: '14px', fontWeight: 300 }}>no journal entries written yet</div>
-                  <div style={{ fontSize: '11px', color: subTextColor, marginTop: '4px' }}>
-                    Tap "+ NEW ENTRY" above to select a memory or post and write your reflections and attach stickers.
+              {journalSubTab === 'notes' ? (
+                /* Sub-tab 1: Notes & Scrapbooks */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
+                      {journaledItems.length} JOURNAL ENTRIES
+                    </div>
+
+                    <button
+                      onClick={() => { triggerSound(); setNewJournalModalOpen(true); }}
+                      style={{
+                        backgroundColor: '#008A00',
+                        border: 'none',
+                        color: '#FFF',
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>+ NEW ENTRY / SCRAP</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setNewJournalModalOpen(true)}
-                    style={{ marginTop: '12px', backgroundColor: '#008A00', border: 'none', color: '#FFF', padding: '6px 16px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    create first entry
-                  </button>
+
+                  {journaledItems.length === 0 ? (
+                    <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center' }}>
+                      <BookOpen size={36} color="#008A00" style={{ margin: '0 auto 10px auto' }} />
+                      <div style={{ fontSize: '14px', fontWeight: 300 }}>no journal entries written yet</div>
+                      <div style={{ fontSize: '11px', color: subTextColor, marginTop: '4px' }}>
+                        Tap "+ NEW ENTRY" above to select a memory or post and write your reflections and attach custom stickers.
+                      </div>
+                      <button
+                        onClick={() => setNewJournalModalOpen(true)}
+                        style={{ marginTop: '12px', backgroundColor: '#008A00', border: 'none', color: '#FFF', padding: '6px 16px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        create first entry
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {journaledItems.map(item => {
+                        const mediaUrl = getMediaUrl(item);
+                        return (
+                          <motion.div
+                            key={item.id}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              triggerSound();
+                              if (item._isPost) {
+                                const pIdx = posts.findIndex(p => p.id === item.id);
+                                setSelectedPostIndex(pIdx >= 0 ? pIdx : 0);
+                                setActivePivot('feed');
+                              } else {
+                                setSelectedStory(item);
+                                setActivePivot('memories');
+                              }
+                            }}
+                            style={{
+                              backgroundColor: surfaceColor,
+                              borderLeft: `4px solid #008A00`,
+                              padding: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              gap: '12px',
+                            }}
+                          >
+                            <div style={{ width: '60px', height: '60px', backgroundColor: '#000', flexShrink: 0 }}>
+                              <OfflineMedia
+                                src={mediaUrl}
+                                type={item.media_type === 2 ? 'video' : 'image'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                alt="Thumbnail"
+                              />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: '#008A00' }}>
+                                {item.location_name || (item.taken_at ? new Date(item.taken_at).toLocaleDateString() : (item._isPost ? 'Feed Post Journal' : 'Story Journal'))}
+                              </div>
+                              <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                {item.journal_note}
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {journaledItems.map(item => {
-                    const mediaUrl = getMediaUrl(item);
-                    return (
-                      <motion.div
-                        key={item.id}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          triggerSound();
-                          if (item._isPost) {
-                            const pIdx = posts.findIndex(p => p.id === item.id);
-                            setSelectedPostIndex(pIdx >= 0 ? pIdx : 0);
-                            setActivePivot('feed');
-                          } else {
-                            setSelectedStory(item);
-                            setActivePivot('memories');
-                          }
-                        }}
+                /* Sub-tab 2: Places to Visit / Bucket List (Full Desktop Feature) */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Add Place Form */}
+                  <form onSubmit={handleAddPlace} style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#008A00' }}>+ ADD PLACE TO VISIT</div>
+                    <input
+                      type="text"
+                      placeholder="Destination / Experience name..."
+                      value={newPlaceTitle}
+                      onChange={(e) => setNewPlaceTitle(e.target.value)}
+                      style={{ backgroundColor: cardColor, color: textColor, border: `1px solid ${borderColor}`, padding: '8px', fontSize: '12px', outline: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Location (e.g. Kyoto, Japan)"
+                        value={newPlaceLocation}
+                        onChange={(e) => setNewPlaceLocation(e.target.value)}
+                        style={{ flex: 1, backgroundColor: cardColor, color: textColor, border: `1px solid ${borderColor}`, padding: '6px', fontSize: '11px', outline: 'none' }}
+                      />
+                      <select
+                        value={newPlaceCategory}
+                        onChange={(e) => setNewPlaceCategory(e.target.value)}
+                        style={{ backgroundColor: cardColor, color: textColor, border: `1px solid ${borderColor}`, padding: '6px', fontSize: '11px', outline: 'none' }}
+                      >
+                        <option value="Travel">Travel</option>
+                        <option value="Nature">Nature</option>
+                        <option value="Culture">Culture</option>
+                        <option value="Roadtrip">Roadtrip</option>
+                        <option value="Food">Food</option>
+                      </select>
+                      <button
+                        type="submit"
+                        style={{ backgroundColor: '#008A00', color: '#FFF', border: 'none', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Places List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {places.map(p => (
+                      <div
+                        key={p.id}
                         style={{
                           backgroundColor: surfaceColor,
-                          borderLeft: `4px solid #008A00`,
-                          padding: '12px',
-                          cursor: 'pointer',
+                          borderLeft: p.completed ? '4px solid #666' : '4px solid #008A00',
+                          padding: '10px 12px',
                           display: 'flex',
-                          gap: '12px',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          opacity: p.completed ? 0.6 : 1.0,
                         }}
                       >
-                        <div style={{ width: '60px', height: '60px', backgroundColor: '#000', flexShrink: 0 }}>
-                          <OfflineMedia
-                            src={mediaUrl}
-                            type={item.media_type === 2 ? 'video' : 'image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            alt="Thumbnail"
-                          />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '11px', fontWeight: 700, color: '#008A00' }}>
-                            {item.location_name || (item.taken_at ? new Date(item.taken_at).toLocaleDateString() : (item._isPost ? 'Feed Post Journal' : 'Story Journal'))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <div onClick={() => togglePlaceCompleted(p.id)} style={{ cursor: 'pointer', color: p.completed ? '#666' : '#008A00' }}>
+                            {p.completed ? <CheckSquare size={18} /> : <Square size={18} />}
                           </div>
-                          <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {item.journal_note}
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, textDecoration: p.completed ? 'line-through' : 'none' }}>
+                              {p.title}
+                            </div>
+                            <div style={{ fontSize: '10px', color: subTextColor }}>
+                              📍 {p.location} • <span style={{ color: '#008A00' }}>{p.category}</span>
+                            </div>
                           </div>
                         </div>
-                      </motion.div>
-                    );
-                  })}
+
+                        <Trash2 size={16} color="#A20025" style={{ cursor: 'pointer' }} onClick={() => deletePlace(p.id)} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -3155,7 +3605,7 @@ export default function PocketCompanion() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <div style={{ width: '8px', height: '8px', backgroundColor: '#008A00' }} />
-                      <span>{journaledItems.length} Notes</span>
+                      <span>{journaledItems.length + places.length} Journal/Places</span>
                     </div>
                   </div>
 

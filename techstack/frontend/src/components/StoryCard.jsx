@@ -27,8 +27,7 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
     minute: '2-digit',
   })
 
-  const rawMediaUrl = story.media_url || story.display_url || story.thumbnail_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
-  const isVideo = story.media_type === 2 || story.is_video || (typeof rawMediaUrl === 'string' && (rawMediaUrl.includes('.mp4') || rawMediaUrl.includes('.mov')))
+  const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof story.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')))
 
   const handleClick = () => {
     if (isSelectMode) {
@@ -81,36 +80,25 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
       )}
 
       {/* Media Thumbnail */}
-      {rawMediaUrl ? (
+      {story.media_url ? (
         isVideo ? (
           <video
             className="ios-story-card__media"
-            src={rawMediaUrl.includes('#t=') ? rawMediaUrl : `${rawMediaUrl}#t=0.001`}
+            src={story.media_url}
+            autoPlay
             muted
             loop
             playsInline
             preload="metadata"
-            onMouseEnter={(e) => !isSelectMode && e.target.play().catch(() => {})}
-            onMouseLeave={(e) => {
-              if (!isSelectMode) {
-                e.target.pause()
-                e.target.currentTime = 0.001
-              }
-            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (
           <img
             className="ios-story-card__media"
-            src={rawMediaUrl}
+            src={story.media_url}
             alt={`Story from ${dateStr}`}
             loading="lazy"
-            onError={(e) => {
-              if (rawMediaUrl && !rawMediaUrl.startsWith('/api/v1/proxy') && rawMediaUrl.startsWith('http')) {
-                e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(rawMediaUrl)}`
-              } else if (story.s3_key_compressed) {
-                e.target.src = `/api/v1/media/${story.s3_key_compressed}`
-              }
-            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         )
       ) : (

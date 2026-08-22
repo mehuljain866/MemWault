@@ -227,7 +227,7 @@ function OfflineMedia({
   alt = '', 
   style = {}, 
   className = '', 
-  autoPlay = false, 
+  autoPlay = true, 
   loop = true, 
   muted = true, 
   playsInline = true, 
@@ -249,7 +249,7 @@ function OfflineMedia({
 
   const isVideo = !hasError && (
     type === 'video' || 
-    (typeof src === 'object' && (src.media_type === 2 || src.is_video || (src.file_name && (src.file_name.endsWith('.mp4') || src.file_name.endsWith('.mov'))))) ||
+    (typeof src === 'object' && (src?.media_type === 2 || Boolean(src?.music) || src?.is_reel)) ||
     (typeof resolvedUrl === 'string' && (
       resolvedUrl.includes('.mp4') || 
       resolvedUrl.includes('.mov') || 
@@ -259,11 +259,10 @@ function OfflineMedia({
   );
 
   if (isVideo) {
-    const videoSrc = (resolvedUrl.includes('#t=') || resolvedUrl.startsWith('blob:')) ? resolvedUrl : `${resolvedUrl}#t=0.001`;
     return (
       <video
-        src={videoSrc}
-        style={{ ...style, display: 'block', objectFit: style.objectFit || 'cover' }}
+        src={resolvedUrl}
+        style={{ ...style, display: 'block' }}
         className={className}
         autoPlay={autoPlay}
         loop={loop}
@@ -271,20 +270,7 @@ function OfflineMedia({
         playsInline={playsInline}
         controls={controls}
         preload="metadata"
-        onLoadedData={(e) => {
-          try {
-            if (autoPlay && e.target.paused) e.target.play().catch(() => {});
-          } catch (err) {}
-        }}
-        onError={() => {
-          if (!triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http')) {
-            setTriedProxy(true);
-          } else if (typeof src === 'object' && src?.s3_key_compressed) {
-            // fallback
-          } else {
-            setHasError(true);
-          }
-        }}
+        onError={() => setHasError(true)}
         {...props}
       />
     );
@@ -298,7 +284,7 @@ function OfflineMedia({
     <img
       src={displaySrc}
       alt={alt}
-      style={{ ...style, display: 'block', objectFit: style.objectFit || 'cover' }}
+      style={{ ...style, display: 'block' }}
       className={className}
       loading="lazy"
       onError={(e) => {
@@ -391,56 +377,6 @@ function SoundtrackArtwork({ src, title, artist, size = 44 }) {
         flexShrink: 0
       }}>
         <Music size={Math.round(size * 0.45)} color="rgba(255,255,255,0.7)" />
-      </div>
-    );
-  }
-
-  const isVideo = typeof imgSrc === 'string' && (imgSrc.includes('.mp4') || imgSrc.includes('.mov') || imgSrc.includes('video'));
-
-  if (isVideo) {
-    return (
-      <div style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        borderRadius: '4px',
-        overflow: 'hidden',
-        backgroundColor: '#111',
-        flexShrink: 0,
-        position: 'relative'
-      }}>
-        <video
-          src={imgSrc.includes('#t=') || imgSrc.startsWith('blob:') ? imgSrc : `${imgSrc}#t=0.001`}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          muted
-          playsInline
-          loop
-          autoPlay
-          preload="metadata"
-          onLoadedData={(e) => {
-            try {
-              if (e.target.paused) e.target.play().catch(() => {});
-            } catch (err) {}
-          }}
-          onError={() => {
-            if (title) {
-              const query = encodeURIComponent(`${title} ${artist || ''}`.trim());
-              fetch(`https://itunes.apple.com/search?term=${query}&limit=1&entity=song`)
-                .then(res => res.json())
-                .then(data => {
-                  if (data.results && data.results.length > 0 && data.results[0].artworkUrl100) {
-                    const artUrl = data.results[0].artworkUrl100.replace('100x100bb', '300x300bb');
-                    SOUNDTRACK_ARTWORK_CACHE.set(cacheKey, artUrl);
-                    setImgSrc(artUrl);
-                  } else {
-                    setHasError(true);
-                  }
-                })
-                .catch(() => setHasError(true));
-            } else {
-              setHasError(true);
-            }
-          }}
-        />
       </div>
     );
   }
@@ -1061,11 +997,10 @@ export default function PocketCompanion() {
       const cachedHl = await getOfflineHighlights();
       const st = await getStorageStats();
       const pending = await getPendingMobileUploads();
-      const sortedStories = (cachedStories || []).sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
-      const sortedPosts = (cachedPosts || []).sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
+      const cachedSession = (await getSyncMeta('ig_session')) || (localStorage.getItem('cached_ig_session') ? JSON.parse(localStorage.getItem('cached_ig_session')) : null);
       
-      setStories(sortedStories);
-      setPosts(sortedPosts);
+      setStories(cachedStories || []);
+      setPosts(cachedPosts || []);
       setHighlights(cachedHl || []);
       setStats(st);
       setPendingUploads(pending || []);
@@ -1693,28 +1628,24 @@ export default function PocketCompanion() {
   const currentFlashback = flashbacks[flashbackIndex] || flashbacks[0] || stories[0] || null;
 
   // ── 15. Filtered Stories ──────────────────────────────────────────────────
-  const filteredStories = useMemo(() => {
-    return stories
-      .filter(s => {
-        const musicTitle = s.music?.track_title || s.music_title || '';
-        const musicArtist = s.music?.artist_name || s.music_artist || '';
-        const matchesSearch = !searchQuery || 
-          (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (s.journal_note && s.journal_note.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (musicTitle && musicTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (musicArtist && musicArtist.toLowerCase().includes(searchQuery.toLowerCase()));
-        
-        if (!matchesSearch) return false;
-        if (filterType === 'photos') return s.media_type === 1;
-        if (filterType === 'videos') return s.media_type === 2 || (s.file_name && (s.file_name.endsWith('.mp4') || s.file_name.endsWith('.mov')));
-        if (filterType === 'journaled') return Boolean(s.journal_note && s.journal_note.trim().length > 0);
-        if (filterType === 'music') return Boolean(s.music?.track_title || s.music_title);
-        if (filterType === 'cf') return Boolean(s.is_close_friends || s.audience === 'close_friends');
-        return true;
-      })
-      .sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
-  }, [stories, searchQuery, filterType]);
+  const filteredStories = stories.filter(s => {
+    const musicTitle = s.music?.track_title || s.music_title || '';
+    const musicArtist = s.music?.artist_name || s.music_artist || '';
+    const matchesSearch = !searchQuery || 
+      (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (s.journal_note && s.journal_note.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (musicTitle && musicTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (musicArtist && musicArtist.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (!matchesSearch) return false;
+    if (filterType === 'photos') return s.media_type === 1;
+    if (filterType === 'videos') return s.media_type === 2;
+    if (filterType === 'journaled') return Boolean(s.journal_note && s.journal_note.trim().length > 0);
+    if (filterType === 'music') return Boolean(s.music?.track_title || s.music_title);
+    if (filterType === 'cf') return Boolean(s.is_close_friends || s.audience === 'close_friends');
+    return true;
+  });
 
   const journaledItems = [
     ...stories.filter(s => s.journal_note && s.journal_note.trim().length > 0).map(s => ({ ...s, _isPost: false })),

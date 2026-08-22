@@ -34,8 +34,8 @@ function LiveMovingWaveform({ isPlaying }) {
 
 // ── Resilient Story Thumbnail Scrubber Item ──
 function StoryThumbnail({ story, isActive, onClick }) {
+  const isVid = story?.media_type === 2 || Boolean(story?.music) || story?.is_reel || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')));
   const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : '');
-  const isVid = story?.media_type === 2 || story?.is_video || (typeof rawUrl === 'string' && (rawUrl.includes('.mp4') || rawUrl.includes('.mov') || rawUrl.includes('video') || rawUrl.startsWith('data:video')));
   const [src, setSrc] = useState(rawUrl);
   const [hasError, setHasError] = useState(false);
 
@@ -58,7 +58,7 @@ function StoryThumbnail({ story, isActive, onClick }) {
         borderRadius: '6px',
         overflow: 'hidden',
         border: isActive ? '2px solid var(--ios-accent, #0050EF)' : '2px solid transparent',
-        opacity: isActive ? 1 : 0.5,
+        opacity: isActive ? 1 : 0.45,
         transition: 'border 0.2s, opacity 0.2s',
         cursor: 'pointer',
         position: 'relative',
@@ -72,39 +72,26 @@ function StoryThumbnail({ story, isActive, onClick }) {
       {src && !hasError ? (
         isVid ? (
           <video 
-            src={src ? (src.includes('#t=') || src.startsWith('blob:') ? src : `${src}#t=0.001`) : ''} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} 
-            muted 
-            playsInline 
-            loop
+            src={src} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
             autoPlay
+            muted 
+            loop
+            playsInline 
             preload="metadata"
-            onLoadedData={(e) => {
-              try {
-                if (e.target.paused) e.target.play().catch(() => {});
-              } catch (err) {}
-            }}
             onError={() => {
-              if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
-                setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
-              } else if (story?.s3_key_compressed) {
-                setSrc(`/api/v1/media/${story.s3_key_compressed}`);
-              } else {
-                setHasError(true);
-              }
+              setHasError(true);
             }}
           />
         ) : (
           <img 
             src={src} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
             alt="Thumb" 
             loading="lazy" 
             onError={() => {
               if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
                 setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
-              } else if (story?.s3_key_compressed) {
-                setSrc(`/api/v1/media/${story.s3_key_compressed}`);
               } else {
                 setHasError(true);
               }
@@ -285,8 +272,8 @@ export default function HighlightPlayerModal({
   const currentStory = stories[validIndex]
   if (!currentStory) return null
 
-  const isVideo = currentStory.media_type === 2 || currentStory.is_video || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')))
-  const mediaUrl = currentStory.media_url || currentStory.display_url || currentStory.cover_media_url || currentStory.thumbnail_url || (currentStory.s3_key_compressed ? `/api/v1/media/${currentStory.s3_key_compressed}` : null)
+  const isVideo = currentStory.media_type === 2 || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')))
+  const mediaUrl = currentStory.media_url || currentStory.display_url || currentStory.cover_media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
   const trackName = currentStory.music?.track_title || currentStory.music_title
   const artistName = currentStory.music?.artist_name || currentStory.music_artist
 
@@ -320,10 +307,10 @@ export default function HighlightPlayerModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.22 }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -333,48 +320,29 @@ export default function HighlightPlayerModal({
             flexDirection: 'column',
             userSelect: 'none',
             WebkitTapHighlightColor: 'transparent',
+            WebkitTouchCallout: 'none',
             overflow: 'hidden',
           }}
         >
-          {/* Full Modal Container */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          height: '100%',
-          position: 'relative',
-          padding: '8px 0',
-          boxSizing: 'border-box'
-        }}>
-          {/* Main Stage: Left Nav, Story Canvas, Right Nav */}
+          {/* ── Main Viewing Area ── */}
           <div style={{
+            flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            width: '100%',
-            flex: 1,
-            minHeight: 0,
             overflow: 'hidden',
+            width: '100%',
           }}>
-            {/* Left Desktop Nav Zone */}
+            
+            {/* Left Nav Zone (Starts below top header to avoid button overlap) */}
             <div 
-              onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+              onClick={(e) => { e.stopPropagation(); if (!showMusicWidget) handlePrev(); }}
               style={{
-                position: 'absolute',
-                left: 0,
-                top: '75px',
-                bottom: '100px',
-                width: '15%',
-                maxWidth: '120px',
-                zIndex: 35,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                userSelect: 'none',
+                position: 'absolute', left: 0, top: '75px', bottom: 0, width: '25%', zIndex: 40,
+                cursor: 'w-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                paddingLeft: '20px', WebkitTapHighlightColor: 'transparent',
               }}
               className="nav-zone group"
             >
@@ -425,13 +393,6 @@ export default function HighlightPlayerModal({
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={handleVideoEnded}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  onError={(e) => {
-                    if (mediaUrl && !mediaUrl.startsWith('/api/v1/proxy') && mediaUrl.startsWith('http')) {
-                      e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(mediaUrl)}`
-                    } else if (currentStory.s3_key_compressed) {
-                      e.target.src = `/api/v1/media/${currentStory.s3_key_compressed}`
-                    }
-                  }}
                 />
               ) : (
                 <img
@@ -440,9 +401,7 @@ export default function HighlightPlayerModal({
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   onError={(e) => {
                     if (mediaUrl && !mediaUrl.startsWith('/api/v1/proxy') && mediaUrl.startsWith('http')) {
-                      e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(mediaUrl)}`
-                    } else if (currentStory.s3_key_compressed) {
-                      e.target.src = `/api/v1/media/${currentStory.s3_key_compressed}`
+                      e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(mediaUrl)}`;
                     }
                   }}
                 />
@@ -895,7 +854,6 @@ export default function HighlightPlayerModal({
               </motion.div>
             )}
           </AnimatePresence>
-          </div>
           
           <style>{`
             * {

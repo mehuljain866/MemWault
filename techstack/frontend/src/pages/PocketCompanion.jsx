@@ -385,18 +385,21 @@ export default function PocketCompanion() {
   // ── Desktop Settings Parity Engine ────────────────────────────────────────
   const [playbackSettings, setPlaybackSettings] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('memwault_settings')) || {
-        autoplay: true,
-        loopVideo: true,
-        preferredMusicApp: 'spotify',
-        skipDuration: 5,
-        showAITags: true,
-        crtMode: false,
-        grainIntensity: 0.05,
-        patinaLevel: 0.3,
+      const saved = JSON.parse(localStorage.getItem('memwault_settings')) || {};
+      const savedTurntable = localStorage.getItem('metro_show_turntable');
+      return {
+        autoplay: saved.autoplay !== undefined ? saved.autoplay : true,
+        loopVideo: saved.loopVideo !== undefined ? saved.loopVideo : true,
+        showTurntable: savedTurntable !== null ? savedTurntable !== 'false' : (saved.showTurntable !== undefined ? saved.showTurntable : true),
+        preferredMusicApp: saved.preferredMusicApp || 'spotify',
+        skipDuration: saved.skipDuration || 5,
+        showAITags: saved.showAITags !== undefined ? saved.showAITags : true,
+        crtMode: saved.crtMode || false,
+        grainIntensity: saved.grainIntensity || 0.05,
+        patinaLevel: saved.patinaLevel || 0.3,
       };
     } catch (e) {
-      return { autoplay: true, loopVideo: true, preferredMusicApp: 'spotify', skipDuration: 5, showAITags: true, crtMode: false, grainIntensity: 0.05, patinaLevel: 0.3 };
+      return { autoplay: true, loopVideo: true, showTurntable: true, preferredMusicApp: 'spotify', skipDuration: 5, showAITags: true, crtMode: false, grainIntensity: 0.05, patinaLevel: 0.3 };
     }
   });
 
@@ -406,6 +409,9 @@ export default function PocketCompanion() {
     setPlaybackSettings(next);
     try {
       localStorage.setItem('memwault_settings', JSON.stringify(next));
+      if (key === 'showTurntable') {
+        localStorage.setItem('metro_show_turntable', String(val));
+      }
     } catch (e) {}
   };
 
@@ -686,7 +692,7 @@ export default function PocketCompanion() {
 
   // ── 4. Highlights Story Player Progress & Progression ─────────────────────
   useEffect(() => {
-    if (!activeHighlight || highlightStories.length === 0 || isHighlightPaused) return;
+    if (!activeHighlight || highlightStories.length === 0 || isHighlightPaused || !!musicModalTrack) return;
 
     const interval = 50;
     highlightTimerRef.current = setInterval(() => {
@@ -705,10 +711,13 @@ export default function PocketCompanion() {
     }, interval);
 
     return () => clearInterval(highlightTimerRef.current);
-  }, [activeHighlight, highlightStories, highlightStoryIndex, isHighlightPaused]);
+  }, [activeHighlight, highlightStories, highlightStoryIndex, isHighlightPaused, musicModalTrack]);
 
   const handleOpenHighlight = async (hl) => {
     triggerSound();
+    setMusicModalTrack(null);
+    setIsAudioMuted(false);
+    setIsHighlightPaused(false);
     setActiveHighlight(hl);
     setHighlightProgress(0);
     setHighlightStoryIndex(0);
@@ -730,6 +739,8 @@ export default function PocketCompanion() {
   const handleOpenMusicModal = async (trackTitle, artistName) => {
     if (!trackTitle) return;
     triggerSound();
+    setIsHighlightPaused(true);
+    setIsAudioMuted(true);
     setMusicModalTrack({ title: trackTitle, artist: artistName });
     setAudioPreviewUrl(null);
     setAudioArtworkUrl(null);
@@ -1457,7 +1468,7 @@ export default function PocketCompanion() {
           position: 'fixed',
           inset: 0,
           backgroundColor: 'rgba(0,0,0,0.88)',
-          zIndex: 100000,
+          zIndex: 10000005,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1473,18 +1484,36 @@ export default function PocketCompanion() {
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.9)',
           }}>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}`, paddingBottom: '8px' }}>
               <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1DB954', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Music size={14} /> SOUNDTRACK PREVIEW
               </div>
-              <X size={18} style={{ cursor: 'pointer' }} onClick={() => setMusicModalTrack(null)} />
+              <X 
+                size={18} 
+                style={{ cursor: 'pointer' }} 
+                onClick={() => {
+                  setMusicModalTrack(null);
+                }} 
+              />
             </div>
 
             <MusicPlayer
               music={{
                 track_title: musicModalTrack.title,
                 artist_name: musicModalTrack.artist || 'Artist'
+              }}
+              showTurntable={playbackSettings.showTurntable !== false}
+              onPlayStateChange={(isMusicPlaying) => {
+                if (isMusicPlaying) {
+                  setIsHighlightPaused(true);
+                  setIsAudioMuted(true);
+                }
+              }}
+              onExternalOpen={() => {
+                setIsHighlightPaused(true);
+                setIsAudioMuted(true);
               }}
             />
           </div>
@@ -3163,6 +3192,7 @@ export default function PocketCompanion() {
                           track_title: selectedStory.music_title,
                           artist_name: selectedStory.music_artist || 'Artist'
                         }} 
+                        showTurntable={playbackSettings.showTurntable !== false}
                       />
                     </div>
                   ) : (
@@ -3812,6 +3842,7 @@ export default function PocketCompanion() {
                                     track_title: curPost.music_title,
                                     artist_name: curPost.music_artist || 'Artist'
                                   }}
+                                  showTurntable={playbackSettings.showTurntable !== false}
                                 />
                               ) : (
                                 <div style={{ color: subTextColor, fontSize: '11px', textAlign: 'center', padding: '16px 0' }}>
@@ -4211,6 +4242,14 @@ export default function PocketCompanion() {
                     onText="on"
                     offText="off"
                     onChange={(checked) => updatePlaybackSetting('loopVideo', checked)}
+                  />
+
+                  <MetroToggle
+                    label="turntable vinyl in music widget"
+                    checked={playbackSettings.showTurntable !== false}
+                    onText="turntable"
+                    offText="album art"
+                    onChange={(checked) => updatePlaybackSetting('showTurntable', checked)}
                   />
 
                   <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

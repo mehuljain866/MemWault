@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin } from 'lucide-react'
+import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin, Star } from 'lucide-react'
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
 
@@ -192,13 +192,23 @@ export default function HighlightPlayerModal({
   const isVideo = currentStory.media_type === 2
   const mediaUrl = currentStory.media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
   
-  // Single click on story canvas toggles pause (unless clicking header area)
+  // Tap zones on story canvas: left 30% prev, right 30% next, center 40% play/pause
   const handleCanvasClick = (e) => {
-    if (e.target.closest('.story-header-overlay')) {
+    if (e.target.closest('.story-header-overlay') || e.target.closest('.menu-popover')) {
       return
     }
     e.stopPropagation()
-    setIsPaused(prev => !prev)
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const width = rect.width
+
+    if (clickX < width * 0.3) {
+      handlePrev()
+    } else if (clickX > width * 0.7) {
+      handleNext()
+    } else {
+      setIsPaused(prev => !prev)
+    }
   }
 
   return (
@@ -292,6 +302,34 @@ export default function HighlightPlayerModal({
                </div>
             )}
 
+            {/* Visual PAUSED Indicator */}
+            {isPaused && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0,0,0,0.75)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                backdropFilter: 'blur(8px)',
+                color: '#FFFFFF',
+                padding: '8px 18px',
+                borderRadius: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                pointerEvents: 'none',
+                zIndex: 50,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+              }}>
+                <Pause size={14} fill="#FFF" />
+                <span>PAUSED</span>
+              </div>
+            )}
+
             {/* Overlays (Progress Bars & Header) */}
             <div 
               className="story-header-overlay"
@@ -350,6 +388,23 @@ export default function HighlightPlayerModal({
                     <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {highlightTitle}
                     </span>
+                    {(currentStory.is_close_friends || currentStory.audience === 'close_friends') && (
+                      <span style={{
+                        backgroundColor: '#00D26A',
+                        color: '#FFFFFF',
+                        padding: '1px 5px',
+                        borderRadius: '2px',
+                        fontSize: '9px',
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        flexShrink: 0
+                      }}>
+                        <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
+                        <span>CF</span>
+                      </span>
+                    )}
                     <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', flexShrink: 0 }}>
                       {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                     </span>
@@ -516,18 +571,47 @@ export default function HighlightPlayerModal({
             </div>
           </motion.div>
 
-          {/* Optional Music Turntable / Visualizer Side Widget */}
+          {/* Music Turntable Bottom Modal / Widget */}
           <AnimatePresence>
             {showMusicWidget && (
               <motion.div 
                 layout
-                initial={{ opacity: 0, width: 0, scale: 0.95 }}
-                animate={{ opacity: 1, width: 340, scale: 1 }}
-                exit={{ opacity: 0, width: 0, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                style={{ zIndex: 60, flexShrink: 0, position: 'relative', overflow: 'hidden' }}
+                initial={{ opacity: 0, y: 25, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 25, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                style={{
+                  position: 'absolute',
+                  bottom: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 120,
+                  width: '92%',
+                  maxWidth: '360px',
+                  boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
+                  borderRadius: '16px',
+                  overflow: 'hidden'
+                }}
               >
-                <div style={{ width: '340px', position: 'relative' }}>
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowMusicWidget(false)}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: 'rgba(0,0,0,0.6)',
+                      border: 'none',
+                      color: '#FFF',
+                      borderRadius: '50%',
+                      padding: '4px',
+                      cursor: 'pointer',
+                      zIndex: 130
+                    }}
+                    title="Close Music Panel"
+                  >
+                    <X size={14} />
+                  </button>
                   <MusicPlayer 
                     music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
                     onPlayStateChange={(isMusicPlaying) => {

@@ -31,6 +31,7 @@ import {
   getStoryViewers, updatePostMedia
 } from '../services/api';
 import MusicPlayer from '../components/MusicPlayer';
+import HighlightPlayerModal from '../components/HighlightPlayerModal';
 
 /**
  * Pure Web Audio API synthesized Metro Tap / Touch Feedback
@@ -1647,21 +1648,7 @@ export default function PocketCompanion() {
       />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* Hidden Audio Element for 30s iTunes Previews */}
-      {audioPreviewUrl && (
-        <audio
-          ref={previewAudioRef}
-          src={audioPreviewUrl}
-          autoPlay
-          onEnded={() => setIsPlayingAudio(false)}
-          onTimeUpdate={(e) => {
-            if (e.target.duration) {
-              setAudioProgress((e.target.currentTime / e.target.duration) * 100);
-              setAudioDuration(Math.round(e.target.duration));
-            }
-          }}
-        />
-      )}
+
 
       {/* ── Toast Notification Banner ───────────────────────── */}
       <AnimatePresence>
@@ -1978,279 +1965,19 @@ export default function PocketCompanion() {
         </div>
       )}
 
-      {/* ── FULLSCREEN INSTAGRAM HIGHLIGHT STORY PLAYER ─────── */}
-      <AnimatePresence>
-        {activeHighlight && highlightStories.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 999999,
-              backgroundColor: '#000000',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Top Segmented Progress Bars */}
-            <div style={{
-              position: 'absolute',
-              top: '8px',
-              left: '8px',
-              right: '8px',
-              display: 'flex',
-              gap: '4px',
-              zIndex: 20,
-            }}>
-              {highlightStories.map((_, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    flex: 1,
-                    height: '2.5px',
-                    backgroundColor: 'rgba(255,255,255,0.35)',
-                    borderRadius: '2px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div style={{
-                    height: '100%',
-                    backgroundColor: '#FFFFFF',
-                    width: idx < highlightStoryIndex ? '100%' : (idx === highlightStoryIndex ? `${highlightProgress}%` : '0%'),
-                    transition: idx === highlightStoryIndex ? 'width 0.05s linear' : 'none',
-                  }} />
-                </div>
-              ))}
-            </div>
-
-            {/* Story Header */}
-            <div style={{
-              position: 'absolute',
-              top: '18px',
-              left: '12px',
-              right: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              zIndex: 20,
-              color: '#FFFFFF',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: accent,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  border: '2px solid #FFF',
-                  overflow: 'hidden',
-                }}>
-                  {activeHighlight.cover_media_url || activeHighlight.preview_stories?.[0] ? (
-                    <OfflineMedia src={activeHighlight.cover_media_url || activeHighlight.preview_stories?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cover" />
-                  ) : (
-                    activeHighlight.title?.slice(0, 2).toUpperCase() || 'HL'
-                  )}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{activeHighlight.title}</div>
-                    {(highlightStories[highlightStoryIndex]?.is_close_friends || highlightStories[highlightStoryIndex]?.audience === 'close_friends') && (
-                      <span style={{
-                        backgroundColor: '#00D26A',
-                        color: '#FFFFFF',
-                        padding: '1px 5px',
-                        borderRadius: '2px',
-                        fontSize: '8px',
-                        fontWeight: 800,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '2px'
-                      }}>
-                        <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
-                        <span>CF</span>
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '10px', opacity: 0.75 }}>
-                    {highlightStories[highlightStoryIndex]?.taken_at ? new Date(highlightStories[highlightStoryIndex].taken_at).toLocaleDateString() : 'Highlight'}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button
-                  onClick={() => setIsHighlightPaused(!isHighlightPaused)}
-                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
-                >
-                  {isHighlightPaused ? <Play size={16} /> : <Pause size={16} />}
-                </button>
-                <button
-                  onClick={() => setIsAudioMuted(!isAudioMuted)}
-                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
-                >
-                  {isAudioMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
-                <button
-                  onClick={() => { triggerSound(); setActiveHighlight(null); }}
-                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Main Media Viewport with Touch Gestures & Hold to Pause */}
-            <div
-              style={{
-                flex: 1,
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#000',
-                userSelect: 'none',
-                touchAction: 'manipulation',
-              }}
-              onPointerDown={(e) => {
-                touchStartTime.current = Date.now();
-                touchStartX.current = e.clientX;
-                setIsHoldingToPause(true);
-              }}
-              onPointerUp={(e) => {
-                setIsHoldingToPause(false);
-                const holdDuration = Date.now() - touchStartTime.current;
-                const rect = e.currentTarget.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const width = rect.width;
-
-                if (holdDuration < 260) {
-                  // Quick tap
-                  if (clickX < width * 0.33) {
-                    handlePrevHighlightStory();
-                  } else if (clickX > width * 0.67) {
-                    handleNextHighlightStory();
-                  } else {
-                    // Center tap toggles persistent pause
-                    setIsHighlightPaused(p => !p);
-                  }
-                }
-              }}
-              onPointerCancel={() => {
-                setIsHoldingToPause(false);
-              }}
-            >
-              {(() => {
-                const curStory = highlightStories[highlightStoryIndex];
-                if (!curStory) return null;
-                const isVideo = curStory.media_type === 2 || (typeof curStory.media_url === 'string' && (curStory.media_url.includes('.mp4') || curStory.media_url.includes('.mov')));
-
-                return isVideo ? (
-                  <video
-                    ref={highlightVideoRef}
-                    key={`vid_${curStory.id || highlightStoryIndex}`}
-                    src={curStory.media_url}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    autoPlay={!isHighlightPaused && !musicModalTrack && !isHoldingToPause}
-                    playsInline
-                    muted={isAudioMuted || !!musicModalTrack}
-                    onTimeUpdate={(e) => {
-                      if (e.target.duration && !isHighlightPaused && !musicModalTrack && !isHoldingToPause) {
-                        setHighlightProgress((e.target.currentTime / e.target.duration) * 100);
-                      }
-                    }}
-                    onEnded={() => handleNextHighlightStory()}
-                  />
-                ) : (
-                  <OfflineMedia
-                    key={`img_${curStory.id || highlightStoryIndex}`}
-                    src={curStory.media_url}
-                    type="image"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    alt="Story"
-                  />
-                );
-              })()}
-
-              {/* Visual PAUSED Indicator */}
-              {(isHighlightPaused || isHoldingToPause) && !musicModalTrack && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  backgroundColor: 'rgba(0,0,0,0.75)',
-                  border: '1px solid rgba(255,255,255,0.25)',
-                  backdropFilter: 'blur(8px)',
-                  color: '#FFFFFF',
-                  padding: '8px 18px',
-                  borderRadius: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  pointerEvents: 'none',
-                  zIndex: 25,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-                }}>
-                  <Pause size={14} fill="#FFF" />
-                  <span>PAUSED</span>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Story Caption & Music Sticker */}
-            <div style={{
-              padding: '16px',
-              background: 'linear-gradient(transparent, rgba(0,0,0,0.92))',
-              color: '#FFFFFF',
-              zIndex: 20,
-            }}>
-              {highlightStories[highlightStoryIndex]?.caption_text && (
-                <div style={{ fontSize: '13px', lineHeight: 1.4, marginBottom: '8px' }}>
-                  {highlightStories[highlightStoryIndex].caption_text}
-                </div>
-              )}
-              {(highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title) && (
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsHighlightPaused(true);
-                    handleOpenMusicModal(
-                      highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title,
-                      highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist
-                    );
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    backgroundColor: 'rgba(0, 80, 239, 0.4)',
-                    border: `1px solid ${accent}`,
-                    padding: '6px 12px',
-                    borderRadius: '16px',
-                    fontSize: '11px',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Music size={13} color="#FFF" />
-                  <span style={{ fontWeight: 600 }}>{highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title}</span>
-                  <span style={{ opacity: 0.75 }}>• {highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist || 'Artist'}</span>
-                  <span style={{ fontSize: '9px', backgroundColor: accent, padding: '2px 4px', borderRadius: '4px' }}>PLAY ♫</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── HIGHLIGHT STORIES PLAYER MODAL (EXACT SAME AS DESKTOP UI WITH BOTTOM MUSIC WIDGET) ── */}
+      <HighlightPlayerModal
+        isOpen={Boolean(activeHighlight && highlightStories.length > 0)}
+        onClose={() => {
+          setActiveHighlight(null);
+          setHighlightStories([]);
+          setHighlightStoryIndex(0);
+          setMusicModalTrack(null);
+        }}
+        stories={highlightStories}
+        initialIndex={highlightStoryIndex}
+        highlightTitle={activeHighlight?.title || 'Highlight'}
+      />
 
       {/* ── CREATE NEW JOURNAL ENTRY & SCRAPBOOK MODAL ─────── */}
       {newJournalModalOpen && (
@@ -4169,32 +3896,56 @@ export default function PocketCompanion() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
                       {storyViewersList.filter(v => !viewerSearch || (v.username || v.user_name || v.full_name || '').toLowerCase().includes(viewerSearch.toLowerCase())).map((viewer, vIdx) => {
                         const vPic = viewer.profile_pic_url || viewer.profile_picture || viewer.profile_image_url;
+                        const username = viewer.username || viewer.user_name || '';
                         return (
-                          <div key={vIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${borderColor}` }}>
+                          <a
+                            key={vIdx}
+                            href={username ? `https://www.instagram.com/${encodeURIComponent(username)}/` : 'https://www.instagram.com/'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 4px',
+                              borderBottom: `1px solid ${borderColor}`,
+                              textDecoration: 'none',
+                              color: 'inherit',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <div style={{ width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 {vPic ? (
                                   <img
                                     src={`/api/v1/proxy/image?url=${encodeURIComponent(vPic)}`}
-                                    alt={viewer.username}
+                                    alt={username}
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     onError={(e) => { e.target.src = vPic; }}
                                   />
                                 ) : (
-                                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{(viewer.username || viewer.user_name || 'U')[0].toUpperCase()}</span>
+                                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{(username || 'U')[0].toUpperCase()}</span>
                                 )}
                               </div>
                               <div>
-                                <div style={{ fontSize: '13px', fontWeight: 600 }}>{viewer.username || viewer.user_name || 'Viewer'}</div>
+                                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span>{username || 'Viewer'}</span>
+                                  <ExternalLink size={11} color={accent} />
+                                </div>
                                 {viewer.full_name && (
                                   <div style={{ fontSize: '11px', color: subTextColor }}>{viewer.full_name}</div>
                                 )}
                               </div>
                             </div>
-                            {viewer.is_verified && (
-                              <span style={{ fontSize: '10px', color: '#1DA1F2', fontWeight: 'bold' }}>✓ Verified</span>
-                            )}
-                          </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {viewer.is_verified && (
+                                <span style={{ fontSize: '10px', color: '#1DA1F2', fontWeight: 'bold' }}>✓ Verified</span>
+                              )}
+                              <span style={{ fontSize: '11px', color: accent, fontWeight: 600 }}>Profile ↗</span>
+                            </div>
+                          </a>
                         );
                       })}
                     </div>

@@ -819,13 +819,7 @@ export default function JournalApp() {
                         >
                           <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000', position: 'relative' }}>
                             {story.media_type === 2 ? (
-                              <video 
-                                src={getMediaUrl(story) ? (getMediaUrl(story).includes('#t=') ? getMediaUrl(story) : `${getMediaUrl(story)}#t=0.001`) : ''} 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                muted 
-                                playsInline
-                                preload="metadata"
-                              />
+                              <video src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                             ) : (
                               <img src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             )}

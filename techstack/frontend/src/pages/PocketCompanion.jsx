@@ -227,7 +227,7 @@ function OfflineMedia({
   alt = '', 
   style = {}, 
   className = '', 
-  autoPlay = true, 
+  autoPlay = false, 
   loop = true, 
   muted = true, 
   playsInline = true, 
@@ -1061,10 +1061,11 @@ export default function PocketCompanion() {
       const cachedHl = await getOfflineHighlights();
       const st = await getStorageStats();
       const pending = await getPendingMobileUploads();
-      const cachedSession = (await getSyncMeta('ig_session')) || (localStorage.getItem('cached_ig_session') ? JSON.parse(localStorage.getItem('cached_ig_session')) : null);
+      const sortedStories = (cachedStories || []).sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
+      const sortedPosts = (cachedPosts || []).sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
       
-      setStories(cachedStories || []);
-      setPosts(cachedPosts || []);
+      setStories(sortedStories);
+      setPosts(sortedPosts);
       setHighlights(cachedHl || []);
       setStats(st);
       setPendingUploads(pending || []);
@@ -1692,24 +1693,28 @@ export default function PocketCompanion() {
   const currentFlashback = flashbacks[flashbackIndex] || flashbacks[0] || stories[0] || null;
 
   // ── 15. Filtered Stories ──────────────────────────────────────────────────
-  const filteredStories = stories.filter(s => {
-    const musicTitle = s.music?.track_title || s.music_title || '';
-    const musicArtist = s.music?.artist_name || s.music_artist || '';
-    const matchesSearch = !searchQuery || 
-      (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (s.journal_note && s.journal_note.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (musicTitle && musicTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (musicArtist && musicArtist.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    if (!matchesSearch) return false;
-    if (filterType === 'photos') return s.media_type === 1;
-    if (filterType === 'videos') return s.media_type === 2;
-    if (filterType === 'journaled') return Boolean(s.journal_note && s.journal_note.trim().length > 0);
-    if (filterType === 'music') return Boolean(s.music?.track_title || s.music_title);
-    if (filterType === 'cf') return Boolean(s.is_close_friends || s.audience === 'close_friends');
-    return true;
-  });
+  const filteredStories = useMemo(() => {
+    return stories
+      .filter(s => {
+        const musicTitle = s.music?.track_title || s.music_title || '';
+        const musicArtist = s.music?.artist_name || s.music_artist || '';
+        const matchesSearch = !searchQuery || 
+          (s.location_name && s.location_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (s.caption_text && s.caption_text.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (s.journal_note && s.journal_note.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (musicTitle && musicTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (musicArtist && musicArtist.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        if (!matchesSearch) return false;
+        if (filterType === 'photos') return s.media_type === 1;
+        if (filterType === 'videos') return s.media_type === 2 || (s.file_name && (s.file_name.endsWith('.mp4') || s.file_name.endsWith('.mov')));
+        if (filterType === 'journaled') return Boolean(s.journal_note && s.journal_note.trim().length > 0);
+        if (filterType === 'music') return Boolean(s.music?.track_title || s.music_title);
+        if (filterType === 'cf') return Boolean(s.is_close_friends || s.audience === 'close_friends');
+        return true;
+      })
+      .sort((a, b) => new Date(b.taken_at || 0) - new Date(a.taken_at || 0));
+  }, [stories, searchQuery, filterType]);
 
   const journaledItems = [
     ...stories.filter(s => s.journal_note && s.journal_note.trim().length > 0).map(s => ({ ...s, _isPost: false })),

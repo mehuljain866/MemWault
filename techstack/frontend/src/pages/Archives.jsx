@@ -223,14 +223,13 @@ function ArchiveCard({ story, isRestoring, onRestore, onNavigate }) {
         {story.media_url ? (
           isVideo ? (
             <video
-              src={story.media_url ? (story.media_url.includes('#t=') ? story.media_url : `${story.media_url}#t=0.001`) : ''}
+              src={story.media_url}
               muted
               loop
-              playsInline
               preload="metadata"
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               onMouseEnter={e => e.target.play()}
-              onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0.001 }}
+              onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0 }}
             />
           ) : (
             <img

@@ -346,13 +346,10 @@ export default function HighlightViewer() {
                     {thumbSrc ? (
                       isVideo ? (
                         <video
-                          src={thumbSrc ? (thumbSrc.includes('#t=') ? thumbSrc : `${thumbSrc}#t=0.001`) : ''}
+                          src={thumbSrc}
                           muted
-                          playsInline
                           preload="metadata"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onMouseEnter={e => e.target.play()}
-                          onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0.001; }}
                         />
                       ) : (
                         <img

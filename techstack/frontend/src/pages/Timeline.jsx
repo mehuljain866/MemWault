@@ -16,13 +16,13 @@ import {
 // Helper for Year/Month cluster preview
 function ClusterMediaItem({ story }) {
   if (!story) return null
-  const url = story.media_url || (story.s3_key_compressed ? `/media/${story.s3_key_compressed}` : null)
+  const url = story.media_url || story.thumbnail_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
   if (!url) return null
-  const isVideo = story.media_type === 2 || url.includes('.mp4') || url.includes('.mov')
+  const isVideo = story.media_type === 2 || story.is_video || (typeof url === 'string' && (url.includes('.mp4') || url.includes('.mov')))
   if (isVideo) {
     return (
       <video 
-        src={`${url}#t=0.1`} 
+        src={url.includes('#t=') ? url : `${url}#t=0.001`} 
         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
         muted 
         playsInline 
@@ -36,6 +36,13 @@ function ClusterMediaItem({ story }) {
       alt="" 
       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
       loading="lazy"
+      onError={(e) => {
+        if (url && !url.startsWith('/api/v1/proxy') && url.startsWith('http')) {
+          e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(url)}`
+        } else if (story.s3_key_compressed) {
+          e.target.src = `/api/v1/media/${story.s3_key_compressed}`
+        }
+      }}
     />
   )
 }

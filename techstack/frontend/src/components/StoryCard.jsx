@@ -27,7 +27,8 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
     minute: '2-digit',
   })
 
-  const isVideo = story.media_type === 2
+  const rawMediaUrl = story.media_url || story.display_url || story.thumbnail_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
+  const isVideo = story.media_type === 2 || story.is_video || (typeof rawMediaUrl === 'string' && (rawMediaUrl.includes('.mp4') || rawMediaUrl.includes('.mov')))
 
   const handleClick = () => {
     if (isSelectMode) {
@@ -80,16 +81,16 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
       )}
 
       {/* Media Thumbnail */}
-      {story.media_url ? (
+      {rawMediaUrl ? (
         isVideo ? (
           <video
             className="ios-story-card__media"
-            src={story.media_url ? (story.media_url.includes('#t=') ? story.media_url : `${story.media_url}#t=0.001`) : ''}
+            src={rawMediaUrl.includes('#t=') ? rawMediaUrl : `${rawMediaUrl}#t=0.001`}
             muted
             loop
             playsInline
             preload="metadata"
-            onMouseEnter={(e) => !isSelectMode && e.target.play()}
+            onMouseEnter={(e) => !isSelectMode && e.target.play().catch(() => {})}
             onMouseLeave={(e) => {
               if (!isSelectMode) {
                 e.target.pause()
@@ -100,9 +101,16 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
         ) : (
           <img
             className="ios-story-card__media"
-            src={story.media_url}
+            src={rawMediaUrl}
             alt={`Story from ${dateStr}`}
             loading="lazy"
+            onError={(e) => {
+              if (rawMediaUrl && !rawMediaUrl.startsWith('/api/v1/proxy') && rawMediaUrl.startsWith('http')) {
+                e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(rawMediaUrl)}`
+              } else if (story.s3_key_compressed) {
+                e.target.src = `/api/v1/media/${story.s3_key_compressed}`
+              }
+            }}
           />
         )
       ) : (

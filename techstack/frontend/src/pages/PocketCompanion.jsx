@@ -21,13 +21,15 @@ import {
 } from '../services/pocketSync';
 import { 
   addPendingMobileUpload, getPendingMobileUploads, 
-  saveMemoriesOffline, savePostsOffline, openMobileDB 
+  saveMemoriesOffline, savePostsOffline, openMobileDB,
+  saveSyncMeta, getSyncMeta
 } from '../services/memwaultMobileDB';
 import { 
   updateStory, updatePost, setToken, isAuthenticated, 
   getHighlights, getHighlightStories, getInstagramSession,
   getStoryViewers, updatePostMedia
 } from '../services/api';
+import MusicPlayer from '../components/MusicPlayer';
 
 /**
  * Pure Web Audio API synthesized Metro Tap / Touch Feedback
@@ -135,6 +137,8 @@ function OfflineMedia({ src, type = 'image', alt = '', style = {}, className = '
 
 function getMediaUrl(item) {
   if (!item) return '';
+  if (item.cover_media_url) return item.cover_media_url;
+  if (item.preview_stories && item.preview_stories.length > 0) return item.preview_stories[0];
   if (item.media_items && item.media_items.length > 0) {
     const first = item.media_items[0];
     return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || '';
@@ -311,17 +315,23 @@ export default function PocketCompanion() {
       const cachedHl = await getOfflineHighlights();
       const st = await getStorageStats();
       const pending = await getPendingMobileUploads();
+      const cachedSession = (await getSyncMeta('ig_session')) || (localStorage.getItem('cached_ig_session') ? JSON.parse(localStorage.getItem('cached_ig_session')) : null);
       
       setStories(cachedStories || []);
       setPosts(cachedPosts || []);
       setHighlights(cachedHl || []);
       setStats(st);
       setPendingUploads(pending || []);
+      if (cachedSession) setIgSession(cachedSession);
 
       if (isAuthenticated()) {
         try {
           const session = await getInstagramSession();
-          setIgSession(session);
+          if (session) {
+            setIgSession(session);
+            await saveSyncMeta('ig_session', session);
+            localStorage.setItem('cached_ig_session', JSON.stringify(session));
+          }
         } catch (e) {}
 
         try {
@@ -542,9 +552,10 @@ export default function PocketCompanion() {
     setPaintModalOpen(true);
     setTimeout(() => {
       const canvas = paintCanvasRef.current;
-      if (canvas) {
-        canvas.width = canvas.parentElement.clientWidth || 360;
-        canvas.height = canvas.parentElement.clientHeight || 420;
+      if (canvas && canvas.parentElement) {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = Math.round(rect.width) || 360;
+        canvas.height = Math.round(rect.height) || 420;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -556,15 +567,19 @@ export default function PocketCompanion() {
     const canvas = paintCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    const scaleX = rect.width > 0 ? (canvas.width / rect.width) : 1;
+    const scaleY = rect.height > 0 ? (canvas.height / rect.height) : 1;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
     };
   };
 
   const handlePaintStart = (e) => {
+    if (e.touches && e.cancelable) e.preventDefault();
     const canvas = paintCanvasRef.current;
     if (!canvas) return;
     setIsDrawing(true);
@@ -580,6 +595,7 @@ export default function PocketCompanion() {
   };
 
   const handlePaintMove = (e) => {
+    if (e.touches && e.cancelable) e.preventDefault();
     if (!isDrawing) return;
     const canvas = paintCanvasRef.current;
     if (!canvas) return;
@@ -599,6 +615,20 @@ export default function PocketCompanion() {
     triggerSound();
     const dataUrl = canvas.toDataURL('image/png');
     setAttachedDoodleUrl(dataUrl);
+
+    // If attached from a specific story, save directly to story's doodles
+    if (selectedStory?.id) {
+      try {
+        localStorage.setItem(`memwault_doodles_${selectedStory.id}`, JSON.stringify([{ id: Date.now(), url: dataUrl }]));
+      } catch (e) {}
+    }
+    // If attached from a specific post, save directly to post's doodles
+    if (selectedPostIndex !== null && posts[selectedPostIndex]?.id) {
+      try {
+        localStorage.setItem(`memwault_doodles_${posts[selectedPostIndex].id}`, JSON.stringify([{ id: Date.now(), url: dataUrl }]));
+      } catch (e) {}
+    }
+
     setPaintModalOpen(false);
     showToast('✓ Doodle attached to Journal!');
   };
@@ -1153,110 +1183,37 @@ export default function PocketCompanion() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.85)',
+          backgroundColor: 'rgba(0,0,0,0.88)',
           zIndex: 100000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
+          padding: '16px',
         }}>
           <div style={{
             backgroundColor: surfaceColor,
-            borderLeft: `4px solid #1DB954`,
-            padding: '20px',
-            maxWidth: '380px',
+            border: `1px solid ${borderColor}`,
+            padding: '16px',
+            maxWidth: '420px',
             width: '100%',
             color: textColor,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            gap: '14px',
+            gap: '10px',
           }}>
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#1DB954', letterSpacing: '0.08em' }}>
-                SOUNDTRACK PREVIEW
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}`, paddingBottom: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1DB954', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Music size={14} /> SOUNDTRACK PREVIEW
               </div>
               <X size={18} style={{ cursor: 'pointer' }} onClick={() => setMusicModalTrack(null)} />
             </div>
 
-            {/* Album Artwork */}
-            <div style={{
-              width: '140px',
-              height: '140px',
-              backgroundColor: '#000',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {audioArtworkUrl ? (
-                <img src={audioArtworkUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Album Art" />
-              ) : (
-                <Music size={48} color="#1DB954" />
-              )}
-            </div>
-
-            {/* Track Info */}
-            <div style={{ textAlign: 'center', maxWidth: '90%' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600 }}>{musicModalTrack.title}</div>
-              <div style={{ fontSize: '12px', color: subTextColor, marginTop: '2px' }}>{musicModalTrack.artist || 'Original Soundtrack'}</div>
-            </div>
-
-            {/* Audio Progress Bar */}
-            <div style={{ width: '100%', height: '4px', backgroundColor: borderColor, position: 'relative' }}>
-              <div style={{ height: '100%', backgroundColor: '#1DB954', width: `${audioProgress}%` }} />
-            </div>
-
-            {/* Play/Pause Button */}
-            {audioPreviewUrl && (
-              <button
-                onClick={handleTogglePlayAudio}
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  backgroundColor: '#1DB954',
-                  border: 'none',
-                  color: '#000',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                {isPlayingAudio ? <Pause size={20} /> : <Play size={20} style={{ marginLeft: '2px' }} />}
-              </button>
-            )}
-
-            {/* Streaming Badges */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '6px' }}>
-              <a
-                href={`https://open.spotify.com/search/${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ backgroundColor: '#1DB954', color: '#000', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-              >
-                Spotify ↗
-              </a>
-              <a
-                href={`https://music.apple.com/us/search?term=${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ backgroundColor: '#FC3C44', color: '#FFF', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-              >
-                Apple Music ↗
-              </a>
-              <a
-                href={`https://music.youtube.com/search?q=${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ backgroundColor: '#FF0000', color: '#FFF', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-              >
-                YouTube Music ↗
-              </a>
-            </div>
+            <MusicPlayer
+              music={{
+                track_title: musicModalTrack.title,
+                artist_name: musicModalTrack.artist || 'Artist'
+              }}
+            />
           </div>
         </div>
       )}
@@ -1526,10 +1483,14 @@ export default function PocketCompanion() {
               )}
               {(highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title) && (
                 <div 
-                  onClick={() => handleOpenMusicModal(
-                    highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title,
-                    highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist
-                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsHighlightPaused(true);
+                    handleOpenMusicModal(
+                      highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title,
+                      highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist
+                    );
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2820,6 +2781,23 @@ export default function PocketCompanion() {
                         {selectedStory.journal_note || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No journal entry written yet. Tap edit note to record your thoughts.</span>}
                       </div>
                     )}
+
+                    {/* Attached Doodle if present */}
+                    {(() => {
+                      let doodles = [];
+                      try {
+                        doodles = JSON.parse(localStorage.getItem(`memwault_doodles_${selectedStory.id}`) || '[]');
+                      } catch (e) {}
+                      if (!doodles || doodles.length === 0) return null;
+                      return (
+                        <div style={{ marginTop: '10px', backgroundColor: cardColor, padding: '8px', border: `1px solid ${borderColor}` }}>
+                          <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#AA00FF', marginBottom: '6px' }}>
+                            ATTACHED DOODLE 🎨
+                          </div>
+                          <img src={doodles[0].url} alt="Doodle" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', backgroundColor: '#FFFFFF', borderRadius: '2px', display: 'block' }} />
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Actions: Paint Doodle & Camera Snapshot */}
@@ -2870,93 +2848,13 @@ export default function PocketCompanion() {
               {storyDetailTab === 'music' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {(selectedStory.music?.track_title || selectedStory.music_title) ? (
-                    <div style={{ backgroundColor: surfaceColor, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                      {/* Spinning Vinyl Record Player */}
-                      <motion.div
-                        animate={{ rotate: isPlayingAudio ? 360 : 0 }}
-                        transition={{ duration: 1.818, repeat: isPlayingAudio ? Infinity : 0, ease: 'linear' }}
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          borderRadius: '50%',
-                          backgroundColor: '#0a0a0a',
-                          border: '3px solid #222222',
-                          boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          position: 'relative',
-                        }}
-                      >
-                        {audioArtworkUrl ? (
-                          <img src={audioArtworkUrl} alt="Album" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Disc size={24} color="#FFF" />
-                          </div>
-                        )}
-                        <div style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#000000', border: '1px solid rgba(255,255,255,0.4)' }} />
-                      </motion.div>
-
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#1DB954' }}>
-                          {selectedStory.music?.track_title || selectedStory.music_title}
-                        </div>
-                        <div style={{ fontSize: '12px', color: subTextColor, marginTop: '2px' }}>
-                          {selectedStory.music?.artist_name || selectedStory.music_artist || 'Artist'}
-                        </div>
-                      </div>
-
-                      {/* 30s Audio Controls */}
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <button
-                          onClick={() => {
-                            if (!audioPreviewUrl) {
-                              handleOpenMusicModal(
-                                selectedStory.music?.track_title || selectedStory.music_title,
-                                selectedStory.music?.artist_name || selectedStory.music_artist
-                              );
-                            } else {
-                              togglePlayAudio();
-                            }
-                          }}
-                          style={{
-                            backgroundColor: '#1DB954',
-                            color: '#000',
-                            border: 'none',
-                            padding: '8px 20px',
-                            fontSize: '12px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
-                        >
-                          {isPlayingAudio ? <Pause size={14} /> : <Play size={14} />}
-                          <span>{isPlayingAudio ? 'PAUSE PREVIEW' : 'PLAY 30S PREVIEW'}</span>
-                        </button>
-                      </div>
-
-                      {/* External Links */}
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                        <a
-                          href={`https://open.spotify.com/search/${encodeURIComponent((selectedStory.music?.track_title || selectedStory.music_title) + ' ' + (selectedStory.music?.artist_name || selectedStory.music_artist || ''))}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ backgroundColor: '#1DB954', color: '#000', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-                        >
-                          Spotify ↗
-                        </a>
-                        <a
-                          href={`https://music.apple.com/search?term=${encodeURIComponent((selectedStory.music?.track_title || selectedStory.music_title) + ' ' + (selectedStory.music?.artist_name || selectedStory.music_artist || ''))}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ backgroundColor: '#FA243C', color: '#FFF', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-                        >
-                          Apple Music ↗
-                        </a>
-                      </div>
+                    <div>
+                      <MusicPlayer 
+                        music={selectedStory.music || {
+                          track_title: selectedStory.music_title,
+                          artist_name: selectedStory.music_artist || 'Artist'
+                        }} 
+                      />
                     </div>
                   ) : (
                     <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
@@ -3032,7 +2930,10 @@ export default function PocketCompanion() {
                 gap: '12px',
               }}>
                 {highlights.map(hl => {
-                  const coverUrl = hl.cover_media_url || (hl.preview_stories && hl.preview_stories[0]) || (hl.stories && hl.stories[0]?.media_url) || (stories[0]?.media_url);
+                  const previewStories = hl.preview_stories || (hl.stories ? hl.stories.map(s => s.media_url).filter(Boolean) : []);
+                  const singleCover = hl.cover_media_url || (previewStories[0]) || (stories[0]?.media_url);
+                  const isMulti = previewStories.length >= 2;
+
                   return (
                     <motion.div
                       key={hl.id}
@@ -3040,28 +2941,52 @@ export default function PocketCompanion() {
                       onClick={() => handleOpenHighlight(hl)}
                       style={{
                         aspectRatio: '1/1',
-                        backgroundColor: '#FA6800',
+                        backgroundColor: '#1C1C1C',
                         color: '#FFFFFF',
-                        padding: '12px',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         cursor: 'pointer',
                         position: 'relative',
                         overflow: 'hidden',
+                        border: `1px solid ${borderColor}`,
                       }}
                     >
-                      {coverUrl && (
+                      {/* Cover Background */}
+                      {isMulti ? (
+                        <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '2px', opacity: 0.65 }}>
+                          {previewStories.slice(0, 4).map((u, pIdx) => (
+                            <div key={pIdx} style={{ position: 'relative', overflow: 'hidden' }}>
+                              <OfflineMedia src={u} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="hl-cell" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : singleCover ? (
                         <OfflineMedia
-                          src={coverUrl}
-                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.45 }}
+                          src={singleCover}
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
                           alt="Highlight Cover"
                         />
-                      )}
-                      <Sparkles size={24} style={{ zIndex: 2 }} />
-                      <div style={{ zIndex: 2 }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{hl.title}</div>
-                        <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>Tap to play stories with audio</div>
+                      ) : null}
+
+                      {/* Top Bar with Accent Badge */}
+                      <div style={{ zIndex: 2, padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ backgroundColor: accent, color: '#FFF', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                          HIGHLIGHT
+                        </div>
+                        <Sparkles size={16} color="#FFF" />
+                      </div>
+
+                      {/* Bottom Info Gradient */}
+                      <div style={{
+                        zIndex: 2,
+                        padding: '12px',
+                        background: 'linear-gradient(transparent, rgba(0,0,0,0.92))',
+                      }}>
+                        <div style={{ fontSize: '15px', fontWeight: 600 }}>{hl.title}</div>
+                        <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>
+                          {previewStories.length > 0 ? `${previewStories.length} stories • Tap to play` : 'Tap to play stories'}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -3138,6 +3063,8 @@ export default function PocketCompanion() {
                   {posts.map((post, pIdx) => {
                     const mediaUrl = getMediaUrl(post);
                     const isCarousel = (post.media_items && post.media_items.length > 1);
+                    const postMusicTrack = post.music?.track_title || post.music_title;
+
                     return (
                       <motion.div
                         key={post.id}
@@ -3161,11 +3088,27 @@ export default function PocketCompanion() {
                             position: 'absolute',
                             top: '4px',
                             right: '4px',
-                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            backgroundColor: 'rgba(0,0,0,0.65)',
+                            padding: '2px 5px',
+                            borderRadius: '2px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                          }}>
+                            <Layers size={11} color="#FFF" />
+                            <span style={{ fontSize: '9px', color: '#FFF', fontWeight: 'bold' }}>{post.media_items.length}</span>
+                          </div>
+                        )}
+                        {postMusicTrack && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '4px',
+                            left: '4px',
+                            backgroundColor: 'rgba(29, 185, 84, 0.9)',
                             padding: '2px 4px',
                             borderRadius: '2px',
                           }}>
-                            <Layers size={10} color="#FFF" />
+                            <Music size={10} color="#000" />
                           </div>
                         )}
                         {post.journal_note && (
@@ -3191,18 +3134,28 @@ export default function PocketCompanion() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {posts.map((post, pIdx) => {
                     const mediaUrl = getMediaUrl(post);
+                    const postMusicTrack = post.music?.track_title || post.music_title;
+                    const postMusicArtist = post.music?.artist_name || post.music_artist || 'Artist';
+                    const isCarousel = (post.media_items && post.media_items.length > 1);
+
                     return (
                       <div key={post.id} style={{ backgroundColor: surfaceColor, borderBottom: `2px solid ${accent}` }}>
                         {/* Card Header */}
                         <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 'bold' }}>
-                              MW
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 }}>
+                              {igSession?.profile_pic_url ? (
+                                <OfflineMedia src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
+                              ) : (
+                                <span>{(igSession?.ig_username || igSession?.username || 'MW').slice(0, 2).toUpperCase()}</span>
+                              )}
                             </div>
                             <div>
-                              <div style={{ fontSize: '12px', fontWeight: 600 }}>Instagram Post</div>
+                              <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                                @{igSession?.ig_username || igSession?.username || 'user'}
+                              </div>
                               <div style={{ fontSize: '10px', color: subTextColor }}>
-                                {post.taken_at ? new Date(post.taken_at).toLocaleDateString() : ''}
+                                {post.taken_at ? new Date(post.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'ARCHIVED POST'}
                               </div>
                             </div>
                           </div>
@@ -3212,23 +3165,62 @@ export default function PocketCompanion() {
                               href={`https://maps.google.com/?q=${encodeURIComponent(post.location_name)}`}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ color: accent, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                              style={{ color: accent, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', textDecoration: 'none', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                             >
-                              <MapPin size={10} /> {post.location_name}
+                              <MapPin size={11} /> {post.location_name}
                             </a>
                           )}
                         </div>
 
                         {/* Image Canvas */}
-                        <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#000', position: 'relative' }}>
+                        <div 
+                          onClick={() => {
+                            triggerSound();
+                            setSelectedPostIndex(pIdx);
+                            setPostSlideIndex(0);
+                          }}
+                          style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#000', position: 'relative', cursor: 'pointer' }}
+                        >
                           <OfflineMedia src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Post" />
+                          {isCarousel && (
+                            <div style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#FFF', padding: '3px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Layers size={12} /> 1/{post.media_items.length}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Card Details */}
+                        {/* Card Details & Music Badge */}
                         <div style={{ padding: '12px' }}>
+                          {postMusicTrack && (
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenMusicModal(postMusicTrack, postMusicArtist);
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#1DB954',
+                                color: '#000000',
+                                padding: '4px 10px',
+                                borderRadius: '2px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                marginBottom: '8px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Music size={12} />
+                              <span>{postMusicTrack}</span>
+                              <span style={{ opacity: 0.75 }}>• {postMusicArtist}</span>
+                              <span style={{ fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.15)', padding: '1px 4px', borderRadius: '2px' }}>♫ PLAY</span>
+                            </div>
+                          )}
+
                           {post.like_count !== undefined && (
-                            <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
-                              ❤️ {post.like_count} likes
+                            <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
+                              ❤️ {Number(post.like_count).toLocaleString()} likes
                             </div>
                           )}
                           {post.caption_text && (
@@ -3461,29 +3453,61 @@ export default function PocketCompanion() {
                               ) : (
                                 <div style={{ fontSize: '11px', opacity: 0.9 }}>{curPost.journal_note || 'No journal note attached yet.'}</div>
                               )}
+
+                              {/* Attached Doodle if present */}
+                              {(() => {
+                                let doodles = [];
+                                try {
+                                  doodles = JSON.parse(localStorage.getItem(`memwault_doodles_${curPost.id}`) || '[]');
+                                } catch (e) {}
+                                if (!doodles || doodles.length === 0) return null;
+                                return (
+                                  <div style={{ marginTop: '8px', backgroundColor: cardColor, padding: '6px', border: `1px solid ${borderColor}` }}>
+                                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#AA00FF', marginBottom: '4px' }}>
+                                      ATTACHED DOODLE 🎨
+                                    </div>
+                                    <img src={doodles[0].url} alt="Doodle" style={{ width: '100%', maxHeight: '140px', objectFit: 'contain', backgroundColor: '#FFFFFF', borderRadius: '2px', display: 'block' }} />
+                                  </div>
+                                );
+                              })()}
+
+                              <div style={{ marginTop: '8px' }}>
+                                <button
+                                  onClick={() => setPaintModalOpen(true)}
+                                  style={{
+                                    backgroundColor: '#AA00FF',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Brush size={12} />
+                                  <span>Draw Doodle 🎨</span>
+                                </button>
+                              </div>
                             </div>
                           )}
 
                           {/* TAB 3: MUSIC */}
                           {postDetailTab === 'music' && (
-                            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                            <div style={{ padding: '6px 0' }}>
                               {(curPost.music?.track_title || curPost.music_title) ? (
-                                <div>
-                                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#1DB954' }}>
-                                    {curPost.music?.track_title || curPost.music_title}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
-                                    {curPost.music?.artist_name || curPost.music_artist || 'Artist'}
-                                  </div>
-                                  <button
-                                    onClick={() => handleOpenMusicModal(curPost.music?.track_title || curPost.music_title, curPost.music?.artist_name || curPost.music_artist)}
-                                    style={{ marginTop: '8px', backgroundColor: '#1DB954', border: 'none', color: '#000', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                                  >
-                                    Play 30s Audio ♫
-                                  </button>
-                                </div>
+                                <MusicPlayer
+                                  music={curPost.music || {
+                                    track_title: curPost.music_title,
+                                    artist_name: curPost.music_artist || 'Artist'
+                                  }}
+                                />
                               ) : (
-                                <div style={{ color: subTextColor, fontSize: '11px' }}>No soundtrack linked to this feed post.</div>
+                                <div style={{ color: subTextColor, fontSize: '11px', textAlign: 'center', padding: '16px 0' }}>
+                                  No soundtrack linked to this feed post.
+                                </div>
                               )}
                             </div>
                           )}
@@ -3766,28 +3790,33 @@ export default function PocketCompanion() {
                   </div>
                   <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid ${accent}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '14px', overflow: 'hidden' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '16px', overflow: 'hidden', flexShrink: 0 }}>
                         {igSession.profile_pic_url ? (
-                          <img src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
+                          <OfflineMedia src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
                         ) : (
-                          <UserIcon size={22} />
+                          <span>{(igSession.full_name || igSession.ig_username || igSession.username || 'U').charAt(0).toUpperCase()}</span>
                         )}
                       </div>
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>@{igSession.username || 'user'}</div>
+                        {igSession.full_name && (
+                          <div style={{ fontSize: '15px', fontWeight: 700 }}>{igSession.full_name}</div>
+                        )}
+                        <div style={{ fontSize: '13px', fontWeight: 600, opacity: igSession.full_name ? 0.85 : 1 }}>
+                          @{igSession.ig_username || igSession.username || 'user'}
+                        </div>
                         <div style={{ fontSize: '11px', color: '#008A00', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                           <CheckCircle2 size={12} />
-                          <span>Connected & Archiving</span>
+                          <span>Connected & Synced</span>
                         </div>
                       </div>
                     </div>
 
-                    {igSession.username && (
+                    {(igSession.ig_username || igSession.username) && (
                       <a
-                        href={`https://instagram.com/${igSession.username}`}
+                        href={`https://instagram.com/${igSession.ig_username || igSession.username}`}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ backgroundColor: accent, color: '#FFF', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none' }}
+                        style={{ backgroundColor: accent, color: '#FFF', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '2px' }}
                       >
                         Profile ↗
                       </a>

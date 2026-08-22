@@ -9,7 +9,8 @@ import {
   Volume2, VolumeX, ShieldCheck, Download, Play, 
   Pause, ChevronLeft, ChevronRight, Grid, List, 
   Heart, MessageCircle, Share2, Layers, Bookmark,
-  User as UserIcon, CheckCircle2, AlertCircle
+  User as UserIcon, CheckCircle2, AlertCircle, Smile,
+  Maximize2, Disc, Sliders, Palette
 } from 'lucide-react';
 import { 
   getOfflineMemories, getOfflinePosts, getOfflineHighlights, 
@@ -50,9 +51,51 @@ const METRO_ACCENTS = [
   { name: 'Brown', hex: '#825A2C' },
 ];
 
+const JOURNAL_STICKERS = ['✨', '💖', '🌴', '☕', '📸', '🎵', '⭐', '📍', '🥂', '🌸', '🥑', '🎨', '🚀', '⛺', '🌈', '🍦'];
+
 /**
- * Safely extracts display image URL from post or story
+ * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
  */
+function useOfflineMediaUrl(url) {
+  const [src, setSrc] = useState(url);
+
+  useEffect(() => {
+    if (!url) return;
+    let isMounted = true;
+    let objectUrl = null;
+
+    getCachedMediaBlob(url).then(blob => {
+      if (blob && isMounted) {
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      } else if (isMounted) {
+        setSrc(url);
+      }
+    }).catch(() => {
+      if (isMounted) setSrc(url);
+    });
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  return src;
+}
+
+/**
+ * Offline-aware Media Element (renders Images or Videos from offline Blobs)
+ */
+function OfflineMedia({ src, type = 'image', alt = '', style = {}, className = '', ...props }) {
+  const resolvedUrl = useOfflineMediaUrl(src);
+
+  if (type === 'video') {
+    return <video src={resolvedUrl} style={style} className={className} {...props} />;
+  }
+  return <img src={resolvedUrl} alt={alt} style={style} className={className} {...props} />;
+}
+
 function getMediaUrl(item) {
   if (!item) return '';
   if (item.media_items && item.media_items.length > 0) {
@@ -71,8 +114,8 @@ export default function PocketCompanion() {
   const [autoSyncOnOpen, setAutoSyncOnOpen] = useState(() => localStorage.getItem('metro_auto_sync') !== 'false');
   const [serverHost, setServerHost] = useState(() => localStorage.getItem('metro_server_host') || window.location.hostname || '192.168.29.50');
 
-  // ── Navigation & Data States ──────────────────────────────────────────────
-  const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'music' | 'settings'
+  // ── Navigation & Content States ───────────────────────────────────────────
+  const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'settings'
   const [stories, setStories] = useState([]);
   const [posts, setPosts] = useState([]);
   const [highlights, setHighlights] = useState([]);
@@ -90,23 +133,46 @@ export default function PocketCompanion() {
 
   // ── On This Day Flashback States ──────────────────────────────────────────
   const [flashbackIndex, setFlashbackIndex] = useState(0);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
-  // ── Highlights Player States ──────────────────────────────────────────────
+  // ── Highlights Story Player States ────────────────────────────────────────
   const [activeHighlight, setActiveHighlight] = useState(null);
   const [highlightStories, setHighlightStories] = useState([]);
   const [highlightStoryIndex, setHighlightStoryIndex] = useState(0);
   const [isHighlightPaused, setIsHighlightPaused] = useState(false);
   const [highlightProgress, setHighlightProgress] = useState(0);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
-  // ── Journal Creator States ────────────────────────────────────────────────
+  // ── 30-Second iTunes Preview & Music Modal States ─────────────────────────
+  const [musicModalTrack, setMusicModalTrack] = useState(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
+  const [audioArtworkUrl, setAudioArtworkUrl] = useState(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(30);
+  const previewAudioRef = useRef(null);
+
+  // ── Camera Viewfinder Modal States ────────────────────────────────────────
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ── Journal Creator & Stickers States ─────────────────────────────────────
   const [newJournalModalOpen, setNewJournalModalOpen] = useState(false);
   const [journalAttachType, setJournalAttachType] = useState('story'); // 'story' | 'post'
   const [selectedItemForJournal, setSelectedItemForJournal] = useState(null);
   const [journalNoteText, setJournalNoteText] = useState('');
+  const [journalStickers, setJournalStickers] = useState([]);
   const [editingItemId, setEditingItemId] = useState(null);
   const [journalDraft, setJournalDraft] = useState('');
   const [isSavingJournal, setIsSavingJournal] = useState(false);
+
+  // ── Paint / Doodle Modal States ───────────────────────────────────────────
+  const [paintModalOpen, setPaintModalOpen] = useState(false);
+  const [drawingColor, setDrawingColor] = useState('#0050EF');
+  const [drawingSize, setDrawingSize] = useState(3);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const paintCanvasRef = useRef(null);
 
   // ── PWA Installation States ───────────────────────────────────────────────
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -119,13 +185,15 @@ export default function PocketCompanion() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [batteryLevel, setBatteryLevel] = useState(null);
 
-  // ── 3D Live Tile Flip States ──────────────────────────────────────────────
+  // ── 3D Live Tile Staggered Flip States ────────────────────────────────────
   const [flipToday, setFlipToday] = useState(false);
-  const [flipMemories, setFlipMemories] = useState(false);
   const [flipFeed, setFlipFeed] = useState(false);
   const [flipJournal, setFlipJournal] = useState(false);
   const [flipHighlights, setFlipHighlights] = useState(false);
-  const [photoCollageIndex, setPhotoCollageIndex] = useState(0);
+  
+  // Independent 4-cell Photos Live Tile flips
+  const [photoSubTileFlips, setPhotoSubTileFlips] = useState([false, false, false, false]);
+  const [photoSubTileIndices, setPhotoSubTileIndices] = useState([0, 1, 2, 3]);
 
   // ── Sync States ───────────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing] = useState(false);
@@ -135,7 +203,6 @@ export default function PocketCompanion() {
 
   const fileInputRef = useRef(null);
   const highlightTimerRef = useRef(null);
-  const storyAudioRef = useRef(null);
 
   const isDark = themeMode === 'dark';
   const bgColor = isDark ? '#000000' : '#FFFFFF';
@@ -229,25 +296,40 @@ export default function PocketCompanion() {
     return () => clearInterval(timer);
   }, []);
 
-  // ── 3. Live Tile Flipping & WP8.1 Photo Collage Cycling ───────────────────
+  // ── 3. WP8.1 Photos Hub Multi-Cell Staggered Live Tile Flips ─────────────
   useEffect(() => {
-    if (!enableLiveFlip) return;
-    const t1 = setInterval(() => setFlipToday(f => !f), 6000);
-    const t2 = setInterval(() => setFlipMemories(f => !f), 7500);
-    const t3 = setInterval(() => setFlipFeed(f => !f), 9000);
-    const t4 = setInterval(() => setFlipJournal(f => !f), 10500);
-    const t5 = setInterval(() => setFlipHighlights(f => !f), 12000);
-    const tPhoto = setInterval(() => {
-      setPhotoCollageIndex(i => (i + 1) % Math.max(1, stories.length));
-    }, 4000);
+    if (!enableLiveFlip || stories.length === 0) return;
+
+    // Flip wide Flashback tile every 7s
+    const t1 = setInterval(() => setFlipToday(f => !f), 7000);
+    const t2 = setInterval(() => setFlipFeed(f => !f), 9500);
+    const t3 = setInterval(() => setFlipJournal(f => !f), 11000);
+    const t4 = setInterval(() => setFlipHighlights(f => !f), 12500);
+
+    // Staggered individual cell flips for Photos Hub Live Tile
+    const cellTimers = [0, 1, 2, 3].map((cellIdx, i) => {
+      const interval = 3500 + i * 1800; // 3.5s, 5.3s, 7.1s, 8.9s
+      return setInterval(() => {
+        setPhotoSubTileFlips(prev => {
+          const next = [...prev];
+          next[cellIdx] = !next[cellIdx];
+          return next;
+        });
+        setPhotoSubTileIndices(prev => {
+          const next = [...prev];
+          next[cellIdx] = (next[cellIdx] + 4) % Math.max(1, stories.length);
+          return next;
+        });
+      }, interval);
+    });
 
     return () => {
-      clearInterval(t1); clearInterval(t2); clearInterval(t3);
-      clearInterval(t4); clearInterval(t5); clearInterval(tPhoto);
+      clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4);
+      cellTimers.forEach(clearInterval);
     };
   }, [enableLiveFlip, stories.length]);
 
-  // ── 4. Highlight Story Player Timer with Real Audio ───────────────────────
+  // ── 4. Highlights Story Player Progress & Progression ─────────────────────
   useEffect(() => {
     if (!activeHighlight || highlightStories.length === 0 || isHighlightPaused) return;
 
@@ -281,7 +363,6 @@ export default function PocketCompanion() {
       if (list.length > 0) {
         setHighlightStories(list);
       } else {
-        // Fallback: match from local stories
         const matched = stories.filter(s => hl.story_ids?.includes(s.id));
         setHighlightStories(matched.length > 0 ? matched : stories.slice(0, 6));
       }
@@ -290,7 +371,100 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 5. Trigger Native PWA App Installation ────────────────────────────────
+  // ── 5. iTunes 30-Second Music Preview Fetcher & Player ────────────────────
+  const handleOpenMusicModal = async (trackTitle, artistName) => {
+    if (!trackTitle) return;
+    triggerSound();
+    setMusicModalTrack({ title: trackTitle, artist: artistName });
+    setAudioPreviewUrl(null);
+    setAudioArtworkUrl(null);
+    setIsPlayingAudio(false);
+    setAudioProgress(0);
+
+    try {
+      const query = encodeURIComponent(`${trackTitle} ${artistName || ''}`);
+      const res = await fetch(`https://itunes.apple.com/search?term=${query}&limit=1&entity=song`);
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        const item = data.results[0];
+        setAudioPreviewUrl(item.previewUrl);
+        if (item.artworkUrl100) {
+          setAudioArtworkUrl(item.artworkUrl100.replace('100x100bb', '400x400bb'));
+        }
+        setIsPlayingAudio(true);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch iTunes preview:', err);
+    }
+  };
+
+  const handleTogglePlayAudio = () => {
+    if (!previewAudioRef.current) return;
+    if (isPlayingAudio) {
+      previewAudioRef.current.pause();
+      setIsPlayingAudio(false);
+    } else {
+      previewAudioRef.current.play().then(() => setIsPlayingAudio(true)).catch(() => {});
+    }
+  };
+
+  // ── 6. Live Camera Viewfinder Engine ──────────────────────────────────────
+  const handleStartCamera = async () => {
+    triggerSound();
+    setCameraModalOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.warn('Camera access denied, fallback to file picker:', err);
+      setCameraModalOpen(false);
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleStopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      setCameraStream(null);
+    }
+    setCameraModalOpen(false);
+  };
+
+  const handleCaptureSnapshot = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    triggerSound();
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 1080;
+    canvas.height = video.videoHeight || 1920;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    handleStopCamera();
+
+    await addPendingMobileUpload({
+      name: `Camera_Capture_${Date.now()}.jpg`,
+      size: Math.round(dataUrl.length * 0.75),
+      type: 'image/jpeg',
+      dataUrl,
+      storyId: selectedStory?.id || null,
+    });
+
+    const st = await getStorageStats();
+    const pending = await getPendingMobileUploads();
+    setStats(st);
+    setPendingUploads(pending);
+    showToast('✓ Photo captured and saved to offline vault!');
+  };
+
+  // ── 7. Native PWA Install Prompt ──────────────────────────────────────────
   const handleInstallPwa = async () => {
     triggerSound();
     if (deferredPrompt) {
@@ -311,7 +485,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 6. ActiveSync Execution ───────────────────────────────────────────────
+  // ── 8. ActiveSync Engine (Binary Blobs + Full Storage) ─────────────────────
   const handleRunSync = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -351,7 +525,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 7. Save Journal Note from Modal or Inline ─────────────────────────────
+  // ── 9. Save Journal Note from Modal or Inline ─────────────────────────────
   const handleSaveNewJournalEntry = async () => {
     const isStoryTarget = journalAttachType === 'story';
     const targetItem = selectedItemForJournal || (isStoryTarget ? stories[0] : posts[0]);
@@ -363,26 +537,29 @@ export default function PocketCompanion() {
     setIsSavingJournal(true);
     triggerSound();
     try {
+      const fullNote = journalStickers.length > 0 ? `${journalNoteText}\n\nStickers: ${journalStickers.join(' ')}` : journalNoteText;
+
       if (isAuthenticated()) {
         if (isStoryTarget) {
-          await updateStory(targetItem.id, { journal_note: journalNoteText });
+          await updateStory(targetItem.id, { journal_note: fullNote });
         } else {
-          await updatePost(targetItem.id, { journal_note: journalNoteText });
+          await updatePost(targetItem.id, { journal_note: fullNote });
         }
       }
       
       if (isStoryTarget) {
-        const updated = stories.map(s => s.id === targetItem.id ? { ...s, journal_note: journalNoteText } : s);
+        const updated = stories.map(s => s.id === targetItem.id ? { ...s, journal_note: fullNote } : s);
         setStories(updated);
         await saveMemoriesOffline(updated);
       } else {
-        const updated = posts.map(p => p.id === targetItem.id ? { ...p, journal_note: journalNoteText } : p);
+        const updated = posts.map(p => p.id === targetItem.id ? { ...p, journal_note: fullNote } : p);
         setPosts(updated);
         await savePostsOffline(updated);
       }
       
       setNewJournalModalOpen(false);
       setJournalNoteText('');
+      setJournalStickers([]);
       setSelectedItemForJournal(null);
       showToast('✓ Journal Entry Saved to Vault!');
     } catch (err) {
@@ -427,7 +604,7 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 8. Add Camera Roll Photo to Vault ─────────────────────────────────────
+  // ── 10. File Pick Fallback ────────────────────────────────────────────────
   const handleFilePicked = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -454,7 +631,7 @@ export default function PocketCompanion() {
     reader.readAsDataURL(file);
   };
 
-  // ── 9. Wipe Offline Storage ───────────────────────────────────────────────
+  // ── 11. Clear Offline Storage ─────────────────────────────────────────────
   const handleClearCache = async () => {
     try {
       const db = await openMobileDB();
@@ -482,11 +659,11 @@ export default function PocketCompanion() {
     }
   };
 
-  // ── 10. Flashback Memories Multi-tier Array ───────────────────────────────
+  // ── 12. Flashback Memories Array ──────────────────────────────────────────
   const flashbacks = getOnThisDayMemories(stories);
   const currentFlashback = flashbacks[flashbackIndex] || flashbacks[0] || stories[0] || null;
 
-  // ── 11. Filtered Story Grid Items ─────────────────────────────────────────
+  // ── 13. Filtered Stories ──────────────────────────────────────────────────
   const filteredStories = stories.filter(s => {
     const musicTitle = s.music?.track_title || s.music_title || '';
     const musicArtist = s.music?.artist_name || s.music_artist || '';
@@ -510,8 +687,6 @@ export default function PocketCompanion() {
     ...posts.filter(p => p.journal_note && p.journal_note.trim().length > 0).map(p => ({ ...p, _isPost: true }))
   ];
 
-  const musicStories = stories.filter(s => s.music?.track_title || s.music_title);
-
   // ── Pivot Tabs ────────────────────────────────────────────────────────────
   const pivotList = [
     { id: 'start', label: 'start' },
@@ -519,12 +694,11 @@ export default function PocketCompanion() {
     { id: 'highlights', label: 'highlights' },
     { id: 'feed', label: 'feed' },
     { id: 'journal', label: 'journal' },
-    { id: 'music', label: 'music' },
     { id: 'settings', label: 'settings' },
   ];
 
   // ── Authentic Metro Toggle Switch Component ───────────────────────────────
-  const MetroToggle = ({ label, checked, onChange }) => (
+  const MetroToggle = ({ label, checked, onText = 'on', offText = 'off', onChange }) => (
     <div 
       onClick={() => { triggerSound(); onChange(!checked); }}
       style={{
@@ -541,7 +715,7 @@ export default function PocketCompanion() {
       <div>
         <div style={{ fontSize: '14px', fontWeight: 300, textTransform: 'lowercase' }}>{label}</div>
         <div style={{ fontSize: '11px', color: checked ? accent : subTextColor, fontWeight: 600 }}>
-          {checked ? 'on' : 'off'}
+          {checked ? onText : offText}
         </div>
       </div>
       <div style={{
@@ -588,7 +762,7 @@ export default function PocketCompanion() {
       boxSizing: 'border-box',
       transition: 'background-color 0.25s ease, color 0.25s ease',
     }}>
-      {/* Hidden File Input for Camera Roll Master Pick */}
+      {/* Hidden File Input & Canvas */}
       <input
         type="file"
         ref={fileInputRef}
@@ -596,6 +770,23 @@ export default function PocketCompanion() {
         accept="image/*,video/*"
         style={{ display: 'none' }}
       />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* Hidden Audio Element for 30s iTunes Previews */}
+      {audioPreviewUrl && (
+        <audio
+          ref={previewAudioRef}
+          src={audioPreviewUrl}
+          autoPlay
+          onEnded={() => setIsPlayingAudio(false)}
+          onTimeUpdate={(e) => {
+            if (e.target.duration) {
+              setAudioProgress((e.target.currentTime / e.target.duration) * 100);
+              setAudioDuration(Math.round(e.target.duration));
+            }
+          }}
+        />
+      )}
 
       {/* ── Toast Notification Banner ───────────────────────── */}
       <AnimatePresence>
@@ -629,6 +820,168 @@ export default function PocketCompanion() {
         )}
       </AnimatePresence>
 
+      {/* ── LIVE CAMERA VIEWFINDER MODAL ────────────────────── */}
+      {cameraModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: '#000000',
+          zIndex: 100000,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <div style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em' }}>VAULT CAMERA</div>
+            <X size={24} style={{ cursor: 'pointer' }} onClick={handleStopCamera} />
+          </div>
+
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+
+          <div style={{ padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#000' }}>
+            <button
+              onClick={() => { handleStopCamera(); fileInputRef.current?.click(); }}
+              style={{ background: 'none', border: 'none', color: '#FFF', fontSize: '12px', cursor: 'pointer' }}
+            >
+              Gallery
+            </button>
+
+            {/* Circular Shutter Button */}
+            <div
+              onClick={handleCaptureSnapshot}
+              style={{
+                width: '68px',
+                height: '68px',
+                borderRadius: '50%',
+                border: '4px solid #FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: accent }} />
+            </div>
+
+            <div style={{ width: '40px' }} />
+          </div>
+        </div>
+      )}
+
+      {/* ── 30-SECOND MUSIC PREVIEW MODAL ───────────────────── */}
+      {musicModalTrack && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 100000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+        }}>
+          <div style={{
+            backgroundColor: surfaceColor,
+            borderLeft: `4px solid #1DB954`,
+            padding: '20px',
+            maxWidth: '380px',
+            width: '100%',
+            color: textColor,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '14px',
+          }}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#1DB954', letterSpacing: '0.08em' }}>
+                SOUNDTRACK PREVIEW
+              </div>
+              <X size={18} style={{ cursor: 'pointer' }} onClick={() => setMusicModalTrack(null)} />
+            </div>
+
+            {/* Album Artwork */}
+            <div style={{
+              width: '140px',
+              height: '140px',
+              backgroundColor: '#000',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {audioArtworkUrl ? (
+                <img src={audioArtworkUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Album Art" />
+              ) : (
+                <Music size={48} color="#1DB954" />
+              )}
+            </div>
+
+            {/* Track Info */}
+            <div style={{ textAlign: 'center', maxWidth: '90%' }}>
+              <div style={{ fontSize: '16px', fontWeight: 600 }}>{musicModalTrack.title}</div>
+              <div style={{ fontSize: '12px', color: subTextColor, marginTop: '2px' }}>{musicModalTrack.artist || 'Original Soundtrack'}</div>
+            </div>
+
+            {/* Audio Progress Bar */}
+            <div style={{ width: '100%', height: '4px', backgroundColor: borderColor, position: 'relative' }}>
+              <div style={{ height: '100%', backgroundColor: '#1DB954', width: `${audioProgress}%` }} />
+            </div>
+
+            {/* Play/Pause Button */}
+            {audioPreviewUrl && (
+              <button
+                onClick={handleTogglePlayAudio}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1DB954',
+                  border: 'none',
+                  color: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                {isPlayingAudio ? <Pause size={20} /> : <Play size={20} style={{ marginLeft: '2px' }} />}
+              </button>
+            )}
+
+            {/* Streaming Badges */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '6px' }}>
+              <a
+                href={`https://open.spotify.com/search/${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ backgroundColor: '#1DB954', color: '#000', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
+              >
+                Spotify ↗
+              </a>
+              <a
+                href={`https://music.apple.com/us/search?term=${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ backgroundColor: '#FC3C44', color: '#FFF', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
+              >
+                Apple Music ↗
+              </a>
+              <a
+                href={`https://music.youtube.com/search?q=${encodeURIComponent(musicModalTrack.title + ' ' + (musicModalTrack.artist || ''))}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ backgroundColor: '#FF0000', color: '#FFF', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
+              >
+                YouTube Music ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── iOS Install Instructions Modal ──────────────────── */}
       {showIosInstructions && (
         <div style={{
@@ -658,15 +1011,7 @@ export default function PocketCompanion() {
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowIosInstructions(false)}
-                style={{
-                  backgroundColor: accent,
-                  border: 'none',
-                  color: '#FFFFFF',
-                  padding: '6px 16px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                style={{ backgroundColor: accent, border: 'none', color: '#FFFFFF', padding: '6px 16px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >
                 got it
               </button>
@@ -702,29 +1047,13 @@ export default function PocketCompanion() {
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setConfirmClearOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: `2px solid ${borderColor}`,
-                  color: textColor,
-                  padding: '6px 16px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                style={{ background: 'transparent', border: `2px solid ${borderColor}`, color: textColor, padding: '6px 16px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >
                 cancel
               </button>
               <button
                 onClick={handleClearCache}
-                style={{
-                  backgroundColor: '#A20025',
-                  border: 'none',
-                  color: '#FFFFFF',
-                  padding: '6px 16px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                style={{ backgroundColor: '#A20025', border: 'none', color: '#FFFFFF', padding: '6px 16px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >
                 clear now
               </button>
@@ -780,7 +1109,7 @@ export default function PocketCompanion() {
               ))}
             </div>
 
-            {/* Story Header with Title & Audio Mute Toggle */}
+            {/* Story Header */}
             <div style={{
               position: 'absolute',
               top: '18px',
@@ -807,7 +1136,7 @@ export default function PocketCompanion() {
                   overflow: 'hidden',
                 }}>
                   {activeHighlight.cover_media_url || activeHighlight.preview_stories?.[0] ? (
-                    <img src={activeHighlight.cover_media_url || activeHighlight.preview_stories?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cover" />
+                    <OfflineMedia src={activeHighlight.cover_media_url || activeHighlight.preview_stories?.[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cover" />
                   ) : (
                     activeHighlight.title?.slice(0, 2).toUpperCase() || 'HL'
                   )}
@@ -821,22 +1150,29 @@ export default function PocketCompanion() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Pause/Play Button */}
+                <button
+                  onClick={() => setIsHighlightPaused(!isHighlightPaused)}
+                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
+                >
+                  {isHighlightPaused ? <Play size={16} /> : <Pause size={16} />}
+                </button>
                 <button
                   onClick={() => setIsAudioMuted(!isAudioMuted)}
                   style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
                 >
-                  {isAudioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  {isAudioMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 </button>
                 <button
                   onClick={() => { triggerSound(); setActiveHighlight(null); }}
                   style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* Main Media Viewport with Tap Navigation & Video/Audio Playback */}
+            {/* Main Media Viewport with Tap Navigation */}
             <div
               style={{
                 flex: 1,
@@ -852,18 +1188,20 @@ export default function PocketCompanion() {
               onTouchEnd={() => setIsHighlightPaused(false)}
             >
               {highlightStories[highlightStoryIndex]?.media_type === 2 ? (
-                <video
+                <OfflineMedia
                   key={highlightStories[highlightStoryIndex]?.id}
                   src={highlightStories[highlightStoryIndex]?.media_url}
+                  type="video"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   autoPlay
                   playsInline
                   muted={isAudioMuted}
                 />
               ) : (
-                <img
+                <OfflineMedia
                   key={highlightStories[highlightStoryIndex]?.id}
                   src={highlightStories[highlightStoryIndex]?.media_url}
+                  type="image"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   alt="Story"
                 />
@@ -896,7 +1234,7 @@ export default function PocketCompanion() {
               />
             </div>
 
-            {/* Bottom Story Caption & Animated Soundwave Music Sticker */}
+            {/* Bottom Story Caption & Music Sticker */}
             <div style={{
               padding: '16px',
               background: 'linear-gradient(transparent, rgba(0,0,0,0.92))',
@@ -909,24 +1247,28 @@ export default function PocketCompanion() {
                 </div>
               )}
               {(highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title) && (
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  backgroundColor: 'rgba(0, 80, 239, 0.35)',
-                  border: `1px solid ${accent}`,
-                  padding: '6px 12px',
-                  borderRadius: '16px',
-                  fontSize: '11px',
-                  color: '#FFFFFF',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '12px' }}>
-                    <div style={{ width: '2px', height: '100%', backgroundColor: accent, animation: 'equalize 0.8s infinite alternate' }} />
-                    <div style={{ width: '2px', height: '60%', backgroundColor: accent, animation: 'equalize 0.5s infinite alternate-reverse' }} />
-                    <div style={{ width: '2px', height: '80%', backgroundColor: accent, animation: 'equalize 0.7s infinite alternate' }} />
-                  </div>
+                <div 
+                  onClick={() => handleOpenMusicModal(
+                    highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title,
+                    highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist
+                  )}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: 'rgba(0, 80, 239, 0.4)',
+                    border: `1px solid ${accent}`,
+                    padding: '6px 12px',
+                    borderRadius: '16px',
+                    fontSize: '11px',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Music size={13} color="#FFF" />
                   <span style={{ fontWeight: 600 }}>{highlightStories[highlightStoryIndex]?.music?.track_title || highlightStories[highlightStoryIndex]?.music_title}</span>
                   <span style={{ opacity: 0.75 }}>• {highlightStories[highlightStoryIndex]?.music?.artist_name || highlightStories[highlightStoryIndex]?.music_artist || 'Artist'}</span>
+                  <span style={{ fontSize: '9px', backgroundColor: accent, padding: '2px 4px', borderRadius: '4px' }}>PLAY ♫</span>
                 </div>
               )}
             </div>
@@ -961,7 +1303,7 @@ export default function PocketCompanion() {
               <X size={18} style={{ cursor: 'pointer' }} onClick={() => setNewJournalModalOpen(false)} />
             </div>
 
-            {/* Target Type Selector (Memories vs Feed Posts) */}
+            {/* Target Type Selector */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <button
                 onClick={() => { setJournalAttachType('story'); setSelectedItemForJournal(null); }}
@@ -997,14 +1339,14 @@ export default function PocketCompanion() {
               1. TAP PHOTO TO ATTACH JOURNAL NOTE:
             </div>
 
-            {/* Item Picker Horizontal Scroll */}
+            {/* Item Picker */}
             <div style={{
               display: 'flex',
               gap: '6px',
               overflowX: 'auto',
               paddingBottom: '8px',
               scrollbarWidth: 'none',
-              marginBottom: '14px',
+              marginBottom: '12px',
             }}>
               {(journalAttachType === 'story' ? stories : posts).map(item => {
                 const isSelected = selectedItemForJournal?.id === item.id;
@@ -1024,11 +1366,12 @@ export default function PocketCompanion() {
                       overflow: 'hidden',
                     }}
                   >
-                    {item.media_type === 2 ? (
-                      <video src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                    ) : (
-                      <img src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Thumb" />
-                    )}
+                    <OfflineMedia
+                      src={mediaUrl}
+                      type={item.media_type === 2 ? 'video' : 'image'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      alt="Thumb"
+                    />
                     {isSelected && (
                       <div style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: '#008A00', borderRadius: '50%', padding: '2px' }}>
                         <Check size={10} color="#FFF" />
@@ -1039,11 +1382,37 @@ export default function PocketCompanion() {
               })}
             </div>
 
-            {selectedItemForJournal && (
-              <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#008A00', marginBottom: '6px' }}>
-                Attached to: {selectedItemForJournal.location_name || (selectedItemForJournal.taken_at ? new Date(selectedItemForJournal.taken_at).toLocaleDateString() : 'Selected Item')}
+            {/* Sticker Tray */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '4px' }}>
+                ATTACH STICKERS:
               </div>
-            )}
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                {JOURNAL_STICKERS.map(s => {
+                  const active = journalStickers.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        triggerSound();
+                        if (active) setJournalStickers(journalStickers.filter(x => x !== s));
+                        else setJournalStickers([...journalStickers, s]);
+                      }}
+                      style={{
+                        backgroundColor: active ? '#008A00' : cardColor,
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '4px' }}>
               2. WRITE YOUR JOURNAL NOTE:
@@ -1076,7 +1445,7 @@ export default function PocketCompanion() {
               </button>
               <button
                 onClick={handleSaveNewJournalEntry}
-                disabled={isSavingJournal || !journalNoteText.trim()}
+                disabled={isSavingJournal || (!journalNoteText.trim() && journalStickers.length === 0)}
                 style={{
                   backgroundColor: '#008A00',
                   border: 'none',
@@ -1085,7 +1454,7 @@ export default function PocketCompanion() {
                   fontSize: '12px',
                   fontWeight: 'bold',
                   cursor: 'pointer',
-                  opacity: journalNoteText.trim() ? 1 : 0.5,
+                  opacity: (journalNoteText.trim() || journalStickers.length > 0) ? 1 : 0.5,
                 }}
               >
                 {isSavingJournal ? 'saving...' : 'save to vault'}
@@ -1246,11 +1615,12 @@ export default function PocketCompanion() {
                   }}>
                     {currentFlashback && (
                       <div style={{ width: '42%', height: '100%', backgroundColor: '#000' }}>
-                        {currentFlashback.media_type === 2 ? (
-                          <video src={currentFlashback.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                        ) : (
-                          <img src={currentFlashback.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Flashback" />
-                        )}
+                        <OfflineMedia
+                          src={currentFlashback.media_url}
+                          type={currentFlashback.media_type === 2 ? 'video' : 'image'}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          alt="Flashback"
+                        />
                       </div>
                     )}
                     <div style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -1305,7 +1675,7 @@ export default function PocketCompanion() {
                   </div>
                 </motion.div>
 
-                {/* Next/Prev Cycle Controls for Flashbacks */}
+                {/* Next/Prev Cycle Controls */}
                 {flashbacks.length > 1 && (
                   <div
                     style={{ position: 'absolute', bottom: '6px', right: '6px', display: 'flex', gap: '4px', zIndex: 20 }}
@@ -1337,7 +1707,7 @@ export default function PocketCompanion() {
                 gridTemplateColumns: 'repeat(2, 1fr)',
                 gap: '12px',
               }}>
-                {/* Tile 2: Dynamic Multi-Photo Live Tile (WP8.1 Collage) */}
+                {/* Tile 2: Dynamic Multi-Cell Photos Live Tile (WP8.1 Living Collage) */}
                 <motion.div
                   whileTap={{ scale: 0.96 }}
                   onClick={() => { triggerSound(); setActivePivot('memories'); }}
@@ -1359,11 +1729,32 @@ export default function PocketCompanion() {
                       gap: '2px',
                       backgroundColor: '#000',
                     }}>
-                      {[0, 1, 2, 3].map(offset => {
-                        const s = stories[(photoCollageIndex + offset) % stories.length];
+                      {[0, 1, 2, 3].map(cellIdx => {
+                        const s = stories[photoSubTileIndices[cellIdx] % stories.length];
+                        const isFlipped = photoSubTileFlips[cellIdx];
                         return (
-                          <div key={offset} style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
-                            <img src={s.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Collage" />
+                          <div
+                            key={cellIdx}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              perspective: '600px',
+                              overflow: 'hidden',
+                              position: 'relative',
+                            }}
+                          >
+                            <motion.div
+                              animate={{ rotateY: isFlipped ? 180 : 0 }}
+                              transition={{ duration: 0.6, ease: 'easeInOut' }}
+                              style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
+                            >
+                              <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+                                <OfflineMedia src={s?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
+                              </div>
+                              <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                                <OfflineMedia src={stories[(photoSubTileIndices[cellIdx] + 1) % stories.length]?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
+                              </div>
+                            </motion.div>
                           </div>
                         );
                       })}
@@ -1434,7 +1825,7 @@ export default function PocketCompanion() {
                       <Sparkles size={28} />
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 400 }}>highlights</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || '3'}</div>
+                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || stories.length ? (highlights.length || 'Albums') : 0}</div>
                       </div>
                     </div>
 
@@ -1452,7 +1843,7 @@ export default function PocketCompanion() {
                       borderLeft: `4px solid #FA6800`,
                     }}>
                       <div style={{ fontSize: '11px', color: '#FA6800', fontWeight: 700 }}>story reels</div>
-                      <div style={{ fontSize: '12px' }}>play full-screen stories with sound</div>
+                      <div style={{ fontSize: '12px' }}>play stories with sound</div>
                       <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to play</div>
                     </div>
                   </motion.div>
@@ -1582,10 +1973,10 @@ export default function PocketCompanion() {
                 </motion.div>
               </div>
 
-              {/* Tile 6: Vault Camera Tile (Wide 4x1) */}
+              {/* Tile 6: Vault Camera Tile (Live Capture & Viewfinder) */}
               <motion.div
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { triggerSound(); fileInputRef.current?.click(); }}
+                onClick={handleStartCamera}
                 style={{
                   width: '100%',
                   backgroundColor: '#F09609',
@@ -1601,7 +1992,7 @@ export default function PocketCompanion() {
                   <Camera size={24} />
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 400 }}>vault camera</div>
-                    <div style={{ fontSize: '11px', opacity: 0.9 }}>+ upload master photo to vault</div>
+                    <div style={{ fontSize: '11px', opacity: 0.9 }}>+ take live photo / upload master</div>
                   </div>
                 </div>
                 <Plus size={20} />
@@ -1709,7 +2100,7 @@ export default function PocketCompanion() {
                             overflow: 'hidden',
                           }}>
                             {coverUrl ? (
-                              <img src={coverUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt={hl.title} />
+                              <OfflineMedia src={coverUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt={hl.title} />
                             ) : (
                               <div style={{ width: '100%', height: '100%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '14px', borderRadius: '50%' }}>
                                 {hl.title?.slice(0, 2).toUpperCase() || 'HL'}
@@ -1810,11 +2201,12 @@ export default function PocketCompanion() {
                         overflow: 'hidden',
                       }}
                     >
-                      {story.media_type === 2 ? (
-                        <video src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                      ) : (
-                        <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" alt="Memory" />
-                      )}
+                      <OfflineMedia
+                        src={story.media_url}
+                        type={story.media_type === 2 ? 'video' : 'image'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        alt="Memory"
+                      />
                       
                       {story.journal_note && (
                         <div style={{
@@ -1899,65 +2291,61 @@ export default function PocketCompanion() {
                 border: `1px solid ${accent}`,
                 overflow: 'hidden',
               }}>
-                {selectedStory.media_type === 2 ? (
-                  <video src={selectedStory.media_url} style={{ width: '100%', maxHeight: '55vh', objectFit: 'contain' }} controls autoPlay playsInline />
-                ) : (
-                  <img src={selectedStory.media_url} style={{ width: '100%', maxHeight: '55vh', objectFit: 'contain', display: 'block', margin: '0 auto' }} alt="Detail" />
-                )}
+                <OfflineMedia
+                  src={selectedStory.media_url}
+                  type={selectedStory.media_type === 2 ? 'video' : 'image'}
+                  style={{ width: '100%', maxHeight: '55vh', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                  controls={selectedStory.media_type === 2}
+                  autoPlay={selectedStory.media_type === 2}
+                  playsInline
+                  alt="Detail"
+                />
               </div>
 
-              {/* Music & Audio Streaming Links */}
+              {/* Music & 30-Second Preview Launcher */}
               {(selectedStory.music?.track_title || selectedStory.music_title) && (
-                <div style={{
-                  backgroundColor: surfaceColor,
-                  padding: '10px 14px',
-                  borderLeft: `4px solid #1DB954`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1DB954', fontSize: '11px', fontWeight: 'bold' }}>
-                    <Music size={12} />
-                    <span>SOUNDTRACK: {selectedStory.music?.track_title || selectedStory.music_title} — {selectedStory.music?.artist_name || selectedStory.music_artist || 'Artist'}</span>
+                <div 
+                  onClick={() => handleOpenMusicModal(
+                    selectedStory.music?.track_title || selectedStory.music_title,
+                    selectedStory.music?.artist_name || selectedStory.music_artist
+                  )}
+                  style={{
+                    backgroundColor: surfaceColor,
+                    padding: '10px 14px',
+                    borderLeft: `4px solid #1DB954`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Music size={16} color="#1DB954" />
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1DB954' }}>
+                        {selectedStory.music?.track_title || selectedStory.music_title}
+                      </div>
+                      <div style={{ fontSize: '10px', color: subTextColor }}>
+                        {selectedStory.music?.artist_name || selectedStory.music_artist || 'Artist'} • Tap to listen preview ♫
+                      </div>
+                    </div>
                   </div>
-                  
-                  {/* Streaming Badges */}
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    <a
-                      href={`https://open.spotify.com/search/${encodeURIComponent((selectedStory.music?.track_title || selectedStory.music_title) + ' ' + (selectedStory.music?.artist_name || selectedStory.music_artist || ''))}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ backgroundColor: '#1DB954', color: '#000', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-                    >
-                      Spotify ↗
-                    </a>
-                    <a
-                      href={`https://music.apple.com/us/search?term=${encodeURIComponent((selectedStory.music?.track_title || selectedStory.music_title) + ' ' + (selectedStory.music?.artist_name || selectedStory.music_artist || ''))}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ backgroundColor: '#FC3C44', color: '#fff', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-                    >
-                      Apple Music ↗
-                    </a>
-                    <a
-                      href={`https://music.youtube.com/search?q=${encodeURIComponent((selectedStory.music?.track_title || selectedStory.music_title) + ' ' + (selectedStory.music?.artist_name || selectedStory.music_artist || ''))}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ backgroundColor: '#FF0000', color: '#fff', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' }}
-                    >
-                      YouTube Music ↗
-                    </a>
-                  </div>
+                  <span style={{ fontSize: '10px', backgroundColor: '#1DB954', color: '#000', padding: '3px 8px', fontWeight: 'bold' }}>
+                    PLAY ♫
+                  </span>
                 </div>
               )}
 
-              {/* Location & Metadata */}
+              {/* Timestamp & Location Metadata */}
               <div style={{ backgroundColor: surfaceColor, padding: '12px' }}>
                 <div style={{ fontSize: '16px', fontWeight: 300 }}>
-                  {selectedStory.location_name || 'Archived Memory'}
+                  {selectedStory.location_name || 'Archived Story Memory'}
                 </div>
-                <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
-                  {selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : ''}
+                <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : ''}</span>
+                  {selectedStory.is_close_friends && (
+                    <span style={{ color: '#008A00', fontWeight: 'bold' }}>🟢 Close Friends</span>
+                  )}
                 </div>
 
                 {selectedStory.caption_text && (
@@ -2033,9 +2421,9 @@ export default function PocketCompanion() {
                 )}
               </div>
 
-              {/* Add Master Photo Button */}
+              {/* Camera Master Photo Attach */}
               <button
-                onClick={() => { triggerSound(); fileInputRef.current?.click(); }}
+                onClick={handleStartCamera}
                 style={{
                   backgroundColor: accent,
                   color: '#ffffff',
@@ -2050,8 +2438,8 @@ export default function PocketCompanion() {
                   cursor: 'pointer',
                 }}
               >
-                <Plus size={16} />
-                <span>Add Camera Roll Photo to this Memory</span>
+                <Camera size={16} />
+                <span>Capture / Attach Master Photo to Memory</span>
               </button>
             </div>
           )}
@@ -2091,7 +2479,7 @@ export default function PocketCompanion() {
                       }}
                     >
                       {coverUrl && (
-                        <img
+                        <OfflineMedia
                           src={coverUrl}
                           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.45 }}
                           alt="Highlight Cover"
@@ -2100,7 +2488,7 @@ export default function PocketCompanion() {
                       <Sparkles size={24} style={{ zIndex: 2 }} />
                       <div style={{ zIndex: 2 }}>
                         <div style={{ fontSize: '14px', fontWeight: 600 }}>{hl.title}</div>
-                        <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>Tap to play stories</div>
+                        <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>Tap to play stories with audio</div>
                       </div>
                     </motion.div>
                   );
@@ -2194,9 +2582,7 @@ export default function PocketCompanion() {
                           overflow: 'hidden',
                         }}
                       >
-                        {mediaUrl && (
-                          <img src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Post" />
-                        )}
+                        <OfflineMedia src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Post" />
                         {isCarousel && (
                           <div style={{
                             position: 'absolute',
@@ -2247,11 +2633,9 @@ export default function PocketCompanion() {
                           </div>
                         </div>
 
-                        {/* Image Carousel */}
+                        {/* Image Canvas */}
                         <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#000', position: 'relative' }}>
-                          {mediaUrl && (
-                            <img src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Post" />
-                          )}
+                          <OfflineMedia src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Post" />
                         </div>
 
                         {/* Card Details */}
@@ -2328,7 +2712,7 @@ export default function PocketCompanion() {
 
                       return (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                          <img src={url} style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }} alt="Fullscreen Post" />
+                          <OfflineMedia src={url} style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }} alt="Fullscreen Post" />
 
                           {/* Multi-slide carousel indicator */}
                           {mediaList.length > 1 && (
@@ -2443,7 +2827,7 @@ export default function PocketCompanion() {
                   <BookOpen size={36} color="#008A00" style={{ margin: '0 auto 10px auto' }} />
                   <div style={{ fontSize: '14px', fontWeight: 300 }}>no journal entries written yet</div>
                   <div style={{ fontSize: '11px', color: subTextColor, marginTop: '4px' }}>
-                    Tap "+ NEW ENTRY" above to select a memory or post and write your first journal entry.
+                    Tap "+ NEW ENTRY" above to select a memory or post and write your reflections and attach stickers.
                   </div>
                   <button
                     onClick={() => setNewJournalModalOpen(true)}
@@ -2481,11 +2865,12 @@ export default function PocketCompanion() {
                         }}
                       >
                         <div style={{ width: '60px', height: '60px', backgroundColor: '#000', flexShrink: 0 }}>
-                          {item.media_type === 2 ? (
-                            <video src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                          ) : (
-                            <img src={mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Thumbnail" />
-                          )}
+                          <OfflineMedia
+                            src={mediaUrl}
+                            type={item.media_type === 2 ? 'video' : 'image'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            alt="Thumbnail"
+                          />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '11px', fontWeight: 700, color: '#008A00' }}>
@@ -2504,78 +2889,7 @@ export default function PocketCompanion() {
           )}
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 6: MUSIC & SOUNDTRACKS HUB
-             ══════════════════════════════════════════════════════ */}
-          {activePivot === 'music' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
-                {musicStories.length} STORY SOUNDTRACKS IN VAULT
-              </div>
-
-              {musicStories.length === 0 ? (
-                <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center' }}>
-                  <Music size={36} color="#A20025" style={{ margin: '0 auto 10px auto' }} />
-                  <div style={{ fontSize: '14px', fontWeight: 300 }}>no soundtrack metadata found</div>
-                  <div style={{ fontSize: '11px', color: subTextColor, marginTop: '4px' }}>
-                    Stories with attached Spotify/Instagram music will appear here with instant streaming links.
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {musicStories.map(story => {
-                    const title = story.music?.track_title || story.music_title;
-                    const artist = story.music?.artist_name || story.music_artist || 'Artist';
-                    return (
-                      <div
-                        key={story.id}
-                        style={{
-                          backgroundColor: surfaceColor,
-                          borderLeft: `4px solid #A20025`,
-                          padding: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                          <div style={{ width: '44px', height: '44px', backgroundColor: '#A20025', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0 }}>
-                            <Music size={20} />
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
-                            <div style={{ fontSize: '11px', color: subTextColor }}>{artist}</div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                          <a
-                            href={`https://open.spotify.com/search/${encodeURIComponent(title + ' ' + artist)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ backgroundColor: '#1DB954', color: '#000', padding: '4px 8px', fontSize: '9px', fontWeight: 'bold', textDecoration: 'none' }}
-                          >
-                            Spotify
-                          </a>
-                          <a
-                            href={`https://music.apple.com/us/search?term=${encodeURIComponent(title + ' ' + artist)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ backgroundColor: '#FC3C44', color: '#FFF', padding: '4px 8px', fontSize: '9px', fontWeight: 'bold', textDecoration: 'none' }}
-                          >
-                            Apple
-                          </a>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════
-              PIVOT 7: SETTINGS & STORAGE SENSE
+              PIVOT 6: SETTINGS & STORAGE SENSE
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'settings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -2617,21 +2931,34 @@ export default function PocketCompanion() {
                   <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
                     instagram archive
                   </div>
-                  <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid ${accent}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '14px', overflow: 'hidden' }}>
-                      {igSession.profile_pic_url ? (
-                        <img src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
-                      ) : (
-                        <UserIcon size={22} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600 }}>@{igSession.username || 'instagram_user'}</div>
-                      <div style={{ fontSize: '11px', color: '#008A00', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                        <CheckCircle2 size={12} />
-                        <span>Connected & Archiving Active</span>
+                  <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid ${accent}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '14px', overflow: 'hidden' }}>
+                        {igSession.profile_pic_url ? (
+                          <img src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
+                        ) : (
+                          <UserIcon size={22} />
+                        )}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>@{igSession.username || 'user'}</div>
+                        <div style={{ fontSize: '11px', color: '#008A00', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                          <CheckCircle2 size={12} />
+                          <span>Connected & Archiving</span>
+                        </div>
                       </div>
                     </div>
+
+                    {igSession.username && (
+                      <a
+                        href={`https://instagram.com/${igSession.username}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ backgroundColor: accent, color: '#FFF', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none' }}
+                      >
+                        Profile ↗
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
@@ -2643,8 +2970,10 @@ export default function PocketCompanion() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <MetroToggle
-                    label={`theme: ${themeMode}`}
+                    label={`theme`}
                     checked={isDark}
+                    onText="dark"
+                    offText="light"
                     onChange={(checked) => {
                       const newMode = checked ? 'dark' : 'light';
                       setThemeMode(newMode);
@@ -2655,6 +2984,8 @@ export default function PocketCompanion() {
                   <MetroToggle
                     label="3D live tile animations"
                     checked={enableLiveFlip}
+                    onText="on"
+                    offText="off"
                     onChange={(checked) => {
                       setEnableLiveFlip(checked);
                       localStorage.setItem('metro_live_flip', String(checked));
@@ -2664,6 +2995,8 @@ export default function PocketCompanion() {
                   <MetroToggle
                     label="system sound effects"
                     checked={soundEnabled}
+                    onText="on"
+                    offText="off"
                     onChange={(checked) => {
                       setSoundEnabled(checked);
                       localStorage.setItem('metro_sound', String(checked));
@@ -2745,6 +3078,8 @@ export default function PocketCompanion() {
                   <MetroToggle
                     label="auto-sync on app launch"
                     checked={autoSyncOnOpen}
+                    onText="on"
+                    offText="off"
                     onChange={(checked) => {
                       setAutoSyncOnOpen(checked);
                       localStorage.setItem('metro_auto_sync', String(checked));

@@ -2614,3 +2614,42 @@ ul { list-style: none; }
 [data-theme-id='win98'] .settings-theme-swatch.is-selected * {
   color: #ffffff !important;
 }
+
+/* ── MDEditor & Journal Text High Contrast Fixes ── */
+.w-md-editor {
+  background-color: var(--ios-bg-card, #1c1c1e) !important;
+  color: var(--ios-text-primary, #ffffff) !important;
+}
+
+[data-theme-id='win98'] .w-md-editor,
+[data-theme='light'] .w-md-editor {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+[data-theme-id='win98'] .w-md-editor textarea,
+[data-theme-id='win98'] .w-md-editor .w-md-editor-text,
+[data-theme-id='win98'] .w-md-editor .w-md-editor-text-input,
+[data-theme-id='win98'] .w-md-editor .w-md-editor-text-pre,
+[data-theme-id='win98'] .w-md-editor-preview,
+[data-theme='light'] .w-md-editor textarea,
+[data-theme='light'] .w-md-editor .w-md-editor-text,
+[data-theme='light'] .w-md-editor .w-md-editor-text-input,
+[data-theme='light'] .w-md-editor .w-md-editor-text-pre,
+[data-theme='light'] .w-md-editor-preview {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+}
+
+.w-md-editor-text-input {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+[data-theme-id='win98'] textarea,
+[data-theme-id='win98'] input[type="text"] {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+}

@@ -146,24 +146,6 @@ export default function SyntaxJsonViewer({ data, filename = "DATA_STREAM.JSON" }
           </button>
         </div>
 
-        {/* Notepad Classic Menu Bar */}
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          padding: '2px 6px',
-          backgroundColor: '#c0c0c0',
-          borderBottom: '1px solid #808080',
-          boxShadow: '0 1px 0 #ffffff',
-          fontSize: '11px',
-          color: '#000000',
-          userSelect: 'none',
-        }}>
-          <span><u>F</u>ile</span>
-          <span><u>E</u>dit</span>
-          <span><u>S</u>earch</span>
-          <span><u>H</u>elp</span>
-        </div>
-
         {/* 3D Sunken White Code Viewport with Line Numbers */}
         <div style={{
           backgroundColor: '#ffffff',

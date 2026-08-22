@@ -131,9 +131,23 @@ export default function Win98Shell({ children }) {
 
   const startMenuRef = useRef(null);
   const resourcePopupRef = useRef(null);
+  const menuBarRef = useRef(null);
 
   const currentApp = resolveAppInfo(location.pathname);
   const CurrentIcon = currentApp.icon;
+
+  // Click outside to close active menu ribbon
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuBarRef.current && !menuBarRef.current.contains(e.target)) {
+        setActiveMenu(null);
+      }
+    }
+    if (activeMenu) {
+      document.addEventListener('pointerdown', handleClickOutside);
+      return () => document.removeEventListener('pointerdown', handleClickOutside);
+    }
+  }, [activeMenu]);
 
   useEffect(() => {
     // Play startup chime on session init
@@ -503,7 +517,7 @@ export default function Win98Shell({ children }) {
           </div>
 
           {/* ── Menu Bar ── */}
-          <div className="win98-menu-bar">
+          <div className="win98-menu-bar" ref={menuBarRef}>
             {Object.keys(menuItems).map((menu) => (
               <div key={menu} style={{ position: 'relative' }}>
                 <button

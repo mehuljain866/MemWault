@@ -194,15 +194,42 @@ export default function StoryDetail() {
 
   const InfoRow = ({ icon: Icon, label, value, children }) => (
     <div 
-      style={{ display: 'flex', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid var(--ios-border)' }}
+      style={{ 
+        display: 'flex', 
+        alignItems: 'flex-start', 
+        padding: isWin98 ? '8px 0' : '12px 0', 
+        borderBottom: '1px solid var(--ios-border)',
+        gap: '12px'
+      }}
     >
-      <div style={{ color: 'var(--ios-accent)', marginRight: '16px', marginTop: '2px', background: 'rgba(10, 132, 255, 0.1)', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={18} />
+      <div style={isWin98 ? {
+        color: '#000080',
+        background: '#c0c0c0',
+        border: '1px solid #000000',
+        boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+        padding: '5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: '2px'
+      } : {
+        color: 'var(--ios-accent)',
+        background: 'rgba(10, 132, 255, 0.1)',
+        padding: '7px',
+        borderRadius: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: '2px'
+      }}>
+        <Icon size={16} />
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ios-text-secondary)', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
-        <div style={{ fontSize: '15px', color: 'var(--ios-text-primary)', fontWeight: 500 }}>{value}</div>
-        {children && <div style={{ marginTop: '8px' }}>{children}</div>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: isWin98 ? '#444444' : 'var(--ios-text-secondary)', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '2px' }}>{label}</div>
+        <div style={{ fontSize: isWin98 ? '12px' : '14px', color: 'var(--ios-text-primary)', fontWeight: 600, wordBreak: 'break-word' }}>{value}</div>
+        {children && <div style={{ marginTop: '6px' }}>{children}</div>}
       </div>
     </div>
   )
@@ -498,11 +525,11 @@ export default function StoryDetail() {
         <div style={{
           flex: '1 1 400px',
           minWidth: 0,
-          backgroundColor: 'var(--ios-bg-card)',
-          borderRadius: '24px',
-          padding: '24px',
-          boxShadow: 'var(--ios-shadow-md)',
-          border: '1px solid var(--ios-border)',
+          backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+          borderRadius: isWin98 ? '0' : '24px',
+          padding: isWin98 ? '14px 16px' : '24px',
+          boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 8px rgba(0,0,0,0.3)' : 'var(--ios-shadow-md)',
+          border: isWin98 ? '1px solid #000000' : '1px solid var(--ios-border)',
         }}>
           {/* Tab Nav */}
           <SegmentedControl 
@@ -665,7 +692,7 @@ export default function StoryDetail() {
                     </InfoRow>
                   )}
 
-                  {story.og_reel_media_id && (
+                  {story.is_reel && story.og_reel_media_id && (
                     <InfoRow icon={BarChart2} label="Original Reel Stats" value="">
                       <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
                         <div><span style={{ fontWeight: 600 }}>{story.og_reel_likes?.toLocaleString() || 0}</span> Likes</div>

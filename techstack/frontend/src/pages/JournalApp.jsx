@@ -25,9 +25,9 @@ function getMediaUrl(item) {
   if (!item) return ''
   if (item.media_items && item.media_items.length > 0) {
     const first = item.media_items[0]
-    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || ''
+    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || first.thumbnail_url || ''
   }
-  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || ''
+  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || item.thumbnail_url || (item.s3_key_compressed ? `/media/${item.s3_key_compressed}` : '') || ''
 }
 
 export default function JournalApp() {
@@ -76,13 +76,13 @@ export default function JournalApp() {
       // Filter only stories that have journal notes or doodles
       const journalItems = list.filter(s => 
         (s.journal_note && s.journal_note.trim().length > 0) || 
-        Boolean(localStorage.getItem(`memwault_doodles_${s.id}`))
+        Boolean(localStorage.getItem(`memwault_doodles_${s.id}`)) ||
+        Boolean(localStorage.getItem(`memwault_stickers_${s.id}`))
       )
 
       if (journalItems.length > 0) {
         selectStoryItem(journalItems[0])
       } else if (list.length > 0) {
-        // If none have journals, don't force select, leave ready for "+ New Entry"
         setSelectedStory(null)
       }
     } catch (err) {
@@ -105,6 +105,14 @@ export default function JournalApp() {
         extractedStickers = CUSTOM_STICKER_SETS.filter(s => stickerTexts.includes(s.text))
         note = note.replace(/\n\nStickers:\s*(.*)/, '')
       }
+      
+      const savedStickers = localStorage.getItem(`memwault_stickers_${story.id}`)
+      if (savedStickers) {
+        try {
+          extractedStickers = JSON.parse(savedStickers)
+        } catch (e) {}
+      }
+
       setJournalText(note)
       setPlacedStickers(extractedStickers)
       // Load any stored doodles
@@ -119,6 +127,12 @@ export default function JournalApp() {
         extractedStickers = CUSTOM_STICKER_SETS.filter(s => stickerTexts.includes(s.text))
         note = note.replace(/\n\nStickers:\s*(.*)/, '')
       }
+      const savedStickers = localStorage.getItem(`memwault_stickers_${story.id}`)
+      if (savedStickers) {
+        try {
+          extractedStickers = JSON.parse(savedStickers)
+        } catch (e) {}
+      }
       setJournalText(note)
       setPlacedStickers(extractedStickers)
       setDoodles([])
@@ -130,12 +144,10 @@ export default function JournalApp() {
     if (isWin98) playWin98Click()
     setSaving(true)
     try {
-      let fullNote = journalText
-      if (placedStickers.length > 0) {
-        fullNote += `\n\nStickers: ${placedStickers.map(s => s.text).join(' • ')}`
-      }
-      await updateStory(selectedStory.id, { journal_note: fullNote })
-      // Save doodles
+      const cleanNote = journalText.replace(/\n\nStickers:\s*(.*)/g, '')
+      await updateStory(selectedStory.id, { journal_note: cleanNote })
+      // Save stickers & doodles cleanly
+      localStorage.setItem(`memwault_stickers_${selectedStory.id}`, JSON.stringify(placedStickers))
       localStorage.setItem(`memwault_doodles_${selectedStory.id}`, JSON.stringify(doodles))
       
       // Update local allStories item
@@ -609,24 +621,6 @@ export default function JournalApp() {
                   )}
                 </div>
               </div>
-
-              {/* Story Original Caption Callout if available */}
-              {selectedStory.caption_text && (
-                <div style={{
-                  padding: '8px 12px',
-                  backgroundColor: isWin98 ? '#ffffcc' : 'rgba(255,255,255,0.05)',
-                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
-                  borderRadius: isWin98 ? '0' : '8px',
-                  fontSize: isWin98 ? '11px' : '12px',
-                  color: isWin98 ? '#000' : 'var(--ios-text-secondary)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '6px'
-                }}>
-                  <span style={{ fontWeight: 'bold', color: isWin98 ? '#000080' : 'var(--ios-accent)' }}>Original Caption:</span>
-                  <span style={{ flex: 1, fontStyle: 'italic' }}>{selectedStory.caption_text}</span>
-                </div>
-              )}
 
               {/* Full Markdown Note Editor Viewport */}
               <div 

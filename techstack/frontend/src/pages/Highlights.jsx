@@ -16,58 +16,35 @@ import {
 import { getHighlights, triggerHighlightsSync, deleteHighlight, uploadHighlightCover } from '../services/api'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
 
-// ── Helper to determine media URL safely ───────────────────────
-function getMediaUrl(item) {
-  if (!item) return ''
-  if (typeof item === 'string') return item
-  if (item.display_url) return item.display_url
-  if (item.media_url) return item.media_url
-  if (item.instagram_media_url) return item.instagram_media_url
-  if (item.s3_key_compressed) return `/media/${item.s3_key_compressed}`
-  if (item.media_items && item.media_items.length > 0) {
-    const first = item.media_items[0]
-    return first.display_url || first.media_url || first.instagram_media_url || (first.s3_key_compressed ? `/media/${first.s3_key_compressed}` : '')
-  }
-  return ''
-}
-
 // ── Helper for rendering images or videos seamlessly ──────────
 function MediaPreview({ url, style }) {
-  const [loadError, setLoadError] = useState(false)
-  const resolvedUrl = getMediaUrl(url)
-  if (!resolvedUrl || loadError) {
-    return (
-      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ios-bg-card, #1c1c1e)' }}>
-        <ImageIcon size={24} color="var(--ios-text-secondary, #888)" opacity={0.5} />
-      </div>
-    )
-  }
-
-  const cleanUrl = resolvedUrl.split('?')[0].toLowerCase()
-  const isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.mov') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.m4v') || cleanUrl.includes('_n.mp4')
-
+  if (!url) return null
+  
+  // IG CDN URLs sometimes lack extensions, assume video if it contains .mp4, .mov, or _n.mp4 (typical IG video)
+  const isVideo = typeof url === 'string' && (
+    url.includes('.mp4') || 
+    url.includes('.mov') || 
+    url.includes('video')
+  )
+  
   if (isVideo) {
     return (
       <video
-        src={resolvedUrl}
-        style={{ ...style, display: 'block', objectFit: 'cover' }}
+        src={url}
+        style={{ ...style, display: 'block' }}
         autoPlay
         muted
         loop
         playsInline
-        preload="metadata"
-        onError={() => setLoadError(true)}
+        onError={e => { e.target.style.display = 'none' }}
       />
     )
   }
-
   return (
     <img
-      src={resolvedUrl}
-      alt="Highlight Preview"
-      style={{ ...style, display: 'block', objectFit: 'cover' }}
-      loading="lazy"
-      onError={() => setLoadError(true)}
+      src={url}
+      style={{ ...style, display: 'block' }}
+      onError={e => { e.target.style.display = 'none' }}
     />
   )
 }
@@ -75,7 +52,7 @@ function MediaPreview({ url, style }) {
 function GridItem({ url, style }) {
   return (
     <div style={{ ...style, position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
-      <MediaPreview url={url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
+      <MediaPreview url={url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   )
 }

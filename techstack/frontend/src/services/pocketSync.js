@@ -38,11 +38,8 @@ export function getOnThisDayMemories(stories) {
   const currentDate = today.getDate();
   const currentYear = today.getFullYear();
 
-  // Tier 1: Exact date anniversary (same month & day, past years)
   const exactMatches = [];
-  // Tier 2: Same week anniversary (within 7 days of today, past years)
   const weekMatches = [];
-  // Tier 3: Same month (past years)
   const monthMatches = [];
 
   for (const story of stories) {
@@ -84,8 +81,7 @@ export function getOnThisDayMemories(stories) {
   if (weekMatches.length > 0) return weekMatches;
   if (monthMatches.length > 0) return monthMatches;
 
-  // Fallback: Pick top archived memories sorted by date with throwback label
-  return stories.slice(0, 5).map((s, idx) => {
+  return stories.slice(0, 8).map((s) => {
     const d = s.taken_at ? new Date(s.taken_at) : new Date();
     const yr = d.getFullYear();
     return {
@@ -115,13 +111,13 @@ async function downloadAndCacheMedia(url) {
       await cacheMediaBlob(url, blob);
     }
   } catch (err) {
-    // Non-critical, ignore individual image fetch failure
+    // Non-critical individual fetch error
   }
 }
 
 /**
  * Complete ActiveSync Engine
- * Downloads metadata and real media blobs to make MemWault 100% functional offline!
+ * Downloads metadata and 100% of media blobs (all photos, videos, and highlights)
  */
 export async function syncPocketWithLaptop(onProgress = () => {}) {
   try {
@@ -172,7 +168,7 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     await saveMemoriesOffline(allStories);
 
     // Step 3: Fetch Feed Posts
-    onProgress({ step: 'Downloading feed posts & carousels...', percent: 45, status: 'downloading' });
+    onProgress({ step: 'Downloading feed posts & carousels...', percent: 40, status: 'downloading' });
     let allPosts = [];
     let postPage = 1;
     let hasMorePosts = true;
@@ -190,61 +186,76 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
 
     await savePostsOffline(allPosts);
 
-    // Step 4: Fetch Highlights
-    onProgress({ step: 'Downloading highlights & albums...', percent: 60, status: 'downloading' });
+    // Step 4: Fetch Highlights and their story reels
+    onProgress({ step: 'Downloading highlights & albums...', percent: 55, status: 'downloading' });
     let allHighlights = [];
     try {
       const hlData = await getHighlights();
-      allHighlights = Array.isArray(hlData) ? hlData : (hlData?.highlights || hlData?.items || []);
+      const hlList = Array.isArray(hlData) ? hlData : (hlData?.highlights || hlData?.items || []);
+      
+      for (const hl of hlList) {
+        try {
+          const reel = await getHighlightStories(hl.id);
+          const reelStories = Array.isArray(reel) ? reel : (reel?.stories || reel?.items || []);
+          allHighlights.push({
+            ...hl,
+            stories: reelStories,
+            cover_media_url: hl.cover_media_url || reelStories[0]?.media_url || null,
+          });
+        } catch (e) {
+          allHighlights.push(hl);
+        }
+      }
       await saveHighlightsOffline(allHighlights);
     } catch (e) {}
 
-    // Step 5: Background Media Pre-caching (Downloads raw media blobs for true offline viewing)
+    // Step 5: Full Media Pre-caching (Downloads 100% of raw media files)
     onProgress({ 
-      step: `Caching ${allStories.length + allPosts.length} media files for offline vault...`, 
-      percent: 75, 
+      step: `Caching full offline media archive (${allStories.length + allPosts.length} items)...`, 
+      percent: 70, 
       status: 'caching' 
     });
 
-    const mediaUrlsToCache = [];
+    const mediaUrlsToCache = new Set();
     for (const s of allStories) {
-      if (s.media_url) mediaUrlsToCache.push(s.media_url);
+      if (s.media_url) mediaUrlsToCache.add(s.media_url);
     }
     for (const p of allPosts) {
       if (p.media_items && p.media_items.length > 0) {
         for (const m of p.media_items) {
           const u = m.display_url || m.media_url || m.instagram_media_url;
-          if (u) mediaUrlsToCache.push(u);
+          if (u) mediaUrlsToCache.add(u);
         }
       } else if (p.media_url) {
-        mediaUrlsToCache.push(p.media_url);
+        mediaUrlsToCache.add(p.media_url);
       }
     }
     for (const hl of allHighlights) {
-      if (hl.cover_media_url) mediaUrlsToCache.push(hl.cover_media_url);
-      if (hl.preview_stories) {
-        for (const u of hl.preview_stories) {
-          if (u) mediaUrlsToCache.push(u);
+      if (hl.cover_media_url) mediaUrlsToCache.add(hl.cover_media_url);
+      if (hl.stories) {
+        for (const s of hl.stories) {
+          if (s.media_url) mediaUrlsToCache.add(s.media_url);
         }
       }
     }
 
-    // Cache top 50 in priority batches to avoid network congestion
-    const cacheBatch = mediaUrlsToCache.slice(0, 60);
+    const urlList = Array.from(mediaUrlsToCache);
     let cachedCount = 0;
-    for (const url of cacheBatch) {
-      await downloadAndCacheMedia(url);
-      cachedCount++;
-      if (cachedCount % 10 === 0) {
-        onProgress({
-          step: `Cached ${cachedCount}/${cacheBatch.length} offline media files...`,
-          percent: 75 + Math.round((cachedCount / cacheBatch.length) * 20),
-          status: 'caching'
-        });
-      }
+    
+    // Download in concurrent batches of 4
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < urlList.length; i += BATCH_SIZE) {
+      const chunk = urlList.slice(i, i + BATCH_SIZE);
+      await Promise.all(chunk.map(u => downloadAndCacheMedia(u)));
+      cachedCount += chunk.length;
+      onProgress({
+        step: `Cached ${cachedCount}/${urlList.length} media files into offline vault...`,
+        percent: 70 + Math.round((cachedCount / urlList.length) * 28),
+        status: 'caching'
+      });
     }
 
-    // Step 6: Finalize Sync & Storage Stats
+    // Step 6: Finalize Sync & Accurate Storage Stats
     const stats = await getStorageStats();
     const meta = {
       lastSync: new Date().toISOString(),

@@ -109,48 +109,84 @@ function RenderStickerIcon({ name, size = 16, color = '#FFF' }) {
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
  */
-function getMediaUrl(item) {
+/**
+ * Universal Media & Thumbnail Resolver
+ * Respects purpose (thumbnail vs viewer), prioritizes dedicated thumbnail fields,
+ * and recovers stable media keys.
+ */
+function resolveMedia(item, options = {}) {
+  const preferThumbnail = typeof options === 'boolean' 
+    ? options 
+    : (options?.purpose === 'thumbnail' || options?.preferThumbnail);
+
   if (!item) return '';
   if (typeof item === 'string') return item;
-  if (item.cover_media_url) return item.cover_media_url;
-  if (item.thumbnail_url) return item.thumbnail_url;
-  if (item.display_url) return item.display_url;
-  if (item.media_url) return item.media_url;
-  if (item.raw_media_url) return item.raw_media_url;
-  if (item.instagram_media_url) return item.instagram_media_url;
-  if (item.image_versions2?.candidates?.[0]?.url) return item.image_versions2.candidates[0].url;
-  if (item.preview_stories && item.preview_stories.length > 0) {
-    const p = item.preview_stories[0];
-    return typeof p === 'string' ? p : (p?.media_url || p?.display_url || p?.raw_media_url || '');
-  }
-  if (item.stories && item.stories.length > 0) {
-    const s = item.stories[0];
-    return typeof s === 'string' ? s : (s?.media_url || s?.display_url || s?.raw_media_url || '');
-  }
+
+  // Handle Post / Carousel slide items
   if (item.media_items && item.media_items.length > 0) {
     const first = item.media_items[0];
-    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || '';
+    return resolveMedia(first, { preferThumbnail });
   }
-  if (item.s3_key_compressed) return `/media/${item.s3_key_compressed}`;
-  if (item.s3_key) return `/media/${item.s3_key}`;
+
+  // Handle Highlight object
+  if (item.cover_thumbnail_url || item.cover_media_url || item.preview_thumbnails || item.preview_stories) {
+    if (preferThumbnail) {
+      const thumb = item.cover_thumbnail_url || item.cover_media_url || item.preview_thumbnails?.[0] || item.preview_stories?.[0];
+      if (thumb) return typeof thumb === 'string' ? thumb : (thumb.media_url || thumb.display_url || '');
+    }
+    const full = item.cover_media_url || item.cover_thumbnail_url || item.preview_stories?.[0];
+    if (full) return typeof full === 'string' ? full : (full.media_url || full.display_url || '');
+  }
+
+  if (preferThumbnail) {
+    const thumbCandidate = 
+      item.thumbnail_url || 
+      item.thumb_url || 
+      item.preview_url || 
+      item.cover_media_url || 
+      item.image_versions2?.candidates?.[0]?.url ||
+      item.display_url || 
+      item.media_url || 
+      item.instagram_media_url || 
+      item.raw_media_url;
+    if (thumbCandidate) return thumbCandidate;
+  }
+
+  const candidate = 
+    item.display_url || 
+    item.media_url || 
+    item.instagram_media_url || 
+    item.raw_media_url || 
+    item.thumbnail_url || 
+    item.thumb_url || 
+    item.preview_url;
+
+  if (candidate) return candidate;
+
+  if (item.s3_key_compressed) return `/api/v1/media/${item.s3_key_compressed}`;
+  if (item.s3_key_instagram) return `/api/v1/media/${item.s3_key_instagram}`;
+  if (item.s3_key) return `/api/v1/media/${item.s3_key}`;
+
   return '';
+}
+
+function getMediaUrl(item, preferThumbnail = false) {
+  return resolveMedia(item, { preferThumbnail });
 }
 
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
  */
-function useOfflineMediaUrl(url) {
-  const [src, setSrc] = useState(() => {
-    if (!url) return '';
-    return typeof url === 'object' ? getMediaUrl(url) : url;
-  });
+function useOfflineMediaUrl(url, preferThumbnail = false) {
+  const resolvedTarget = typeof url === 'object' ? resolveMedia(url, { preferThumbnail }) : url;
+  const [src, setSrc] = useState(resolvedTarget || '');
 
   useEffect(() => {
     if (!url) {
       setSrc('');
       return;
     }
-    const rawUrl = typeof url === 'object' ? getMediaUrl(url) : url;
+    const rawUrl = typeof url === 'object' ? resolveMedia(url, { preferThumbnail }) : url;
     if (!rawUrl) {
       setSrc('');
       return;
@@ -174,7 +210,7 @@ function useOfflineMediaUrl(url) {
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url]);
+  }, [url, preferThumbnail]);
 
   return src;
 }
@@ -183,7 +219,7 @@ function useOfflineMediaUrl(url) {
  * Desktop-Grade Offline-aware Media Element
  * Automatically detects whether media is an image or video (.mp4/.mov/media_type 2)
  * and renders video previews with smooth autoplay & muted looping exactly like desktop!
- * Includes automatic proxying fallback for CDN expiration.
+ * Includes automatic proxying fallback for CDN expiration and stable backend keys.
  */
 function OfflineMedia({ 
   src, 
@@ -196,9 +232,10 @@ function OfflineMedia({
   muted = true, 
   playsInline = true, 
   controls = false,
+  preferThumbnail = false,
   ...props 
 }) {
-  const resolvedUrl = useOfflineMediaUrl(src);
+  const resolvedUrl = useOfflineMediaUrl(src, preferThumbnail);
   const [hasError, setHasError] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
 
@@ -250,6 +287,8 @@ function OfflineMedia({
         if (!triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http')) {
           setTriedProxy(true);
           e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(resolvedUrl)}`;
+        } else if (typeof src === 'object' && src?.s3_key_compressed) {
+          e.target.src = `/api/v1/media/${src.s3_key_compressed}`;
         } else {
           e.target.style.opacity = '0.35';
         }

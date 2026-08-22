@@ -188,6 +188,8 @@ class StoryRead(BaseModel):
     height: Optional[int] = None
     duration_ms: Optional[int] = None
     media_url: Optional[str] = None  # Pre-signed S3 URL, populated at read time
+    thumbnail_url: Optional[str] = None  # Dedicated thumbnail URL
+    s3_key_compressed: Optional[str] = None  # Stable media key
 
     # Location
     location_name: Optional[str] = None
@@ -333,7 +335,9 @@ class HighlightResponse(BaseModel):
     ig_highlight_id: str
     title: str
     cover_media_url: Optional[str] = None
+    cover_thumbnail_url: Optional[str] = None
     preview_stories: list[str] = []
+    preview_thumbnails: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -370,6 +374,9 @@ class PostMediaRead(BaseModel):
     post_id: uuid.UUID
     slide_index: int
     media_type: int
+    display_url: Optional[str] = None
+    media_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
 
     # Instagram Version
     s3_key_instagram: Optional[str] = None

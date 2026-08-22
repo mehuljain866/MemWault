@@ -113,9 +113,21 @@ async function downloadAndCacheMedia(url) {
     if (res.ok) {
       const blob = await res.blob();
       await cacheMediaBlob(url, blob);
+      return;
     }
   } catch (err) {
-    // Non-critical, ignore individual image fetch failure
+    // Network or CORS issue, proceed to proxy fallback
+  }
+
+  // Automatic Proxy Fallback for external or expired signed URLs
+  if (typeof url === 'string' && url.startsWith('http') && !url.startsWith(window.location.origin)) {
+    try {
+      const proxyRes = await fetch(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`);
+      if (proxyRes.ok) {
+        const blob = await proxyRes.blob();
+        await cacheMediaBlob(url, blob);
+      }
+    } catch (e) {}
   }
 }
 
@@ -206,46 +218,78 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
       await saveHighlightsOffline(allHighlights);
     } catch (e) {}
 
-    // Step 5: Background Media Pre-caching (Downloads raw media blobs for true offline viewing)
+    // Step 5: Multi-Tier Media Pre-caching
+    // Priority 1: Cache 100% of thumbnails across stories, highlights, posts, and album covers
+    // Priority 2: Cache full media for recent stories and carousels
     onProgress({ 
-      step: `Caching ${allStories.length + allPosts.length} media files for offline vault...`, 
+      step: `Pre-caching thumbnails & media assets for offline vault...`, 
       percent: 75, 
       status: 'caching' 
     });
 
-    const mediaUrlsToCache = [];
-    for (const s of allStories) {
-      if (s.media_url) mediaUrlsToCache.push(s.media_url);
-    }
-    for (const p of allPosts) {
-      if (p.media_items && p.media_items.length > 0) {
-        for (const m of p.media_items) {
-          const u = m.display_url || m.media_url || m.instagram_media_url;
-          if (u) mediaUrlsToCache.push(u);
-        }
-      } else if (p.media_url) {
-        mediaUrlsToCache.push(p.media_url);
+    const thumbnailUrlsToCache = new Set();
+    const fullMediaUrlsToCache = new Set();
+
+    // 1. Stories thumbnails & recent full media
+    allStories.forEach((s, idx) => {
+      const thumb = s.thumbnail_url || s.cover_media_url || s.display_url || s.media_url || (s.s3_key_compressed ? `/api/v1/media/${s.s3_key_compressed}` : null);
+      if (thumb) thumbnailUrlsToCache.add(thumb);
+      if (idx < 30 && s.media_url) fullMediaUrlsToCache.add(s.media_url);
+    });
+
+    // 2. Highlights covers & preview thumbnails
+    allHighlights.forEach(hl => {
+      const cover = hl.cover_thumbnail_url || hl.cover_media_url;
+      if (cover) thumbnailUrlsToCache.add(cover);
+      if (Array.isArray(hl.preview_thumbnails)) {
+        hl.preview_thumbnails.forEach(u => u && thumbnailUrlsToCache.add(u));
       }
-    }
-    for (const hl of allHighlights) {
-      if (hl.cover_media_url) mediaUrlsToCache.push(hl.cover_media_url);
-      if (hl.preview_stories) {
-        for (const u of hl.preview_stories) {
-          if (u) mediaUrlsToCache.push(u);
-        }
+      if (Array.isArray(hl.preview_stories)) {
+        hl.preview_stories.forEach(u => u && thumbnailUrlsToCache.add(u));
+      }
+    });
+
+    // 3. Posts thumbnails & recent full media
+    allPosts.forEach((p, idx) => {
+      if (p.media_items && p.media_items.length > 0) {
+        p.media_items.forEach((m) => {
+          const thumb = m.thumbnail_url || m.display_url || m.media_url || m.instagram_media_url;
+          if (thumb) thumbnailUrlsToCache.add(thumb);
+          if (idx < 15 && (m.media_url || m.display_url)) fullMediaUrlsToCache.add(m.media_url || m.display_url);
+        });
+      } else if (p.media_url || p.display_url) {
+        const u = p.thumbnail_url || p.display_url || p.media_url;
+        if (u) thumbnailUrlsToCache.add(u);
+        if (idx < 15 && p.media_url) fullMediaUrlsToCache.add(p.media_url);
+      }
+    });
+
+    const allThumbnails = Array.from(thumbnailUrlsToCache);
+    const allFullMedia = Array.from(fullMediaUrlsToCache);
+    const totalToCache = allThumbnails.length + allFullMedia.length;
+
+    let cachedCount = 0;
+    // Download and store thumbnails first
+    for (const url of allThumbnails) {
+      await downloadAndCacheMedia(url);
+      cachedCount++;
+      if (cachedCount % 15 === 0) {
+        onProgress({
+          step: `Cached ${cachedCount}/${totalToCache} thumbnails & media assets...`,
+          percent: 75 + Math.round((cachedCount / (totalToCache || 1)) * 20),
+          status: 'caching'
+        });
       }
     }
 
-    // Cache top 50 in priority batches to avoid network congestion
-    const cacheBatch = mediaUrlsToCache.slice(0, 60);
-    let cachedCount = 0;
-    for (const url of cacheBatch) {
+    // Download full media for recent items
+    for (const url of allFullMedia) {
       await downloadAndCacheMedia(url);
       cachedCount++;
       if (cachedCount % 10 === 0) {
         onProgress({
-          step: `Cached ${cachedCount}/${cacheBatch.length} offline media files...`,
-          percent: 75 + Math.round((cachedCount / cacheBatch.length) * 20),
+          step: `Cached ${cachedCount}/${totalToCache} thumbnails & media assets...`,
+          percent: 75 + Math.round((cachedCount / (totalToCache || 1)) * 20),
           status: 'caching'
         });
       }

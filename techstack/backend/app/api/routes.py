@@ -525,6 +525,11 @@ async def list_stories(
         sr = StoryRead.model_validate(story)
         if story.s3_key_compressed:
             sr.media_url = storage.get_presigned_url(story.s3_key_compressed)
+            sr.thumbnail_url = storage.get_presigned_url(story.s3_key_compressed)
+            sr.s3_key_compressed = story.s3_key_compressed
+        elif story.cdn_url:
+            sr.media_url = story.cdn_url
+            sr.thumbnail_url = story.cdn_url
         if story.og_reel_s3_key:
             sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key)
         story_reads.append(sr)
@@ -564,6 +569,11 @@ async def get_story(
     storage = get_storage()
     if story.s3_key_compressed:
         sr.media_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
+        sr.thumbnail_url = storage.get_presigned_url(story.s3_key_compressed, expires_in=7200)
+        sr.s3_key_compressed = story.s3_key_compressed
+    elif story.cdn_url:
+        sr.media_url = story.cdn_url
+        sr.thumbnail_url = story.cdn_url
     if story.og_reel_s3_key:
         sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key, expires_in=7200)
     return sr
@@ -944,6 +954,9 @@ async def get_highlights(
         # Check if cover_media_url starts with /api/v1/media for local custom uploads
         if h.cover_media_url and not h.cover_media_url.startswith('http') and not h.cover_media_url.startswith('/api/v1/media'):
             hr.cover_media_url = storage.get_presigned_url(h.cover_media_url)
+            hr.cover_thumbnail_url = hr.cover_media_url
+        else:
+            hr.cover_thumbnail_url = hr.cover_media_url
             
         story_res = await db.execute(
             select(Story.s3_key_compressed, Story.cdn_url)
@@ -960,6 +973,7 @@ async def get_highlights(
             else:
                 preview_urls.append(s.cdn_url)
         hr.preview_stories = preview_urls
+        hr.preview_thumbnails = preview_urls
             
         highlight_responses.append(hr)
         
@@ -1648,6 +1662,7 @@ def _format_post_media(media: PostMedia, s3) -> dict:
         "media_type": media.media_type,
         "media_url": media_url,
         "display_url": media_url,
+        "thumbnail_url": ig_url or raw_url,
         "s3_key_instagram": media.s3_key_instagram,
         "instagram_media_url": ig_url,
         "instagram_width": media.instagram_width,

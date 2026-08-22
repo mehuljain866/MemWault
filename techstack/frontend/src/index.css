@@ -1089,8 +1089,8 @@ ul { list-style: none; }
 
 /* Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -1101,6 +1101,18 @@ ul { list-style: none; }
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(142, 142, 147, 0.5);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    display: none;
+    width: 0px;
+    height: 0px;
+  }
+  * {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
 }
 
 @keyframes spin {

@@ -1616,10 +1616,10 @@ export default function PocketCompanion() {
 
   return (
     <div style={{
-      width: '100vw',
-      minHeight: '100vh',
-      maxWidth: '640px',
-      margin: '0 auto',
+      width: '100%',
+      minHeight: '100dvh',
+      maxWidth: '100%',
+      margin: 0,
       backgroundColor: bgColor,
       color: textColor,
       fontFamily: '"Segoe UI", "Segoe WP", "Segoe UI Light", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
@@ -1628,8 +1628,13 @@ export default function PocketCompanion() {
       position: 'relative',
       userSelect: 'none',
       overflowX: 'hidden',
-      paddingBottom: '40px',
+      paddingLeft: 'env(safe-area-inset-left, 0px)',
+      paddingRight: 'env(safe-area-inset-right, 0px)',
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
       boxSizing: 'border-box',
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehaviorY: 'contain',
       transition: 'background-color 0.25s ease, color 0.25s ease',
     }}>
       {/* Hidden File Input & Canvas */}
@@ -1670,8 +1675,7 @@ export default function PocketCompanion() {
               top: 0,
               left: 0,
               right: 0,
-              maxWidth: '640px',
-              margin: '0 auto',
+              width: '100%',
               backgroundColor: accent,
               color: '#FFFFFF',
               padding: '10px 16px',

@@ -34,8 +34,8 @@ function LiveMovingWaveform({ isPlaying }) {
 
 // ── Resilient Story Thumbnail Scrubber Item ──
 function StoryThumbnail({ story, isActive, onClick }) {
-  const isVid = story?.media_type === 2 || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov')));
-  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/media/${story.s3_key_compressed}` : '');
+  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : '');
+  const isVid = story?.media_type === 2 || story?.is_video || (typeof rawUrl === 'string' && (rawUrl.includes('.mp4') || rawUrl.includes('.mov') || rawUrl.includes('video') || rawUrl.startsWith('data:video')));
   const [src, setSrc] = useState(rawUrl);
   const [hasError, setHasError] = useState(false);
 
@@ -58,7 +58,7 @@ function StoryThumbnail({ story, isActive, onClick }) {
         borderRadius: '6px',
         overflow: 'hidden',
         border: isActive ? '2px solid var(--ios-accent, #0050EF)' : '2px solid transparent',
-        opacity: isActive ? 1 : 0.45,
+        opacity: isActive ? 1 : 0.5,
         transition: 'border 0.2s, opacity 0.2s',
         cursor: 'pointer',
         position: 'relative',
@@ -72,14 +72,23 @@ function StoryThumbnail({ story, isActive, onClick }) {
       {src && !hasError ? (
         isVid ? (
           <video 
-            src={src} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+            src={src ? (src.includes('#t=') || src.startsWith('blob:') ? src : `${src}#t=0.001`) : ''} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} 
             muted 
             playsInline 
+            loop
+            autoPlay
             preload="metadata"
+            onLoadedData={(e) => {
+              try {
+                if (e.target.paused) e.target.play().catch(() => {});
+              } catch (err) {}
+            }}
             onError={() => {
               if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
                 setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
+              } else if (story?.s3_key_compressed) {
+                setSrc(`/api/v1/media/${story.s3_key_compressed}`);
               } else {
                 setHasError(true);
               }
@@ -88,12 +97,14 @@ function StoryThumbnail({ story, isActive, onClick }) {
         ) : (
           <img 
             src={src} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} 
             alt="Thumb" 
             loading="lazy" 
             onError={() => {
               if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
                 setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
+              } else if (story?.s3_key_compressed) {
+                setSrc(`/api/v1/media/${story.s3_key_compressed}`);
               } else {
                 setHasError(true);
               }

@@ -20,16 +20,16 @@ export default defineConfig({
         'pwa-512x512.png',
       ],
       manifest: {
-        id: '/',
-        name: 'MemWault — Memory Archive',
+        id: '/pocket',
+        name: 'MemWault — Pocket Companion',
         short_name: 'MemWault',
-        description: 'A portable, user-owned digital memory archive for Instagram stories.',
-        theme_color: '#0a0a0f',
-        background_color: '#0a0a0f',
+        description: 'A portable, user-owned digital memory archive and Windows Phone 8.1 companion for Instagram stories.',
+        theme_color: '#0050EF',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/',
+        start_url: '/pocket',
         categories: ['social', 'photo', 'utilities'],
         icons: [
           {
@@ -68,7 +68,6 @@ export default defineConfig({
             type: 'image/png',
           },
         ],
-        // Share Target API registration for importing highlight links
         share_target: {
           action: '/share-target',
           method: 'GET',
@@ -86,39 +85,36 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
-            // Cache API responses for offline timeline viewing
             urlPattern: /^https?:\/\/.*\/api\/v1\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
               expiration: {
                 maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                maxAgeSeconds: 60 * 60 * 24,
               },
               networkTimeoutSeconds: 10,
             },
           },
           {
-            // Cache story media (images/videos) from S3/MinIO
             urlPattern: /\.(jpg|jpeg|png|mp4|webp|webm)$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'media-cache',
               expiration: {
                 maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
             },
           },
           {
-            // Cache Google Fonts
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                maxAgeSeconds: 60 * 60 * 24 * 365,
               },
             },
           },

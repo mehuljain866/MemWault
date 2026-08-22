@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration, useLocation, useOutlet, useRouteError } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration, useLocation, useOutlet, useRouteError, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import { isAuthenticated } from './services/api'
@@ -62,6 +62,16 @@ function AppShell() {
   }, [])
 
   const isWin98 = themeId === 'win98'
+  const navigate = useNavigate()
+
+  // Auto-route mobile devices / standalone PWA to Lumia Pocket Companion
+  useEffect(() => {
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+    if ((isMobileDevice || isStandalone) && location.pathname === '/') {
+      navigate('/pocket', { replace: true })
+    }
+  }, [location.pathname])
 
   return (
     <div className={`app-container ${isWin98 ? 'win98-root-container' : ''}`}>

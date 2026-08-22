@@ -247,12 +247,16 @@ function OfflineMedia({
     );
   }
 
-  const isVideo = !hasError && (type === 'video' || (typeof resolvedUrl === 'string' && (
-    resolvedUrl.includes('.mp4') || 
-    resolvedUrl.includes('.mov') || 
-    resolvedUrl.includes('video') ||
-    resolvedUrl.startsWith('data:video')
-  )));
+  const isVideo = !hasError && (
+    type === 'video' || 
+    (typeof src === 'object' && (src?.media_type === 2 || Boolean(src?.music) || src?.is_reel)) ||
+    (typeof resolvedUrl === 'string' && (
+      resolvedUrl.includes('.mp4') || 
+      resolvedUrl.includes('.mov') || 
+      resolvedUrl.includes('video') ||
+      resolvedUrl.startsWith('data:video')
+    ))
+  );
 
   if (isVideo) {
     return (

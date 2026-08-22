@@ -27,7 +27,7 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
     minute: '2-digit',
   })
 
-  const isVideo = story.media_type === 2
+  const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof story.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')))
 
   const handleClick = () => {
     if (isSelectMode) {
@@ -85,16 +85,12 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
           <video
             className="ios-story-card__media"
             src={story.media_url}
+            autoPlay
             muted
             loop
+            playsInline
             preload="metadata"
-            onMouseEnter={(e) => !isSelectMode && e.target.play()}
-            onMouseLeave={(e) => {
-              if (!isSelectMode) {
-                e.target.pause()
-                e.target.currentTime = 0
-              }
-            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (
           <img
@@ -102,6 +98,7 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
             src={story.media_url}
             alt={`Story from ${dateStr}`}
             loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         )
       ) : (

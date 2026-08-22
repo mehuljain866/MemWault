@@ -109,25 +109,35 @@ function RenderStickerIcon({ name, size = 16, color = '#FFF' }) {
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
  */
 function useOfflineMediaUrl(url) {
-  const [src, setSrc] = useState(url);
+  const [src, setSrc] = useState(() => {
+    if (!url) return '';
+    if (typeof url === 'object') return url.media_url || url.display_url || url.raw_media_url || '';
+    return url;
+  });
 
   useEffect(() => {
     if (!url) {
       setSrc('');
       return;
     }
+    const rawUrl = typeof url === 'object' ? (url.media_url || url.display_url || url.raw_media_url || '') : url;
+    if (!rawUrl) {
+      setSrc('');
+      return;
+    }
+
     let isMounted = true;
     let objectUrl = null;
 
-    getCachedMediaBlob(url).then(blob => {
+    getCachedMediaBlob(rawUrl).then(blob => {
       if (blob && isMounted) {
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
       } else if (isMounted) {
-        setSrc(url);
+        setSrc(rawUrl);
       }
     }).catch(() => {
-      if (isMounted) setSrc(url);
+      if (isMounted) setSrc(rawUrl);
     });
 
     return () => {
@@ -143,6 +153,7 @@ function useOfflineMediaUrl(url) {
  * Desktop-Grade Offline-aware Media Element
  * Automatically detects whether media is an image or video (.mp4/.mov/media_type 2)
  * and renders video previews with smooth autoplay & muted looping exactly like desktop!
+ * Includes automatic proxying fallback for CDN expiration.
  */
 function OfflineMedia({ 
   src, 
@@ -158,25 +169,28 @@ function OfflineMedia({
   ...props 
 }) {
   const resolvedUrl = useOfflineMediaUrl(src);
+  const [hasError, setHasError] = useState(false);
+  const [triedProxy, setTriedProxy] = useState(false);
+
   if (!resolvedUrl) {
     return (
-      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>
-        <ImageIcon size={20} style={{ opacity: 0.2 }} />
+      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#141414' }}>
+        <ImageIcon size={18} style={{ opacity: 0.25, color: '#FFF' }} />
       </div>
     );
   }
 
-  const isVideo = type === 'video' || (typeof resolvedUrl === 'string' && (
+  const isVideo = !hasError && (type === 'video' || (typeof resolvedUrl === 'string' && (
     resolvedUrl.includes('.mp4') || 
     resolvedUrl.includes('.mov') || 
     resolvedUrl.includes('video') ||
     resolvedUrl.startsWith('data:video')
-  ));
+  )));
 
   if (isVideo) {
     return (
       <video
-        src={`${resolvedUrl}#t=0.1`}
+        src={resolvedUrl}
         style={{ ...style, display: 'block' }}
         className={className}
         autoPlay={autoPlay}
@@ -185,24 +199,30 @@ function OfflineMedia({
         playsInline={playsInline}
         controls={controls}
         preload="metadata"
-        onError={(e) => {
-          if (e.target.src && e.target.src.includes('#t=0.1')) {
-            e.target.src = resolvedUrl;
-          }
-        }}
+        onError={() => setHasError(true)}
         {...props}
       />
     );
   }
 
+  const displaySrc = (hasError && !triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http'))
+    ? `/api/v1/proxy/image?url=${encodeURIComponent(resolvedUrl)}`
+    : resolvedUrl;
+
   return (
     <img
-      src={resolvedUrl}
+      src={displaySrc}
       alt={alt}
       style={{ ...style, display: 'block' }}
       className={className}
+      loading="lazy"
       onError={(e) => {
-        e.target.style.opacity = '0.35';
+        if (!triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http')) {
+          setTriedProxy(true);
+          e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(resolvedUrl)}`;
+        } else {
+          e.target.style.opacity = '0.35';
+        }
       }}
       {...props}
     />
@@ -212,12 +232,19 @@ function OfflineMedia({
 function getMediaUrl(item) {
   if (!item) return '';
   if (item.cover_media_url) return item.cover_media_url;
-  if (item.preview_stories && item.preview_stories.length > 0) return item.preview_stories[0];
+  if (item.preview_stories && item.preview_stories.length > 0) {
+    const p = item.preview_stories[0];
+    return typeof p === 'string' ? p : (p?.media_url || p?.display_url || '');
+  }
+  if (item.stories && item.stories.length > 0) {
+    const s = item.stories[0];
+    return typeof s === 'string' ? s : (s?.media_url || s?.display_url || '');
+  }
   if (item.media_items && item.media_items.length > 0) {
     const first = item.media_items[0];
     return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || '';
   }
-  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || '';
+  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || (item.s3_key_compressed ? `/media/${item.s3_key_compressed}` : '');
 }
 
 export default function PocketCompanion() {
@@ -277,6 +304,10 @@ export default function PocketCompanion() {
   const [isHighlightPaused, setIsHighlightPaused] = useState(false);
   const [highlightProgress, setHighlightProgress] = useState(0);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isHoldingToPause, setIsHoldingToPause] = useState(false);
+  const highlightVideoRef = useRef(null);
+  const touchStartTime = useRef(0);
+  const touchStartX = useRef(0);
 
   // ── 30-Second iTunes Preview & Music Modal States ─────────────────────────
   const [musicModalTrack, setMusicModalTrack] = useState(null);
@@ -691,47 +722,109 @@ export default function PocketCompanion() {
   }, [enableLiveFlip, stories.length]);
 
   // ── 4. Highlights Story Player Progress & Progression ─────────────────────
-  useEffect(() => {
-    if (!activeHighlight || highlightStories.length === 0 || isHighlightPaused || !!musicModalTrack) return;
+  const handlePrevHighlightStory = () => {
+    triggerSound();
+    if (highlightStoryIndex > 0) {
+      setHighlightStoryIndex(i => i - 1);
+      setHighlightProgress(0);
+      setIsHighlightPaused(false);
+    } else {
+      setHighlightProgress(0);
+    }
+  };
 
+  const handleNextHighlightStory = () => {
+    triggerSound();
+    if (highlightStories && highlightStoryIndex < highlightStories.length - 1) {
+      setHighlightStoryIndex(i => i + 1);
+      setHighlightProgress(0);
+      setIsHighlightPaused(false);
+    } else {
+      setActiveHighlight(null);
+      setHighlightStories([]);
+      setHighlightProgress(0);
+      setHighlightStoryIndex(0);
+      setIsHighlightPaused(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeHighlight || highlightStories.length === 0) return;
+    
+    const curStory = highlightStories[highlightStoryIndex];
+    if (!curStory) return;
+
+    // Reset progress when index changes
+    setHighlightProgress(0);
+
+    const isVideo = curStory.media_type === 2 || (typeof curStory.media_url === 'string' && (curStory.media_url.includes('.mp4') || curStory.media_url.includes('.mov')));
+    if (isVideo) {
+      if (highlightVideoRef.current) {
+        if (isHighlightPaused || !!musicModalTrack || isHoldingToPause) {
+          highlightVideoRef.current.pause();
+        } else {
+          highlightVideoRef.current.play().catch(() => {});
+        }
+      }
+      return; // Video progress is driven by onTimeUpdate & onEnded!
+    }
+
+    if (isHighlightPaused || !!musicModalTrack || isHoldingToPause) return;
+
+    const duration = 5000;
     const interval = 50;
+    const increment = (interval / duration) * 100;
+
     highlightTimerRef.current = setInterval(() => {
       setHighlightProgress(prev => {
         if (prev >= 100) {
-          if (highlightStoryIndex < highlightStories.length - 1) {
-            setHighlightStoryIndex(i => i + 1);
-            return 0;
-          } else {
-            setActiveHighlight(null);
-            return 0;
-          }
+          clearInterval(highlightTimerRef.current);
+          handleNextHighlightStory();
+          return 100;
         }
-        return prev + (interval / 5000) * 100;
+        return prev + increment;
       });
     }, interval);
 
     return () => clearInterval(highlightTimerRef.current);
-  }, [activeHighlight, highlightStories, highlightStoryIndex, isHighlightPaused, musicModalTrack]);
+  }, [activeHighlight, highlightStories, highlightStoryIndex, isHighlightPaused, musicModalTrack, isHoldingToPause]);
 
   const handleOpenHighlight = async (hl) => {
+    if (!hl) return;
     triggerSound();
     setMusicModalTrack(null);
     setIsAudioMuted(false);
     setIsHighlightPaused(false);
+    setIsHoldingToPause(false);
     setActiveHighlight(hl);
-    setHighlightProgress(0);
     setHighlightStoryIndex(0);
+    setHighlightProgress(0);
+
+    // Initial stories from cached preview while async fetch runs
+    let initialList = [];
+    if (hl.stories && hl.stories.length > 0) {
+      initialList = hl.stories;
+    } else if (hl.story_ids && hl.story_ids.length > 0) {
+      initialList = stories.filter(s => hl.story_ids.includes(s.id));
+    } else if (hl.preview_stories && hl.preview_stories.length > 0) {
+      initialList = hl.preview_stories.map((u, idx) => ({ 
+        id: `p_${idx}`, 
+        media_url: typeof u === 'string' ? u : (u?.media_url || u?.display_url || ''), 
+        media_type: (typeof u === 'string' && (u.includes('.mp4') || u.includes('.mov'))) ? 2 : 1 
+      }));
+    }
+    setHighlightStories(initialList.length > 0 ? initialList : stories.slice(0, 6));
+
     try {
       const data = await getHighlightStories(hl.id);
       const list = Array.isArray(data) ? data : (data?.stories || data?.items || []);
       if (list.length > 0) {
         setHighlightStories(list);
-      } else {
-        const matched = stories.filter(s => hl.story_ids?.includes(s.id));
-        setHighlightStories(matched.length > 0 ? matched : stories.slice(0, 6));
+        setHighlightStoryIndex(0);
+        setHighlightProgress(0);
       }
     } catch (e) {
-      setHighlightStories(stories.slice(0, 6));
+      // Keep initial list
     }
   };
 
@@ -1709,7 +1802,7 @@ export default function PocketCompanion() {
               </div>
             </div>
 
-            {/* Main Media Viewport with Tap Navigation */}
+            {/* Main Media Viewport with Touch Gestures & Hold to Pause */}
             <div
               style={{
                 flex: 1,
@@ -1718,57 +1811,96 @@ export default function PocketCompanion() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#000',
+                userSelect: 'none',
+                touchAction: 'manipulation',
               }}
-              onMouseDown={() => setIsHighlightPaused(true)}
-              onMouseUp={() => setIsHighlightPaused(false)}
-              onTouchStart={() => setIsHighlightPaused(true)}
-              onTouchEnd={() => setIsHighlightPaused(false)}
-            >
-              {highlightStories[highlightStoryIndex]?.media_type === 2 ? (
-                <OfflineMedia
-                  key={highlightStories[highlightStoryIndex]?.id}
-                  src={highlightStories[highlightStoryIndex]?.media_url}
-                  type="video"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  autoPlay
-                  playsInline
-                  muted={isAudioMuted}
-                />
-              ) : (
-                <OfflineMedia
-                  key={highlightStories[highlightStoryIndex]?.id}
-                  src={highlightStories[highlightStoryIndex]?.media_url}
-                  type="image"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  alt="Story"
-                />
-              )}
+              onPointerDown={(e) => {
+                touchStartTime.current = Date.now();
+                touchStartX.current = e.clientX;
+                setIsHoldingToPause(true);
+              }}
+              onPointerUp={(e) => {
+                setIsHoldingToPause(false);
+                const holdDuration = Date.now() - touchStartTime.current;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const width = rect.width;
 
-              {/* Tap Left 30% -> Previous Slide */}
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (highlightStoryIndex > 0) {
-                    setHighlightStoryIndex(i => i - 1);
-                    setHighlightProgress(0);
-                  }
-                }}
-                style={{ position: 'absolute', top: '60px', bottom: '80px', left: 0, width: '35%', zIndex: 15 }}
-              />
-
-              {/* Tap Right 70% -> Next Slide */}
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (highlightStoryIndex < highlightStories.length - 1) {
-                    setHighlightStoryIndex(i => i + 1);
-                    setHighlightProgress(0);
+                if (holdDuration < 260) {
+                  // Quick tap
+                  if (clickX < width * 0.33) {
+                    handlePrevHighlightStory();
+                  } else if (clickX > width * 0.67) {
+                    handleNextHighlightStory();
                   } else {
-                    setActiveHighlight(null);
+                    // Center tap toggles persistent pause
+                    setIsHighlightPaused(p => !p);
                   }
-                }}
-                style={{ position: 'absolute', top: '60px', bottom: '80px', right: 0, width: '65%', zIndex: 15 }}
-              />
+                }
+              }}
+              onPointerCancel={() => {
+                setIsHoldingToPause(false);
+              }}
+            >
+              {(() => {
+                const curStory = highlightStories[highlightStoryIndex];
+                if (!curStory) return null;
+                const isVideo = curStory.media_type === 2 || (typeof curStory.media_url === 'string' && (curStory.media_url.includes('.mp4') || curStory.media_url.includes('.mov')));
+
+                return isVideo ? (
+                  <video
+                    ref={highlightVideoRef}
+                    key={`vid_${curStory.id || highlightStoryIndex}`}
+                    src={curStory.media_url}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    autoPlay={!isHighlightPaused && !musicModalTrack && !isHoldingToPause}
+                    playsInline
+                    muted={isAudioMuted || !!musicModalTrack}
+                    onTimeUpdate={(e) => {
+                      if (e.target.duration && !isHighlightPaused && !musicModalTrack && !isHoldingToPause) {
+                        setHighlightProgress((e.target.currentTime / e.target.duration) * 100);
+                      }
+                    }}
+                    onEnded={() => handleNextHighlightStory()}
+                  />
+                ) : (
+                  <OfflineMedia
+                    key={`img_${curStory.id || highlightStoryIndex}`}
+                    src={curStory.media_url}
+                    type="image"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    alt="Story"
+                  />
+                );
+              })()}
+
+              {/* Visual PAUSED Indicator */}
+              {(isHighlightPaused || isHoldingToPause) && !musicModalTrack && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: 'rgba(0,0,0,0.75)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#FFFFFF',
+                  padding: '8px 18px',
+                  borderRadius: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  pointerEvents: 'none',
+                  zIndex: 25,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+                }}>
+                  <Pause size={14} fill="#FFF" />
+                  <span>PAUSED</span>
+                </div>
+              )}
             </div>
 
             {/* Bottom Story Caption & Music Sticker */}

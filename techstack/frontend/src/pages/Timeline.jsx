@@ -77,6 +77,7 @@ export default function Timeline({ isReelView = false }) {
   
   // Clean zoom levels: 'year' | 'month' | 'day'
   const [zoomLevel, setZoomLevel] = useState('day')
+  const isWin98 = getSettings().themeId === 'win98'
 
   // ── Playback Settings ──────────────────────────────────
   const [autoplayVideo, setAutoplayVideo] = useState(() => getSettings().timelineAutoplayVideo !== false)
@@ -319,7 +320,19 @@ export default function Timeline({ isReelView = false }) {
             <Menu size={20} />
           </button>
           <h2 className="ios-title" style={{ margin: 0 }}>{isReelView ? "Reels" : "Memories"}</h2>
-          <span style={{
+          <span style={isWin98 ? {
+            fontSize: '11px',
+            color: '#000000',
+            background: '#ffffff',
+            border: '1px solid #808080',
+            boxShadow: 'inset 1px 1px #000000, inset -1px -1px #ffffff',
+            padding: '2px 8px',
+            fontWeight: 'bold',
+            fontFamily: '"MS Sans Serif", Tahoma, Arial, monospace',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          } : {
             fontSize: '12px',
             color: 'var(--ios-text-secondary)',
             background: 'var(--ios-border)',
@@ -594,7 +607,19 @@ export default function Timeline({ isReelView = false }) {
               
               {/* Hierarchical Sticky Temporal Header */}
               <div style={{ position: 'sticky', top: '74px', zIndex: 40, pointerEvents: 'none', display: 'flex', padding: '6px 0' }}>
-                <div style={{
+                <div style={isWin98 ? {
+                  background: '#c0c0c0',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 6px rgba(0,0,0,0.3)',
+                  color: '#000000',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                } : {
                   background: 'var(--ios-bg-card)',
                   backdropFilter: 'blur(20px) saturate(180%)',
                   border: '1px solid var(--ios-border)',
@@ -608,9 +633,24 @@ export default function Timeline({ isReelView = false }) {
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <Calendar size={13} color="var(--ios-accent)" />
+                  <Calendar size={13} color={isWin98 ? "#000080" : "var(--ios-accent)"} />
                   {dateStr}
-                  <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', fontWeight: 500 }}>({dateStories.length})</span>
+                  <span style={isWin98 ? {
+                    fontSize: '10px',
+                    color: '#000080',
+                    background: '#ffffff',
+                    border: '1px solid #808080',
+                    boxShadow: 'inset 1px 1px #000000, inset -1px -1px #ffffff',
+                    padding: '1px 5px',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace'
+                  } : {
+                    fontSize: '11px',
+                    color: 'var(--ios-text-secondary)',
+                    fontWeight: 500
+                  }}>
+                    {dateStories.length}
+                  </span>
                 </div>
               </div>
               

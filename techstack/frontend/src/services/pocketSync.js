@@ -109,7 +109,10 @@ export function getOnThisDayMemory(stories) {
 async function downloadAndCacheMedia(url) {
   if (!url || url.startsWith('data:') || url.startsWith('blob:')) return;
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(url, { mode: 'cors', signal: controller.signal });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const blob = await res.blob();
       await cacheMediaBlob(url, blob);
@@ -122,12 +125,25 @@ async function downloadAndCacheMedia(url) {
   // Automatic Proxy Fallback for external or expired signed URLs
   if (typeof url === 'string' && url.startsWith('http') && !url.startsWith(window.location.origin)) {
     try {
-      const proxyRes = await fetch(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const proxyRes = await fetch(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (proxyRes.ok) {
         const blob = await proxyRes.blob();
         await cacheMediaBlob(url, blob);
       }
     } catch (e) {}
+  }
+}
+
+async function batchDownloadAndCache(urls, batchSize = 8, onProgress = () => {}) {
+  let completed = 0;
+  for (let i = 0; i < urls.length; i += batchSize) {
+    const chunk = urls.slice(i, i + batchSize);
+    await Promise.allSettled(chunk.map(u => downloadAndCacheMedia(u)));
+    completed += chunk.length;
+    onProgress(completed, urls.length);
   }
 }
 
@@ -189,6 +205,12 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     }
 
     await saveMemoriesOffline(allStories);
+    onProgress({ 
+      step: `Loaded ${allStories.length} stories`, 
+      percent: 35, 
+      status: 'downloading',
+      stories: allStories 
+    });
 
     // Step 3: Fetch Feed Posts
     onProgress({ step: 'Downloading feed posts & carousels...', percent: 45, status: 'downloading' });
@@ -208,23 +230,41 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     }
 
     await savePostsOffline(allPosts);
+    onProgress({ 
+      step: `Loaded ${allPosts.length} posts`, 
+      percent: 55, 
+      status: 'downloading',
+      stories: allStories,
+      posts: allPosts 
+    });
 
     // Step 4: Fetch Highlights
-    onProgress({ step: 'Downloading highlights & albums...', percent: 60, status: 'downloading' });
+    onProgress({ step: 'Downloading highlights & albums...', percent: 65, status: 'downloading' });
     let allHighlights = [];
     try {
       const hlData = await getHighlights();
       allHighlights = Array.isArray(hlData) ? hlData : (hlData?.highlights || hlData?.items || []);
       await saveHighlightsOffline(allHighlights);
+      onProgress({ 
+        step: `Loaded ${allHighlights.length} highlights`, 
+        percent: 70, 
+        status: 'downloading',
+        stories: allStories,
+        posts: allPosts,
+        highlights: allHighlights 
+      });
     } catch (e) {}
 
-    // Step 5: Multi-Tier Media Pre-caching
+    // Step 5: Multi-Tier Parallel Media Pre-caching
     // Priority 1: Cache 100% of thumbnails across stories, highlights, posts, and album covers
     // Priority 2: Cache full media for recent stories and carousels
     onProgress({ 
       step: `Pre-caching thumbnails & media assets for offline vault...`, 
       percent: 75, 
-      status: 'caching' 
+      status: 'caching',
+      stories: allStories,
+      posts: allPosts,
+      highlights: allHighlights
     });
 
     const thumbnailUrlsToCache = new Set();
@@ -234,7 +274,7 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     allStories.forEach((s, idx) => {
       const thumb = s.thumbnail_url || s.cover_media_url || s.display_url || s.media_url || (s.s3_key_compressed ? `/api/v1/media/${s.s3_key_compressed}` : null);
       if (thumb) thumbnailUrlsToCache.add(thumb);
-      if (idx < 30 && s.media_url) fullMediaUrlsToCache.add(s.media_url);
+      if (idx < 25 && s.media_url) fullMediaUrlsToCache.add(s.media_url);
     });
 
     // 2. Highlights covers & preview thumbnails
@@ -255,12 +295,12 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
         p.media_items.forEach((m) => {
           const thumb = m.thumbnail_url || m.display_url || m.media_url || m.instagram_media_url;
           if (thumb) thumbnailUrlsToCache.add(thumb);
-          if (idx < 15 && (m.media_url || m.display_url)) fullMediaUrlsToCache.add(m.media_url || m.display_url);
+          if (idx < 10 && (m.media_url || m.display_url)) fullMediaUrlsToCache.add(m.media_url || m.display_url);
         });
       } else if (p.media_url || p.display_url) {
         const u = p.thumbnail_url || p.display_url || p.media_url;
         if (u) thumbnailUrlsToCache.add(u);
-        if (idx < 15 && p.media_url) fullMediaUrlsToCache.add(p.media_url);
+        if (idx < 10 && p.media_url) fullMediaUrlsToCache.add(p.media_url);
       }
     });
 
@@ -268,32 +308,23 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     const allFullMedia = Array.from(fullMediaUrlsToCache);
     const totalToCache = allThumbnails.length + allFullMedia.length;
 
-    let cachedCount = 0;
-    // Download and store thumbnails first
-    for (const url of allThumbnails) {
-      await downloadAndCacheMedia(url);
-      cachedCount++;
-      if (cachedCount % 15 === 0) {
-        onProgress({
-          step: `Cached ${cachedCount}/${totalToCache} thumbnails & media assets...`,
-          percent: 75 + Math.round((cachedCount / (totalToCache || 1)) * 20),
-          status: 'caching'
-        });
-      }
-    }
+    // Fast parallel download of thumbnails
+    await batchDownloadAndCache(allThumbnails, 8, (completed, total) => {
+      onProgress({
+        step: `Cached ${completed}/${totalToCache} thumbnails...`,
+        percent: 75 + Math.round((completed / (totalToCache || 1)) * 15),
+        status: 'caching'
+      });
+    });
 
-    // Download full media for recent items
-    for (const url of allFullMedia) {
-      await downloadAndCacheMedia(url);
-      cachedCount++;
-      if (cachedCount % 10 === 0) {
-        onProgress({
-          step: `Cached ${cachedCount}/${totalToCache} thumbnails & media assets...`,
-          percent: 75 + Math.round((cachedCount / (totalToCache || 1)) * 20),
-          status: 'caching'
-        });
-      }
-    }
+    // Parallel download of recent full media
+    await batchDownloadAndCache(allFullMedia, 4, (completed, total) => {
+      onProgress({
+        step: `Cached ${allThumbnails.length + completed}/${totalToCache} media assets...`,
+        percent: 90 + Math.round((completed / (totalToCache || 1)) * 9),
+        status: 'caching'
+      });
+    });
 
     // Step 6: Finalize Sync & Storage Stats
     const stats = await getStorageStats();

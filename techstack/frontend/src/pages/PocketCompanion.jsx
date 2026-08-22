@@ -1445,6 +1445,9 @@ export default function PocketCompanion() {
     try {
       const res = await syncPocketWithLaptop((progress) => {
         setSyncProgress(progress);
+        if (progress.stories && Array.isArray(progress.stories)) setStories(progress.stories);
+        if (progress.posts && Array.isArray(progress.posts)) setPosts(progress.posts);
+        if (progress.highlights && Array.isArray(progress.highlights)) setHighlights(progress.highlights);
         if (progress.step) {
           setSyncLogs(prev => [`[${new Date().toLocaleTimeString()}] ${progress.step}`, ...prev.slice(0, 20)]);
         }
@@ -1459,13 +1462,13 @@ export default function PocketCompanion() {
 
       try {
         const session = await getInstagramSession();
-        setIgSession(session);
+        if (session) setIgSession(session);
       } catch (e) {}
 
       const syncStamp = new Date().toLocaleString();
       setLastSyncTime(syncStamp);
       localStorage.setItem('metro_last_sync', syncStamp);
-      showToast(`✓ Synced ${res?.stories?.length || 0} Memories & ${res?.posts?.length || 0} Posts (${res?.stats?.storageMb || '0.00'} MB offline)`);
+      showToast(`✓ Synced ${res?.stories?.length || 0} Memories & ${res?.posts?.length || 0} Posts`);
     } catch (err) {
       setSyncLogs(prev => [`[${new Date().toLocaleTimeString()}] Error: ${err.message}`, ...prev]);
       showToast('⚠️ Sync Failed (Using Offline Vault)');

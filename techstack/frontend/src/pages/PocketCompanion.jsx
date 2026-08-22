@@ -1558,6 +1558,64 @@ export default function PocketCompanion() {
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [stories, posts, places]);
 
+  // ── Preserved Soundtracks across all Stories & Posts ───────────────────────
+  const [soundtrackSearch, setSoundtrackSearch] = useState('');
+  const [activeSoundtrackTrack, setActiveSoundtrackTrack] = useState(null);
+
+  const allVaultSoundtracks = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+
+    stories.forEach(s => {
+      const track = s.music?.track_title || s.music_title;
+      const artist = s.music?.artist_name || s.music_artist;
+      if (track) {
+        const key = `${track}_${artist || ''}`.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            track_title: track,
+            artist_name: artist || 'Instagram Audio',
+            audio_url: s.music?.audio_url || null,
+            storyId: s.id,
+            date: s.taken_at,
+            type: 'story'
+          });
+        }
+      }
+    });
+
+    posts.forEach(p => {
+      const track = p.music?.track_title || p.music_title;
+      const artist = p.music?.artist_name || p.music_artist;
+      if (track) {
+        const key = `${track}_${artist || ''}`.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            track_title: track,
+            artist_name: artist || 'Instagram Audio',
+            audio_url: p.music?.audio_url || null,
+            postId: p.id,
+            date: p.taken_at || p.timestamp,
+            type: 'post'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [stories, posts]);
+
+  const filteredSoundtracks = useMemo(() => {
+    if (!soundtrackSearch) return allVaultSoundtracks;
+    const q = soundtrackSearch.toLowerCase();
+    return allVaultSoundtracks.filter(t => 
+      (t.track_title && t.track_title.toLowerCase().includes(q)) ||
+      (t.artist_name && t.artist_name.toLowerCase().includes(q))
+    );
+  }, [allVaultSoundtracks, soundtrackSearch]);
+
   // ── Pivot Tabs ────────────────────────────────────────────────────────────
   const pivotList = [
     { id: 'start', label: 'start' },
@@ -1565,6 +1623,7 @@ export default function PocketCompanion() {
     { id: 'highlights', label: 'highlights' },
     { id: 'feed', label: 'feed' },
     { id: 'journal', label: 'journal' },
+    { id: 'music', label: 'music' },
     { id: 'settings', label: 'settings' },
   ];
 
@@ -3164,7 +3223,7 @@ export default function PocketCompanion() {
                   { id: 'journal', name: 'Journal & Scrapbook', letter: 'J', icon: BookOpen, pivot: 'journal', desc: 'Rich memory entries, stickers & places' },
                   { id: 'map', name: 'Map & Travel Geotags', letter: 'M', icon: MapPin, pivot: 'journal', subTab: 'places', desc: 'Explore geotagged memories & destinations' },
                   { id: 'memories', name: 'Memories & Flashbacks', letter: 'M', icon: ImageIcon, pivot: 'memories', desc: 'Daily flashbacks, videos & photos' },
-                  { id: 'music', name: 'Music Player & Vinyl', letter: 'M', icon: Music, action: 'music', desc: 'Integrated turntable vinyl player' },
+                  { id: 'music', name: 'Music Hub & Vinyl Turntable', letter: 'M', icon: Music, pivot: 'music', desc: 'Integrated turntable vinyl player & soundtracks' },
                   { id: 'places', name: 'Places to Visit', letter: 'P', icon: Compass, pivot: 'journal', subTab: 'places', desc: 'Bucket list & destination tracker' },
                   { id: 'settings', name: 'Settings & Storage Sense', letter: 'S', icon: SettingsIcon, pivot: 'settings', desc: 'Manage offline storage & aesthetics' },
                   { id: 'sync', name: 'Sync Hub (ActiveSync)', letter: 'S', icon: RefreshCw, action: 'sync', desc: 'Wireless sync with laptop & IndexedDB' },
@@ -4926,7 +4985,163 @@ export default function PocketCompanion() {
           )}
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 6: SETTINGS & STORAGE SENSE (DESKTOP PARITY)
+              PIVOT 6: MUSIC VAULT & VINYL PLAYER (METRO HUB)
+             ══════════════════════════════════════════════════════ */}
+          {activePivot === 'music' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <div style={{ fontSize: '20px', fontWeight: 300, color: accent }}>
+                  music hub & soundtracks
+                </div>
+                <div style={{ fontSize: '12px', color: subTextColor }}>
+                  {allVaultSoundtracks.length} tracks preserved
+                </div>
+              </div>
+
+              {/* Live Turntable Player */}
+              <div style={{
+                backgroundColor: surfaceColor,
+                border: `1px solid ${borderColor}`,
+                borderRadius: '8px',
+                padding: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              }}>
+                <MusicPlayer
+                  music={activeSoundtrackTrack || allVaultSoundtracks[0] || { track_title: 'Archived Vault Track', artist_name: 'MemWault Audio' }}
+                />
+              </div>
+
+              {/* Soundtrack Search & List */}
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="search soundtracks or artists..."
+                  value={soundtrackSearch}
+                  onChange={(e) => setSoundtrackSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: cardColor,
+                    border: `2px solid ${borderColor}`,
+                    color: textColor,
+                    padding: '8px 12px 8px 34px',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <Search size={14} color={subTextColor} style={{ position: 'absolute', left: '10px', top: '10px' }} />
+              </div>
+
+              {/* Soundtracks List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {filteredSoundtracks.map((item, sIdx) => {
+                  const isCur = (activeSoundtrackTrack?.track_title || allVaultSoundtracks[0]?.track_title) === item.track_title;
+                  return (
+                    <motion.div
+                      key={sIdx}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        backgroundColor: surfaceColor,
+                        borderLeft: isCur ? `4px solid ${accent}` : `4px solid ${borderColor}`,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        triggerSound();
+                        setActiveSoundtrackTrack(item);
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          backgroundColor: isCur ? accent : cardColor,
+                          color: '#FFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '4px',
+                          flexShrink: 0
+                        }}>
+                          <Music size={18} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: isCur ? accent : textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.track_title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: subTextColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.artist_name || 'Instagram Audio'} • <span style={{ opacity: 0.7 }}>{item.date ? new Date(item.date).toLocaleDateString() : 'Archive'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {item.storyId && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerSound();
+                              const targetStory = stories.find(s => s.id === item.storyId);
+                              if (targetStory) {
+                                setSelectedStory(targetStory);
+                                setStoryDetailTab('preview');
+                              }
+                            }}
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: `1px solid ${borderColor}`,
+                              color: subTextColor,
+                              padding: '4px 8px',
+                              fontSize: '10px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Jump to Memory"
+                          >
+                            <span>Story</span>
+                            <ExternalLink size={10} />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            triggerSound();
+                            setActiveSoundtrackTrack(item);
+                          }}
+                          style={{
+                            backgroundColor: isCur ? accent : 'transparent',
+                            border: `1px solid ${accent}`,
+                            color: isCur ? '#FFF' : accent,
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {isCur ? '♫ SPIN' : 'PLAY'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+
+                {filteredSoundtracks.length === 0 && (
+                  <div style={{ padding: '32px 0', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
+                    No soundtracks matched your search.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════
+              PIVOT 7: SETTINGS & STORAGE SENSE (DESKTOP PARITY)
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'settings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>

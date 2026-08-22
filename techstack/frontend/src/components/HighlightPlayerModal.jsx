@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin, Star } from 'lucide-react'
+import { X, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Folder, Music as MusicIcon, MapPin, Star, Image as ImageIcon } from 'lucide-react'
 import { locateStoryMedia } from '../services/api'
 import MusicPlayer from './MusicPlayer'
 
@@ -21,7 +21,7 @@ function LiveMovingWaveform({ isPlaying }) {
           className={`eq-bar-${i}`}
           style={{
             width: '2.5px',
-            background: 'var(--ios-accent, #e89e38)',
+            background: 'var(--ios-accent, #0050EF)',
             borderRadius: '2px',
             height: isPlaying ? undefined : '3px',
             animationPlayState: isPlaying ? 'running' : 'paused'
@@ -30,6 +30,83 @@ function LiveMovingWaveform({ isPlaying }) {
       ))}
     </div>
   )
+}
+
+// ── Resilient Story Thumbnail Scrubber Item ──
+function StoryThumbnail({ story, isActive, onClick }) {
+  const isVid = story?.media_type === 2 || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov')));
+  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/media/${story.s3_key_compressed}` : '');
+  const [src, setSrc] = useState(rawUrl);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setSrc(rawUrl);
+    setHasError(false);
+  }, [rawUrl]);
+
+  return (
+    <motion.div 
+      className={`filmstrip-thumb ${isActive ? 'active' : ''}`}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      style={{
+        height: '68px',
+        width: '38px',
+        minWidth: '38px',
+        aspectRatio: '9/16',
+        borderRadius: '6px',
+        overflow: 'hidden',
+        border: isActive ? '2px solid var(--ios-accent, #0050EF)' : '2px solid transparent',
+        opacity: isActive ? 1 : 0.45,
+        transition: 'border 0.2s, opacity 0.2s',
+        cursor: 'pointer',
+        position: 'relative',
+        backgroundColor: '#1E1E1E',
+        flexShrink: 0,
+        boxShadow: isActive ? '0 0 12px rgba(0, 80, 239, 0.55)' : 'none',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none',
+      }}
+    >
+      {src && !hasError ? (
+        isVid ? (
+          <video 
+            src={src} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+            muted 
+            playsInline 
+            preload="metadata"
+            onError={() => {
+              if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
+                setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
+              } else {
+                setHasError(true);
+              }
+            }}
+          />
+        ) : (
+          <img 
+            src={src} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+            alt="Thumb" 
+            loading="lazy" 
+            onError={() => {
+              if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
+                setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
+              } else {
+                setHasError(true);
+              }
+            }}
+          />
+        )
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#141414' }}>
+          <ImageIcon size={14} color="#666" />
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 // Main Player Modal
@@ -54,6 +131,7 @@ export default function HighlightPlayerModal({
       const validIdx = initialIndex >= 0 && initialIndex < stories.length ? initialIndex : 0
       setCurrentIndex(validIdx)
       setShowMenu(false)
+      setShowMusicWidget(false)
     }
   }, [isOpen, initialIndex, stories])
 
@@ -65,9 +143,9 @@ export default function HighlightPlayerModal({
 
   // Contextual Sub-header (Music / Location) cycling timer
   useEffect(() => {
-    const validIdx = currentIndex >= 0 && currentIndex < stories.length ? currentIndex : 0
-    const story = stories[validIdx]
-    if (story && story.music && story.location_name) {
+    const validIdx = currentIndex >= 0 && currentIndex < stories?.length ? currentIndex : 0
+    const story = stories?.[validIdx]
+    if (story && (story.music || story.music_title) && story.location_name) {
       const timer = setInterval(() => {
         setContextDisplayMode(prev => prev === 'music' ? 'location' : 'music')
       }, 3500)
@@ -85,6 +163,7 @@ export default function HighlightPlayerModal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (showMenu) setShowMenu(false)
+        else if (showMusicWidget) setShowMusicWidget(false)
         else onClose()
       }
       else if (e.key === 'ArrowLeft') handlePrev()
@@ -96,18 +175,19 @@ export default function HighlightPlayerModal({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, currentIndex, stories, showMenu])
+  }, [isOpen, currentIndex, stories, showMenu, showMusicWidget])
 
   // Auto-advance for images (5 seconds)
   useEffect(() => {
-    if (!isOpen || isPaused || !stories || stories.length === 0) return
+    if (!isOpen || isPaused || showMusicWidget || !stories || stories.length === 0) return
     
     const validIdx = currentIndex >= 0 && currentIndex < stories.length ? currentIndex : 0
     const currentStory = stories[validIdx]
     if (!currentStory) return
     
     // If it's an image, advance progress artificially over 5s
-    if (currentStory.media_type === 1) {
+    const isVid = currentStory.media_type === 2 || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')));
+    if (!isVid) {
       const duration = 5000 // 5 seconds
       const interval = 50 // Update every 50ms
       const increment = interval / duration
@@ -125,27 +205,32 @@ export default function HighlightPlayerModal({
       
       return () => clearInterval(timer)
     }
-  }, [isOpen, currentIndex, isPaused, stories])
+  }, [isOpen, currentIndex, isPaused, showMusicWidget, stories])
 
   // Handle video progress and end
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !showMusicWidget) {
       const p = videoRef.current.currentTime / videoRef.current.duration
       setProgress(p || 0)
     }
   }
 
   const handleVideoEnded = () => {
-    handleNext()
+    if (!showMusicWidget) {
+      handleNext()
+    }
   }
 
-  // Play/Pause video when isPaused changes
+  // Play/Pause video when isPaused or showMusicWidget changes
   useEffect(() => {
     if (videoRef.current) {
-      if (isPaused) videoRef.current.pause()
-      else videoRef.current.play().catch(e => console.log('Autoplay prevented', e))
+      if (isPaused || showMusicWidget) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play().catch(() => {})
+      }
     }
-  }, [isPaused, currentIndex])
+  }, [isPaused, showMusicWidget, currentIndex])
 
   const handlePrev = () => {
     if (currentIndex > 0) {
@@ -189,15 +274,24 @@ export default function HighlightPlayerModal({
   const currentStory = stories[validIndex]
   if (!currentStory) return null
 
-  const isVideo = currentStory.media_type === 2
-  const mediaUrl = currentStory.media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
-  
-  // Tap zones on story canvas: left 30% prev, right 30% next, center 40% play/pause
+  const isVideo = currentStory.media_type === 2 || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')))
+  const mediaUrl = currentStory.media_url || currentStory.display_url || currentStory.cover_media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
+  const trackName = currentStory.music?.track_title || currentStory.music_title
+  const artistName = currentStory.music?.artist_name || currentStory.music_artist
+
+  // Canvas Tap Logic
   const handleCanvasClick = (e) => {
     if (e.target.closest('.story-header-overlay') || e.target.closest('.menu-popover')) {
       return
     }
     e.stopPropagation()
+
+    // IF MUSIC WIDGET IS OPEN: clicking canvas restores full story mode
+    if (showMusicWidget) {
+      setShowMusicWidget(false)
+      return
+    }
+
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const width = rect.width
@@ -220,319 +314,362 @@ export default function HighlightPlayerModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
           style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.92)',
-            backdropFilter: 'blur(20px)',
-            display: 'flex', flexDirection: 'column',
-            userSelect: 'none'
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: '#000000',
+            display: 'flex',
+            flexDirection: 'column',
+            userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            WebkitTouchCallout: 'none',
+            overflow: 'hidden',
           }}
         >
-      {/* ── Main Viewing Area ── */}
-      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
-        
-        {/* Left Nav Zone */}
-        <div 
-          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-          style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: '25%', zIndex: 50,
-            cursor: 'w-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
-            paddingLeft: '20px'
-          }}
-          className="nav-zone group"
-        >
-          <div className="nav-icon" style={{
-            background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
-            border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
-            borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
-            opacity: 0, transition: 'opacity 0.2s',
-            boxShadow: 'var(--ios-shadow-md)'
+          {/* ── Main Viewing Area ── */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            width: '100%',
           }}>
-            <ChevronLeft size={28} />
-          </div>
-        </div>
-
-        {/* Center Stage (Story Canvas + optional Music Widget on Side) */}
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: '24px', padding: '20px 0', position: 'relative'
-        }}>
-          {/* Story Canvas */}
-          <motion.div 
-            layout
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            onClick={handleCanvasClick}
-            className="ios-story-card"
-            style={{
-              height: '100%', aspectRatio: '9/16',
-              background: '#000', borderRadius: 'var(--ios-radius-lg, 16px)', overflow: 'hidden',
-              position: 'relative', cursor: 'pointer',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-              border: '1px solid var(--ios-border)',
-              flexShrink: 0
-            }}
-          >
-            {/* Story Media */}
-            {isVideo ? (
-              <video
-                ref={videoRef}
-                src={mediaUrl}
-                autoPlay
-                playsInline
-                onTimeUpdate={handleTimeUpdate}
-                onEnded={handleVideoEnded}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <img
-                src={mediaUrl}
-                alt="Story"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            )}
-
-            {/* AI Tag Overlay if applicable */}
-            {currentStory.is_ai_generated && (
-               <div style={{
-                 position: 'absolute', top: '80px', right: '16px', zIndex: 40,
-                 background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
-                 color: '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px',
-                 borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)'
-               }}>
-                 ✨ AI
-               </div>
-            )}
-
-            {/* Visual PAUSED Indicator */}
-            {isPaused && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'rgba(0,0,0,0.75)',
-                border: '1px solid rgba(255,255,255,0.25)',
-                backdropFilter: 'blur(8px)',
-                color: '#FFFFFF',
-                padding: '8px 18px',
-                borderRadius: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '12px',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                pointerEvents: 'none',
-                zIndex: 50,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-              }}>
-                <Pause size={14} fill="#FFF" />
-                <span>PAUSED</span>
-              </div>
-            )}
-
-            {/* Overlays (Progress Bars & Header) */}
+            
+            {/* Left Nav Zone (Starts below top header to avoid button overlap) */}
             <div 
-              className="story-header-overlay"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); if (!showMusicWidget) handlePrev(); }}
               style={{
-                position: 'absolute', top: 0, left: 0, right: 0,
-                padding: '14px 16px', zIndex: 60,
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
-                pointerEvents: 'auto'
+                position: 'absolute', left: 0, top: '75px', bottom: 0, width: '25%', zIndex: 40,
+                cursor: 'w-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                paddingLeft: '20px', WebkitTapHighlightColor: 'transparent',
+              }}
+              className="nav-zone group"
+            >
+              <div className="nav-icon" style={{
+                background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
+                border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
+                borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
+                opacity: 0, transition: 'opacity 0.2s',
+                boxShadow: 'var(--ios-shadow-md)'
+              }}>
+                <ChevronLeft size={28} />
+              </div>
+            </div>
+
+            {/* Center Story Canvas */}
+            <motion.div 
+              layout
+              animate={{
+                scale: showMusicWidget ? 0.65 : 1,
+                y: showMusicWidget ? -30 : 0,
+              }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              onClick={handleCanvasClick}
+              className="ios-story-card"
+              style={{
+                height: showMusicWidget ? '70%' : '94%',
+                maxHeight: '88vh',
+                aspectRatio: '9/16',
+                background: '#000000',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                position: 'relative',
+                cursor: 'pointer',
+                boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                flexShrink: 0,
+                WebkitTapHighlightColor: 'transparent',
+                outline: 'none',
               }}
             >
-              {/* Progress Bars */}
-              <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
-                {stories.map((s, idx) => {
-                  let fill = 0;
-                  if (idx < currentIndex) fill = 100;
-                  else if (idx === currentIndex) fill = progress * 100;
-                  
-                  return (
-                    <div key={s.id || idx} style={{
-                      flex: 1, height: '2.5px', background: 'rgba(255,255,255,0.3)',
-                      borderRadius: '2px', overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        height: '100%', background: 'var(--ios-accent, #fff)',
-                        width: `${fill}%`, transition: isPaused ? 'none' : 'width 50ms linear'
-                      }} />
-                    </div>
-                  )
-                })}
-              </div>
+              {/* Story Media */}
+              {isVideo ? (
+                <video
+                  ref={videoRef}
+                  src={mediaUrl}
+                  autoPlay
+                  playsInline
+                  onTimeUpdate={handleTimeUpdate}
+                  onEnded={handleVideoEnded}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt="Story"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => {
+                    if (mediaUrl && !mediaUrl.startsWith('/api/v1/proxy') && mediaUrl.startsWith('http')) {
+                      e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(mediaUrl)}`;
+                    }
+                  }}
+                />
+              )}
 
-              {/* ── 2-Row Header Layout ── */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
-                {/* Avatar */}
+              {/* AI Tag Overlay */}
+              {currentStory.is_ai_generated && (
                 <div style={{
-                  width: '38px', height: '38px', borderRadius: '50%',
-                  background: 'var(--ios-accent, #e89e38)',
-                  padding: '2px', flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  position: 'absolute', top: '80px', right: '16px', zIndex: 40,
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
+                  color: '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px',
+                  borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)'
                 }}>
-                   <div style={{
-                     width: '100%', height: '100%', borderRadius: '50%',
-                     background: 'var(--ios-bg-card, #1c1c1e)',
-                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                     color: 'var(--ios-text-primary, #fff)', fontSize: '13px', fontWeight: 800
-                   }}>
-                     {highlightTitle.charAt(0).toUpperCase()}
-                   </div>
+                  ✨ AI
+                </div>
+              )}
+
+              {/* Visual PAUSED Indicator (Only shown in full story mode when paused) */}
+              {isPaused && !showMusicWidget && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: 'rgba(0,0,0,0.75)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#FFFFFF',
+                  padding: '8px 18px',
+                  borderRadius: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  pointerEvents: 'none',
+                  zIndex: 50,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+                }}>
+                  <Pause size={14} fill="#FFF" />
+                  <span>PAUSED</span>
+                </div>
+              )}
+
+              {/* Tap to Resume Story Banner when Music Mode is active */}
+              {showMusicWidget && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 45,
+                }}>
+                  <div style={{
+                    backgroundColor: 'rgba(0,0,0,0.75)',
+                    padding: '6px 14px',
+                    borderRadius: '16px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#FFF',
+                    letterSpacing: '0.05em',
+                  }}>
+                    TAP TO ENLARGE STORY
+                  </div>
+                </div>
+              )}
+
+              {/* Overlays (Progress Bars & Header) */}
+              <div 
+                className="story-header-overlay"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute', top: 0, left: 0, right: 0,
+                  padding: '14px 16px', zIndex: 60,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)',
+                  pointerEvents: 'auto',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {/* Segmented Progress Bars */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+                  {stories.map((s, idx) => {
+                    let fill = 0;
+                    if (idx < currentIndex) fill = 100;
+                    else if (idx === currentIndex) fill = progress * 100;
+                    
+                    return (
+                      <div key={s.id || idx} style={{
+                        flex: 1, height: '2.5px', background: 'rgba(255,255,255,0.3)',
+                        borderRadius: '2px', overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          height: '100%', background: 'var(--ios-accent, #0050EF)',
+                          width: `${fill}%`, transition: (isPaused || showMusicWidget) ? 'none' : 'width 50ms linear'
+                        }} />
+                      </div>
+                    )
+                  })}
                 </div>
 
-                {/* 2-Row Info Block */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                  {/* Row 1: Identity */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {highlightTitle}
-                    </span>
-                    {(currentStory.is_close_friends || currentStory.audience === 'close_friends') && (
-                      <span style={{
-                        backgroundColor: '#00D26A',
-                        color: '#FFFFFF',
-                        padding: '1px 5px',
-                        borderRadius: '2px',
-                        fontSize: '9px',
-                        fontWeight: 800,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        flexShrink: 0
-                      }}>
-                        <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
-                        <span>CF</span>
-                      </span>
-                    )}
-                    <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', flexShrink: 0 }}>
-                      {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                    </span>
+                {/* ── 2-Row Header Layout ── */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
+                  {/* Avatar */}
+                  <div style={{
+                    width: '38px', height: '38px', borderRadius: '50%',
+                    background: 'var(--ios-accent, #0050EF)',
+                    padding: '2px', flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  }}>
+                     <div style={{
+                       width: '100%', height: '100%', borderRadius: '50%',
+                       background: 'var(--ios-bg-card, #1c1c1e)',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       color: '#FFF', fontSize: '13px', fontWeight: 800
+                     }}>
+                       {highlightTitle.charAt(0).toUpperCase()}
+                     </div>
                   </div>
 
-                  {/* Row 2: Contextual Metadata (Music / Location) */}
-                  {(currentStory.music || currentStory.location_name) && (
-                    <AnimatePresence mode="wait">
-                      <motion.div 
-                        key={contextDisplayMode}
-                        initial={{ opacity: 0, y: 3 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -3 }}
-                        transition={{ duration: 0.18 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (currentStory.music) setShowMusicWidget(prev => !prev);
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '4px',
-                          color: '#fff', fontSize: '12px', fontWeight: 500,
-                          cursor: currentStory.music ? 'pointer' : 'default',
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                        }}
-                        title={currentStory.music ? "Click to toggle music turntable / equalizer" : ""}
-                      >
-                        {contextDisplayMode === 'location' || (!currentStory.music && currentStory.location_name) ? (
-                          <>
-                            <MapPin size={12} color="var(--ios-accent, #e89e38)" />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
-                          </>
-                        ) : (
-                          <>
-                            <LiveMovingWaveform isPlaying={!isPaused} />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {currentStory.music?.track_title || 'Audio Track'} {currentStory.music?.artist_name ? ` · ${currentStory.music.artist_name}` : ''}
-                            </span>
-                          </>
-                        )}
-                      </motion.div>
-                    </AnimatePresence>
-                  )}
-                </div>
-                
-                {/* Controls */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowMenu(prev => !prev); }} 
-                    style={{
-                      background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '50%', width: '32px', height: '32px',
-                      color: '#fff', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                    title="Story Options"
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                    style={{
-                      background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '50%', width: '32px', height: '32px',
-                      color: '#fff', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                    title="Close"
-                  >
-                    <X size={18} />
-                  </button>
+                  {/* 2-Row Info Block */}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                    {/* Row 1: Identity & Close Friends */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {highlightTitle}
+                      </span>
+                      {(currentStory.is_close_friends || currentStory.audience === 'close_friends') && (
+                        <span style={{
+                          backgroundColor: '#00D26A',
+                          color: '#FFFFFF',
+                          padding: '1px 5px',
+                          borderRadius: '2px',
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          flexShrink: 0
+                        }}>
+                          <Star size={8} fill="#FFFFFF" color="#FFFFFF" />
+                          <span>CF</span>
+                        </span>
+                      )}
+                      <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', flexShrink: 0 }}>
+                        {currentStory.taken_at ? new Date(currentStory.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                      </span>
+                    </div>
 
-                  {/* ── Popover Menu ── */}
-                  <AnimatePresence>
-                    {showMenu && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.88, y: -8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.88, y: -8 }}
-                        transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="ios-card"
-                        style={{
-                          position: 'absolute', top: '42px', right: 0, zIndex: 100,
-                          backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
-                          border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
-                          borderRadius: '16px',
-                          width: '230px', padding: '6px',
-                          boxShadow: 'var(--ios-shadow-lg, 0 10px 30px rgba(0,0,0,0.5))',
-                          display: 'flex', flexDirection: 'column', gap: '2px', transformOrigin: 'top right'
-                        }}
-                      >
-                        <button 
-                          onClick={handleOpenInstagram}
-                          style={{
-                            background: 'transparent', border: 'none',
-                            color: 'var(--ios-text-primary, #fff)',
-                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
-                            cursor: 'pointer', textAlign: 'left',
-                            transition: 'background 0.15s'
+                    {/* Row 2: Contextual Metadata (Music / Location) */}
+                    {(trackName || currentStory.location_name) && (
+                      <AnimatePresence mode="wait">
+                        <motion.div 
+                          key={contextDisplayMode}
+                          initial={{ opacity: 0, y: 3 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -3 }}
+                          transition={{ duration: 0.18 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (trackName) setShowMusicWidget(prev => !prev);
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <ExternalLink size={16} color="var(--ios-accent, #0a84ff)" /> Open on Instagram
-                        </button>
-
-                        <button 
-                          onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
                           style={{
-                            background: 'transparent', border: 'none',
-                            color: 'var(--ios-text-primary, #fff)',
-                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
-                            cursor: 'pointer', textAlign: 'left',
-                            transition: 'background 0.15s'
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            color: '#fff', fontSize: '12px', fontWeight: 500,
+                            cursor: trackName ? 'pointer' : 'default',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          title={trackName ? "Click to toggle music turntable" : ""}
                         >
-                          <MusicIcon size={16} color="#e89e38" /> {showMusicWidget ? 'Hide Music Turntable' : 'Show Music Turntable'}
-                        </button>
+                          {contextDisplayMode === 'location' || (!trackName && currentStory.location_name) ? (
+                            <>
+                              <MapPin size={12} color="var(--ios-accent, #0050EF)" />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentStory.location_name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <LiveMovingWaveform isPlaying={!isPaused && !showMusicWidget} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {trackName} {artistName ? ` · ${artistName}` : ''}
+                              </span>
+                            </>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
+                    )}
+                  </div>
+                  
+                  {/* Controls (Generous 44px hitboxes, stops propagation) */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowMenu(prev => !prev); }} 
+                      style={{
+                        background: 'rgba(0,0,0,0.55)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '50%',
+                        width: '38px',
+                        height: '38px',
+                        minWidth: '38px',
+                        minHeight: '38px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'auto',
+                        zIndex: 100,
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                      title="Story Options"
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                    
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        e.preventDefault(); 
+                        onClose(); 
+                      }} 
+                      style={{
+                        background: 'rgba(0,0,0,0.55)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '50%',
+                        width: '38px',
+                        height: '38px',
+                        minWidth: '38px',
+                        minHeight: '38px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'auto',
+                        zIndex: 100,
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                      title="Close"
+                    >
+                      <X size={18} />
+                    </button>
 
-                        {currentStory.location_name && (
+                    {/* ── Popover Menu ── */}
+                    <AnimatePresence>
+                      {showMenu && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.88, y: -8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.88, y: -8 }}
+                          transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="ios-card menu-popover"
+                          style={{
+                            position: 'absolute', top: '46px', right: 0, zIndex: 200,
+                            backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
+                            border: '1px solid rgba(255,255,255,0.18)',
+                            borderRadius: '16px',
+                            width: '230px', padding: '6px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+                            display: 'flex', flexDirection: 'column', gap: '2px', transformOrigin: 'top right'
+                          }}
+                        >
                           <button 
-                            onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
+                            onClick={handleOpenInstagram}
                             style={{
                               background: 'transparent', border: 'none',
                               color: 'var(--ios-text-primary, #fff)',
@@ -541,178 +678,200 @@ export default function HighlightPlayerModal({
                               cursor: 'pointer', textAlign: 'left',
                               transition: 'background 0.15s'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                           >
-                            <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
+                            <ExternalLink size={16} color="var(--ios-accent, #0050EF)" /> Open on Instagram
                           </button>
-                        )}
 
-                        <button 
-                          onClick={handleLocateFile}
-                          style={{
-                            background: 'transparent', border: 'none',
-                            color: 'var(--ios-text-primary, #fff)',
-                            padding: '10px 12px', borderRadius: '10px', display: 'flex',
-                            alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
-                            cursor: 'pointer', textAlign: 'left',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-border)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <Folder size={16} color="var(--ios-accent, #e89e38)" /> Reveal Media File
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                          {trackName && (
+                            <button 
+                              onClick={() => { setShowMusicWidget(prev => !prev); setShowMenu(false); }}
+                              style={{
+                                background: 'transparent', border: 'none',
+                                color: 'var(--ios-text-primary, #fff)',
+                                padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                                alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                                cursor: 'pointer', textAlign: 'left',
+                                transition: 'background 0.15s'
+                              }}
+                            >
+                              <MusicIcon size={16} color="#0050EF" /> {showMusicWidget ? 'Hide Music Turntable' : 'Show Music Turntable'}
+                            </button>
+                          )}
+
+                          {currentStory.location_name && (
+                            <button 
+                              onClick={() => { setContextDisplayMode('location'); setShowMenu(false); }}
+                              style={{
+                                background: 'transparent', border: 'none',
+                                color: 'var(--ios-text-primary, #fff)',
+                                padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                                alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                                cursor: 'pointer', textAlign: 'left',
+                                transition: 'background 0.15s'
+                              }}
+                            >
+                              <MapPin size={16} color="#ff3b30" /> Location: {currentStory.location_name}
+                            </button>
+                          )}
+
+                          <button 
+                            onClick={handleLocateFile}
+                            style={{
+                              background: 'transparent', border: 'none',
+                              color: 'var(--ios-text-primary, #fff)',
+                              padding: '10px 12px', borderRadius: '10px', display: 'flex',
+                              alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 600,
+                              cursor: 'pointer', textAlign: 'left',
+                              transition: 'background 0.15s'
+                            }}
+                          >
+                            <Folder size={16} color="var(--ios-accent, #0050EF)" /> Reveal Media File
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
 
-          {/* Music Turntable Bottom Modal / Widget */}
-          <AnimatePresence>
-            {showMusicWidget && (
-              <motion.div 
-                layout
-                initial={{ opacity: 0, y: 25, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 25, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                style={{
-                  position: 'absolute',
-                  bottom: '12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 120,
-                  width: '92%',
-                  maxWidth: '360px',
-                  boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
-                  borderRadius: '16px',
-                  overflow: 'hidden'
-                }}
-              >
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowMusicWidget(false)}
-                    style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: 'rgba(0,0,0,0.6)',
-                      border: 'none',
-                      color: '#FFF',
-                      borderRadius: '50%',
-                      padding: '4px',
-                      cursor: 'pointer',
-                      zIndex: 130
-                    }}
-                    title="Close Music Panel"
-                  >
-                    <X size={14} />
-                  </button>
-                  <MusicPlayer 
-                    music={currentStory.music || { track_title: 'Archived Story Track', artist_name: highlightTitle }} 
-                    onPlayStateChange={(isMusicPlaying) => {
-                      if (isMusicPlaying) {
+            {/* Right Nav Zone (Starts below header to avoid X button collision) */}
+            <div 
+              onClick={(e) => { e.stopPropagation(); if (!showMusicWidget) handleNext(); }}
+              style={{
+                position: 'absolute', right: 0, top: '75px', bottom: 0, width: '25%', zIndex: 40,
+                cursor: 'e-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                paddingRight: '20px', WebkitTapHighlightColor: 'transparent',
+              }}
+              className="nav-zone group"
+            >
+               <div className="nav-icon" style={{
+                background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
+                border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
+                borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
+                opacity: 0, transition: 'opacity 0.2s',
+                boxShadow: 'var(--ios-shadow-md)'
+              }}>
+                <ChevronRight size={28} />
+              </div>
+            </div>
+
+            {/* ── Music Turntable Emerges From Behind Below Story ── */}
+            <AnimatePresence>
+              {showMusicWidget && (
+                <motion.div 
+                  initial={{ y: 90, opacity: 0, scale: 0.94 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: 90, opacity: 0, scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                  style={{
+                    position: 'absolute',
+                    bottom: '12px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 90,
+                    width: '92%',
+                    maxWidth: '380px',
+                    boxShadow: '0 16px 48px rgba(0,0,0,0.95)',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowMusicWidget(false)}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: 'rgba(0,0,0,0.65)',
+                        border: 'none',
+                        color: '#FFF',
+                        borderRadius: '50%',
+                        width: '26px',
+                        height: '26px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 130
+                      }}
+                      title="Close Music Panel"
+                    >
+                      <X size={14} />
+                    </button>
+                    <MusicPlayer 
+                      music={currentStory.music || { track_title: trackName || 'Archived Story Track', artist_name: artistName || highlightTitle }} 
+                      onPlayStateChange={(isMusicPlaying) => {
+                        if (isMusicPlaying) {
+                          setIsPaused(true);
+                          if (videoRef.current) {
+                            videoRef.current.pause();
+                            videoRef.current.muted = true;
+                          }
+                        }
+                      }}
+                      onExternalOpen={() => {
                         setIsPaused(true);
                         if (videoRef.current) {
                           videoRef.current.pause();
                           videoRef.current.muted = true;
                         }
-                      }
-                    }}
-                    onExternalOpen={() => {
-                      setIsPaused(true);
-                      if (videoRef.current) {
-                        videoRef.current.pause();
-                        videoRef.current.muted = true;
-                      }
-                    }}
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ── Bottom Filmstrip (Thumbnail Scrubber) — Slides away when music is shown ── */}
+          <AnimatePresence>
+            {!showMusicWidget && (
+              <motion.div 
+                initial={{ y: 80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 80, opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                style={{
+                  height: '84px',
+                  backgroundColor: '#111113',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px',
+                  overflowX: 'auto', gap: '8px',
+                  WebkitTapHighlightColor: 'transparent',
+                  userSelect: 'none',
+                  zIndex: 50,
+                }} 
+                className="hide-scrollbar"
+              >
+                {stories.map((story, idx) => (
+                  <StoryThumbnail
+                    key={story.id || idx}
+                    story={story}
+                    isActive={idx === currentIndex}
+                    onClick={() => setCurrentIndex(idx)}
                   />
-                </div>
+                ))}
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Right Nav Zone */}
-        <div 
-          onClick={(e) => { e.stopPropagation(); handleNext(); }}
-          style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: '25%', zIndex: 50,
-            cursor: 'e-resize', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-            paddingRight: '20px'
-          }}
-          className="nav-zone group"
-        >
-           <div className="nav-icon" style={{
-            background: 'var(--ios-bg-card, rgba(30,30,30,0.8))',
-            border: '1px solid var(--ios-border, rgba(255,255,255,0.15))',
-            borderRadius: '50%', padding: '12px', color: 'var(--ios-text-primary, #fff)',
-            opacity: 0, transition: 'opacity 0.2s',
-            boxShadow: 'var(--ios-shadow-md)'
-          }}>
-            <ChevronRight size={28} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom Filmstrip (Thumbnail Scrubber) ── */}
-      <div style={{
-        height: '96px',
-        backgroundColor: 'var(--ios-bg-card, #121214)',
-        borderTop: '1px solid var(--ios-border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-        overflowX: 'auto', gap: '10px'
-      }} className="hide-scrollbar">
-        {stories.map((story, idx) => {
-          const isActive = idx === currentIndex
-          const isVid = story.media_type === 2
-          const thumbUrl = story.media_url || (story.s3_key_compressed ? `/media/${story.s3_key_compressed}` : null)
-          return (
-            <motion.div 
-              key={story.id} 
-              className={`filmstrip-thumb ${isActive ? 'active' : ''}`}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setCurrentIndex(idx)}
-              style={{
-                height: '68px', minWidth: '40px', aspectRatio: '9/16',
-                borderRadius: 'var(--ios-radius-sm, 6px)', overflow: 'hidden',
-                border: isActive ? '2px solid var(--ios-accent, #e89e38)' : '2px solid transparent',
-                opacity: isActive ? 1 : 0.45,
-                transition: 'border 0.2s, opacity 0.2s', cursor: 'pointer',
-                position: 'relative', backgroundColor: 'var(--ios-border)',
-                flexShrink: 0,
-                boxShadow: isActive ? '0 0 12px rgba(232, 158, 56, 0.4)' : 'none'
-              }}
-            >
-              {thumbUrl ? (
-                isVid ? (
-                  <video src={thumbUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted preload="metadata" />
-                ) : (
-                  <img src={thumbUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" loading="lazy" />
-                )
-              ) : null}
-            </motion.div>
-          )
-        })}
-      </div>
-      
-      <style>{`
-        .nav-zone:hover .nav-icon {
-          opacity: 1 !important;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+          
+          <style>{`
+            * {
+              -webkit-tap-highlight-color: transparent !important;
+            }
+            .nav-zone:hover .nav-icon {
+              opacity: 1 !important;
+            }
+            .hide-scrollbar::-webkit-scrollbar {
+              display: none;
+            }
+            .hide-scrollbar {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
         </motion.div>
       )}
     </AnimatePresence>

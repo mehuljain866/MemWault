@@ -50,6 +50,48 @@ Instagram stores the temporary interface around your memories, but it doesn't gi
 
 ---
 
+## Product Philosophy: Sanctuary vs Platform
+
+> **Social media is designed to extract your attention. MemWault is designed to preserve your memories.**
+
+Mainstream platforms are engineered around ads, engagement loops, algorithmic feeds, and dark patterns whose goal is to extract your time and monetize your social graph. 
+
+MemWault is built upon a radically different philosophy: **A user-owned, distraction-free sanctuary for personal reflection.**
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  SOCIAL PLATFORMS                                           │
+│  • Goal: Extract attention & maximize ad impressions        │
+│  • Medium: Algorithmic feeds, infinite scrolls, nudges      │
+│  • UI: Rigid, platform-enforced, optimized for consumption  │
+└─────────────────────────────────────────────────────────────┘
+                              vs
+┌─────────────────────────────────────────────────────────────┐
+│  MEMWAULT (Your Personal Memory Archive)                    │
+│  • Goal: Pure reflection, preservation & meaning-making     │
+│  • Medium: Local-first, zero ads, zero behavioral traps     │
+│  • UI: Radical customization — you decide how to experience │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### The Core Tenets of MemWault:
+
+1. **Simple, Sovereign Interaction Flow**:
+   Open MemWault → Explore your memories → Reflect and journal → Customize your atmosphere → Leave with peace of mind. No notifications, no unskippable sponsored content, and no algorithmic traps.
+
+2. **Radical Aesthetic Customization as a Philosophy**:
+   - **Instagram says:** *“Here is the interface we designed to maximize engagement with our platform.”*
+   - **MemWault says:** *“Here is your archive. **You decide how you want to experience it.**”*
+   
+   Customization is not just changing an accent color; it governs your emotional relationship with your past:
+   - **Multi-Era Design Systems**: Relive moments inside an authentic **Windows 98 Desktop** with 3D bevels and wav chimes, an analog **Darkroom Amber**, a retro **Chrome Cyber Y2K**, or an ultra-clean **iOS Modern** interface.
+   - **Full UI Agency**: Granular control over video auto-motion, typography, 2x2 halftone dither patterns, spatial density, audio feedback, and window layouts.
+
+3. **Total Data Sovereignty**:
+   Your memories belong to you, not to a platform's corporate server. Stored locally with open SQLite/Postgres schemas, standard media files, and human-readable Markdown `.md` sidecars.
+
+---
+
 ## Key Features
 
 - 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories, Carousels, and Video Posts as distinct archival classification problems.

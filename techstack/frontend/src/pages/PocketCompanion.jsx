@@ -27,6 +27,7 @@ import {
 import { 
   updateStory, updatePost, setToken, isAuthenticated, 
   getHighlights, getHighlightStories, getInstagramSession,
+  disconnectInstagram, renewInstagramSession, rescanMetadata,
   getStoryViewers, updatePostMedia
 } from '../services/api';
 import MusicPlayer from '../components/MusicPlayer';
@@ -84,13 +85,25 @@ const DRAWING_COLORS = [
 ];
 
 const CUSTOM_STICKER_SETS = [
-  { id: 'stamp_vault', label: 'VAULT SEAL', bg: '#A20025', text: 'MEMWAULT ARCHIVE', icon: '🏛️' },
-  { id: 'stamp_loc', label: 'PASSPORT', bg: '#0050EF', text: 'VERIFIED LOCATION', icon: '✈️' },
-  { id: 'stamp_sound', label: 'VINYL', bg: '#1DB954', text: 'SOUNDTRACK 33⅓', icon: '🎵' },
-  { id: 'stamp_date', label: 'TIMECODE', bg: '#FA6800', text: 'ON THIS DAY', icon: '⏳' },
-  { id: 'stamp_polaroid', label: 'POLAROID', bg: '#E8E8E8', text: 'ORIGINAL SHOT', icon: '📸', darkText: true },
-  { id: 'stamp_fav', label: 'FAVORITE', bg: '#D80073', text: 'CORE MEMORY', icon: '💖' },
+  { id: 'stamp_vault', label: 'VAULT SEAL', bg: '#A20025', text: 'MEMWAULT ARCHIVE', iconName: 'ShieldCheck' },
+  { id: 'stamp_loc', label: 'PASSPORT', bg: '#0050EF', text: 'VERIFIED LOCATION', iconName: 'MapPin' },
+  { id: 'stamp_sound', label: 'VINYL', bg: '#1DB954', text: 'SOUNDTRACK 33⅓', iconName: 'Music' },
+  { id: 'stamp_date', label: 'TIMECODE', bg: '#FA6800', text: 'ON THIS DAY', iconName: 'Clock' },
+  { id: 'stamp_polaroid', label: 'POLAROID', bg: '#E8E8E8', text: 'ORIGINAL SHOT', iconName: 'Camera', darkText: true },
+  { id: 'stamp_fav', label: 'FAVORITE', bg: '#D80073', text: 'CORE MEMORY', iconName: 'Heart' },
 ];
+
+function RenderStickerIcon({ name, size = 16, color = '#FFF' }) {
+  switch (name) {
+    case 'ShieldCheck': return <ShieldCheck size={size} color={color} />;
+    case 'MapPin': return <MapPin size={size} color={color} />;
+    case 'Music': return <Music size={size} color={color} />;
+    case 'Clock': return <Calendar size={size} color={color} />;
+    case 'Camera': return <Camera size={size} color={color} />;
+    case 'Heart': return <Heart size={size} color={color} fill={color} />;
+    default: return <Sparkles size={size} color={color} />;
+  }
+}
 
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
@@ -99,7 +112,10 @@ function useOfflineMediaUrl(url) {
   const [src, setSrc] = useState(url);
 
   useEffect(() => {
-    if (!url) return;
+    if (!url) {
+      setSrc('');
+      return;
+    }
     let isMounted = true;
     let objectUrl = null;
 
@@ -124,15 +140,73 @@ function useOfflineMediaUrl(url) {
 }
 
 /**
- * Offline-aware Media Element (renders Images or Videos from offline Blobs)
+ * Desktop-Grade Offline-aware Media Element
+ * Automatically detects whether media is an image or video (.mp4/.mov/media_type 2)
+ * and renders video previews with smooth autoplay & muted looping exactly like desktop!
  */
-function OfflineMedia({ src, type = 'image', alt = '', style = {}, className = '', ...props }) {
+function OfflineMedia({ 
+  src, 
+  type, 
+  alt = '', 
+  style = {}, 
+  className = '', 
+  autoPlay = true, 
+  loop = true, 
+  muted = true, 
+  playsInline = true, 
+  controls = false,
+  ...props 
+}) {
   const resolvedUrl = useOfflineMediaUrl(src);
-
-  if (type === 'video') {
-    return <video src={resolvedUrl} style={style} className={className} {...props} />;
+  if (!resolvedUrl) {
+    return (
+      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>
+        <ImageIcon size={20} style={{ opacity: 0.2 }} />
+      </div>
+    );
   }
-  return <img src={resolvedUrl} alt={alt} style={style} className={className} {...props} />;
+
+  const isVideo = type === 'video' || (typeof resolvedUrl === 'string' && (
+    resolvedUrl.includes('.mp4') || 
+    resolvedUrl.includes('.mov') || 
+    resolvedUrl.includes('video') ||
+    resolvedUrl.startsWith('data:video')
+  ));
+
+  if (isVideo) {
+    return (
+      <video
+        src={`${resolvedUrl}#t=0.1`}
+        style={{ ...style, display: 'block' }}
+        className={className}
+        autoPlay={autoPlay}
+        loop={loop}
+        muted={muted}
+        playsInline={playsInline}
+        controls={controls}
+        preload="metadata"
+        onError={(e) => {
+          if (e.target.src && e.target.src.includes('#t=0.1')) {
+            e.target.src = resolvedUrl;
+          }
+        }}
+        {...props}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={resolvedUrl}
+      alt={alt}
+      style={{ ...style, display: 'block' }}
+      className={className}
+      onError={(e) => {
+        e.target.style.opacity = '0.35';
+      }}
+      {...props}
+    />
+  );
 }
 
 function getMediaUrl(item) {
@@ -249,7 +323,56 @@ export default function PocketCompanion() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [batteryLevel, setBatteryLevel] = useState(null);
 
-  // ── 3D Live Tile Staggered Flip States ────────────────────────────────────
+  // ── Authentic Lumia Live Tile Sizing & Customization ──────────────────────
+  const [tileSizes, setTileSizes] = useState(() => {
+    try {
+      const saved = localStorage.getItem('metro_tile_sizes');
+      return saved ? JSON.parse(saved) : {
+        onThisDay: 'wide',
+        photos: 'wide',
+        highlights: 'medium',
+        feed: 'medium',
+        journal: 'medium',
+        places: 'medium',
+        camera: 'small',
+        settings: 'small'
+      };
+    } catch (e) {
+      return { onThisDay: 'wide', photos: 'wide', highlights: 'medium', feed: 'medium', journal: 'medium', places: 'medium', camera: 'small', settings: 'small' };
+    }
+  });
+  const [customizeTilesMode, setCustomizeTilesMode] = useState(false);
+
+  const cycleTileSize = (tileKey, e) => {
+    if (e) e.stopPropagation();
+    triggerSound();
+    const order = ['small', 'medium', 'wide'];
+    const current = tileSizes[tileKey] || 'medium';
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    const updated = { ...tileSizes, [tileKey]: next };
+    setTileSizes(updated);
+    try {
+      localStorage.setItem('metro_tile_sizes', JSON.stringify(updated));
+    } catch (err) {}
+    showToast(`Tile resized to ${next.toUpperCase()}`);
+  };
+
+  // ── Manual & Automated 3D Live Tile Flip States ───────────────────────────
+  const [tileFlips, setTileFlips] = useState({
+    onThisDay: false,
+    photos: false,
+    highlights: false,
+    feed: false,
+    journal: false,
+    places: false,
+  });
+
+  const toggleTileFlip = (key, e) => {
+    if (e) e.stopPropagation();
+    triggerSound();
+    setTileFlips(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const [flipToday, setFlipToday] = useState(false);
   const [flipFeed, setFlipFeed] = useState(false);
   const [flipJournal, setFlipJournal] = useState(false);
@@ -258,6 +381,33 @@ export default function PocketCompanion() {
   // Independent 4-cell Photos Live Tile flips
   const [photoSubTileFlips, setPhotoSubTileFlips] = useState([false, false, false, false]);
   const [photoSubTileIndices, setPhotoSubTileIndices] = useState([0, 1, 2, 3]);
+
+  // ── Desktop Settings Parity Engine ────────────────────────────────────────
+  const [playbackSettings, setPlaybackSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('memwault_settings')) || {
+        autoplay: true,
+        loopVideo: true,
+        preferredMusicApp: 'spotify',
+        skipDuration: 5,
+        showAITags: true,
+        crtMode: false,
+        grainIntensity: 0.05,
+        patinaLevel: 0.3,
+      };
+    } catch (e) {
+      return { autoplay: true, loopVideo: true, preferredMusicApp: 'spotify', skipDuration: 5, showAITags: true, crtMode: false, grainIntensity: 0.05, patinaLevel: 0.3 };
+    }
+  });
+
+  const updatePlaybackSetting = (key, val) => {
+    triggerSound();
+    const next = { ...playbackSettings, [key]: val };
+    setPlaybackSettings(next);
+    try {
+      localStorage.setItem('memwault_settings', JSON.stringify(next));
+    } catch (e) {}
+  };
 
   // ── Sync States ───────────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing] = useState(false);
@@ -287,6 +437,129 @@ export default function PocketCompanion() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // ── Mobile In-App Navigation Stack Router (History + Hardware Back Button) ─
+  const navigateToPivot = (targetPivot) => {
+    triggerSound();
+    if (targetPivot === activePivot && !selectedStory && selectedPostIndex === null && !activeHighlight) return;
+    try {
+      window.history.pushState({ view: 'pivot', pivot: targetPivot }, '');
+    } catch (e) {}
+    setActivePivot(targetPivot);
+    setSelectedStory(null);
+    setSelectedPostIndex(null);
+    setActiveHighlight(null);
+  };
+
+  const openStoryView = (story) => {
+    triggerSound();
+    try {
+      window.history.pushState({ view: 'story', id: story.id }, '');
+    } catch (e) {}
+    setSelectedStory(story);
+    setStoryDetailTab('info');
+  };
+
+  const openPostView = (pIdx) => {
+    triggerSound();
+    try {
+      window.history.pushState({ view: 'post', index: pIdx }, '');
+    } catch (e) {}
+    setSelectedPostIndex(pIdx);
+    setPostSlideIndex(0);
+    setPostDetailTab('info');
+  };
+
+  const openHighlightView = (hl) => {
+    triggerSound();
+    try {
+      window.history.pushState({ view: 'highlight', id: hl.id }, '');
+    } catch (e) {}
+    handleOpenHighlight(hl);
+  };
+
+  const navigateBack = () => {
+    triggerSound();
+    if (window.history.state && window.history.length > 1) {
+      window.history.back();
+    } else {
+      if (musicModalTrack) setMusicModalTrack(null);
+      else if (paintModalOpen) setPaintModalOpen(false);
+      else if (newJournalModalOpen) setNewJournalModalOpen(false);
+      else if (cameraModalOpen) setCameraModalOpen(false);
+      else if (activeHighlight) setActiveHighlight(null);
+      else if (selectedPostIndex !== null) setSelectedPostIndex(null);
+      else if (selectedStory) setSelectedStory(null);
+      else if (customizeTilesMode) setCustomizeTilesMode(false);
+      else if (activePivot !== 'start') setActivePivot('start');
+    }
+  };
+
+  // ── Mobile Back Navigation Stack (Handles Phone Edge Swipes & Back Button) ──
+  useEffect(() => {
+    if (!window.history.state) {
+      try {
+        window.history.replaceState({ view: 'pivot', pivot: 'start' }, '');
+      } catch (e) {}
+    }
+
+    const handlePopState = () => {
+      if (musicModalTrack) {
+        setMusicModalTrack(null);
+        return;
+      }
+      if (paintModalOpen) {
+        setPaintModalOpen(false);
+        return;
+      }
+      if (newJournalModalOpen) {
+        setNewJournalModalOpen(false);
+        return;
+      }
+      if (cameraModalOpen) {
+        setCameraModalOpen(false);
+        return;
+      }
+      if (showIosInstructions) {
+        setShowIosInstructions(false);
+        return;
+      }
+      if (activeHighlight) {
+        setActiveHighlight(null);
+        return;
+      }
+      if (selectedPostIndex !== null) {
+        setSelectedPostIndex(null);
+        return;
+      }
+      if (selectedStory) {
+        setSelectedStory(null);
+        return;
+      }
+      if (customizeTilesMode) {
+        setCustomizeTilesMode(false);
+        return;
+      }
+      if (activePivot !== 'start') {
+        setActivePivot('start');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    musicModalTrack, 
+    paintModalOpen, 
+    newJournalModalOpen, 
+    cameraModalOpen, 
+    showIosInstructions, 
+    activeHighlight, 
+    selectedPostIndex, 
+    selectedStory, 
+    customizeTilesMode, 
+    activePivot
+  ]);
 
   // ── 1. Pairing & Initial Offline Data Load ────────────────────────────────
   useEffect(() => {
@@ -1882,161 +2155,169 @@ export default function PocketCompanion() {
         >
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 1: START SCREEN (ANIMATED 3D LIVE TILES GRID)
+              PIVOT 1: START SCREEN (AUTHENTIC LUMIA LIVE TILE GRID)
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'start' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
-              {/* Revamped On This Day Flashback Tile (with Carousel Controls & Year Badge) */}
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  triggerSound();
-                  if (currentFlashback) {
-                    setSelectedStory(currentFlashback);
-                    setActivePivot('memories');
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  height: '150px',
-                  backgroundColor: accent,
-                  position: 'relative',
-                  cursor: 'pointer',
-                  perspective: '1000px',
-                  overflow: 'hidden',
-                }}
-              >
-                <motion.div
-                  animate={{ rotateX: (enableLiveFlip && flipToday) ? 180 : 0 }}
-                  transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+              {/* Customize Mode Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '11px', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
+                  {customizeTilesMode ? 'PIN & RESIZE MODE (TAP ⤢ TO CYCLE SIZES)' : 'PINNED LIVE TILES'}
+                </div>
+                <button
+                  onClick={() => { triggerSound(); setCustomizeTilesMode(!customizeTilesMode); }}
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    transformStyle: 'preserve-3d',
-                    position: 'relative',
+                    backgroundColor: customizeTilesMode ? accent : surfaceColor,
+                    color: customizeTilesMode ? '#FFFFFF' : textColor,
+                    border: `1px solid ${borderColor}`,
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  {/* Front Face: Photo + Flashback Label */}
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backfaceVisibility: 'hidden',
-                    display: 'flex',
-                    backgroundColor: accent,
-                    color: '#FFFFFF',
-                  }}>
-                    {currentFlashback && (
-                      <div style={{ width: '42%', height: '100%', backgroundColor: '#000' }}>
-                        <OfflineMedia
-                          src={currentFlashback.media_url}
-                          type={currentFlashback.media_type === 2 ? 'video' : 'image'}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          alt="Flashback"
-                        />
-                      </div>
-                    )}
-                    <div style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{
-                          display: 'inline-block',
-                          backgroundColor: 'rgba(0,0,0,0.35)',
-                          padding: '2px 6px',
-                          fontSize: '9px',
-                          fontWeight: 800,
-                          letterSpacing: '0.08em',
-                          marginBottom: '4px',
-                        }}>
-                          {currentFlashback?.badgeText || 'ON THIS DAY FLASHBACK'}
-                        </div>
-                        <div style={{ fontSize: '15px', fontWeight: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {currentFlashback?.location_name || (currentFlashback?.taken_at ? new Date(currentFlashback.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'MemWault Vault')}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '11px', opacity: 0.95, lineHeight: 1.3 }}>
-                        {currentFlashback?.relativeLabel || currentFlashback?.caption_text || 'Relive your archived memories.'}
-                      </div>
-                    </div>
-                  </div>
+                  <Sliders size={12} />
+                  <span>{customizeTilesMode ? 'Done' : 'Customize Tiles'}</span>
+                </button>
+              </div>
 
-                  {/* Back Face */}
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backfaceVisibility: 'hidden',
-                    transform: 'rotateX(180deg)',
-                    backgroundColor: surfaceColor,
-                    color: textColor,
-                    padding: '14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    borderLeft: `4px solid ${accent}`,
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '10px', color: accent, fontWeight: 700, letterSpacing: '0.05em' }}>
-                        {currentFlashback?.badgeText || 'FLASHBACK HIGHLIGHT'}
-                      </div>
-                      <div style={{ fontSize: '13px', marginTop: '4px', lineHeight: 1.3, fontWeight: 300 }}>
-                        {currentFlashback?.journal_note || currentFlashback?.caption_text || 'Tap to inspect memory details & soundtrack.'}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', opacity: 0.7 }}>
-                      <span>{flashbacks.length} throwback memories found</span>
-                      <span>tap to open</span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Next/Prev Cycle Controls */}
-                {flashbacks.length > 1 && (
-                  <div
-                    style={{ position: 'absolute', bottom: '6px', right: '6px', display: 'flex', gap: '4px', zIndex: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => setFlashbackIndex(i => (i - 1 + flashbacks.length) % flashbacks.length)}
-                      style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', padding: '2px 6px', fontSize: '10px', cursor: 'pointer' }}
-                    >
-                      ◀
-                    </button>
-                    <button
-                      onClick={() => setFlashbackIndex(i => (i + 1) % flashbacks.length)}
-                      style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#FFF', padding: '2px 6px', fontSize: '10px', cursor: 'pointer' }}
-                    >
-                      ▶
-                    </button>
-                  </div>
-                )}
-
-                <div style={{ position: 'absolute', bottom: '6px', left: '8px', fontSize: '10px', fontWeight: 600, zIndex: 10, color: '#FFFFFF' }}>
-                  photos • on this day
-                </div>
-              </motion.div>
-
-              {/* 2x2 Square Live Tiles Grid */}
+              {/* Responsive 4-Column Live Tiles Grid */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '12px',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '10px',
+                width: '100%',
               }}>
-                {/* Tile 2: Dynamic Multi-Cell Photos Live Tile (WP8.1 Living Collage) */}
+                
+                {/* ── Tile 1: On This Day Flashback ── */}
                 <motion.div
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => { triggerSound(); setActivePivot('memories'); }}
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    triggerSound();
+                    if (currentFlashback) openStoryView(currentFlashback);
+                    else navigateToPivot('memories');
+                  }}
                   style={{
-                    aspectRatio: '1/1',
+                    gridColumn: (tileSizes.onThisDay === 'wide' ? 'span 4' : (tileSizes.onThisDay === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.onThisDay === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.onThisDay !== 'wide' ? '1/1' : 'unset',
+                    backgroundColor: accent,
+                    position: 'relative',
+                    cursor: 'pointer',
+                    perspective: '1000px',
+                    overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
+                  }}
+                >
+                  <motion.div
+                    animate={{ rotateX: ((enableLiveFlip && flipToday) || tileFlips.onThisDay) ? 180 : 0 }}
+                    transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                  >
+                    {/* Front Face: Visual Flashback */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', display: 'flex', backgroundColor: accent, color: '#FFFFFF' }}>
+                      {currentFlashback && (
+                        <div style={{ width: tileSizes.onThisDay === 'wide' ? '40%' : (tileSizes.onThisDay === 'small' ? '100%' : '50%'), height: '100%', backgroundColor: '#000', position: 'relative' }}>
+                          <OfflineMedia
+                            src={currentFlashback.media_url}
+                            type={currentFlashback.media_type === 2 ? 'video' : 'image'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            alt="Flashback"
+                          />
+                          {(currentFlashback.media_type === 2 || currentFlashback.is_reel) && (
+                            <div style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '2px 4px', borderRadius: '2px' }}>
+                              <Film size={10} color="#FFF" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {tileSizes.onThisDay !== 'small' && (
+                        <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
+                          <div>
+                            <div style={{ display: 'inline-block', backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 6px', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', marginBottom: '4px' }}>
+                              {currentFlashback?.badgeText || 'ON THIS DAY'}
+                            </div>
+                            <div style={{ fontSize: '14px', fontWeight: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {currentFlashback?.location_name || (currentFlashback?.taken_at ? new Date(currentFlashback.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'MemWault Vault')}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '10px', opacity: 0.9, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {currentFlashback?.relativeLabel || currentFlashback?.caption_text || 'Relive your archived memories.'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Back Face: Detailed Contextual Throwback */}
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backfaceVisibility: 'hidden',
+                      transform: 'rotateX(180deg)',
+                      backgroundColor: surfaceColor,
+                      color: textColor,
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      borderLeft: `4px solid ${accent}`,
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: accent, fontWeight: 700, letterSpacing: '0.05em' }}>
+                          {currentFlashback?.badgeText || 'ANNIVERSARY FLASHBACK'}
+                        </div>
+                        <div style={{ fontSize: '12px', marginTop: '4px', lineHeight: 1.3, fontWeight: 300 }}>
+                          {currentFlashback?.journal_note || currentFlashback?.caption_text || 'Tap to inspect memory details & soundtrack.'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', opacity: 0.7 }}>
+                        <span>{flashbacks.length} throwback memories</span>
+                        <span>tap to view</span>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Corner Resize Cycle Button */}
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('onThisDay', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* ── Tile 2: Photos Hub (WP8.1 Living Collage) ── */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    navigateToPivot('memories');
+                  }}
+                  style={{
+                    gridColumn: (tileSizes.photos === 'wide' ? 'span 4' : (tileSizes.photos === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.photos === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.photos !== 'wide' ? '1/1' : 'unset',
                     backgroundColor: accent,
                     position: 'relative',
                     cursor: 'pointer',
                     overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
                   }}
                 >
                   {stories.length >= 4 ? (
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gridTemplateRows: '1fr 1fr',
+                      gridTemplateColumns: tileSizes.photos === 'wide' ? 'repeat(4, 1fr)' : '1fr 1fr',
+                      gridTemplateRows: tileSizes.photos === 'wide' ? '1fr' : '1fr 1fr',
                       width: '100%',
                       height: '100%',
                       gap: '2px',
@@ -2046,16 +2327,7 @@ export default function PocketCompanion() {
                         const s = stories[photoSubTileIndices[cellIdx] % stories.length];
                         const isFlipped = photoSubTileFlips[cellIdx];
                         return (
-                          <div
-                            key={cellIdx}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              perspective: '600px',
-                              overflow: 'hidden',
-                              position: 'relative',
-                            }}
-                          >
+                          <div key={cellIdx} style={{ width: '100%', height: '100%', perspective: '600px', overflow: 'hidden', position: 'relative' }}>
                             <motion.div
                               animate={{ rotateY: isFlipped ? 180 : 0 }}
                               transition={{ duration: 0.6, ease: 'easeInOut' }}
@@ -2074,244 +2346,304 @@ export default function PocketCompanion() {
                     </div>
                   ) : (
                     <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#FFF' }}>
-                      <ImageIcon size={28} />
+                      <ImageIcon size={24} />
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 400 }}>memories</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 400 }}>memories</div>
+                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
                       </div>
                     </div>
                   )}
 
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    backgroundColor: 'rgba(0,0,0,0.65)',
-                    padding: '4px 8px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    color: '#FFF',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                  }}>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF', fontSize: '10px', fontWeight: 600 }}>
                     <span>photos hub</span>
                     <span>{stories.length}</span>
                   </div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('photos', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
                 </motion.div>
 
-                {/* Tile 3: Highlights Hub Tile */}
+                {/* ── Tile 3: Highlights Hub Tile ── */}
                 <motion.div
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => { triggerSound(); setActivePivot('highlights'); }}
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    navigateToPivot('highlights');
+                  }}
                   style={{
-                    aspectRatio: '1/1',
+                    gridColumn: (tileSizes.highlights === 'wide' ? 'span 4' : (tileSizes.highlights === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.highlights === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.highlights !== 'wide' ? '1/1' : 'unset',
                     backgroundColor: '#FA6800',
                     position: 'relative',
                     cursor: 'pointer',
                     perspective: '1000px',
                     overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
                   }}
                 >
                   <motion.div
-                    animate={{ rotateY: (enableLiveFlip && flipHighlights) ? 180 : 0 }}
+                    animate={{ rotateY: ((enableLiveFlip && flipHighlights) || tileFlips.highlights) ? 180 : 0 }}
                     transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      transformStyle: 'preserve-3d',
-                      position: 'relative',
-                    }}
+                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
                   >
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      backgroundColor: '#FA6800',
-                      color: '#FFFFFF',
-                    }}>
-                      <Sparkles size={28} />
+                    {/* Front Face */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#FA6800', color: '#FFFFFF' }}>
+                      <Sparkles size={24} />
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 400 }}>highlights</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || stories.length ? (highlights.length || 'Reels') : 0}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 400 }}>highlights</div>
+                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || 'Vault'}</div>
                       </div>
                     </div>
 
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)',
-                      backgroundColor: surfaceColor,
-                      color: textColor,
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      borderLeft: `4px solid #FA6800`,
-                    }}>
+                    {/* Back Face: Story Reels info */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #FA6800` }}>
                       <div style={{ fontSize: '11px', color: '#FA6800', fontWeight: 700 }}>story reels</div>
-                      <div style={{ fontSize: '12px' }}>play stories with sound</div>
+                      <div style={{ fontSize: '12px', lineHeight: 1.3 }}>{highlights.length} curated reels with music</div>
                       <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to play</div>
                     </div>
                   </motion.div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('highlights', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
                 </motion.div>
 
-                {/* Tile 4: Feed Posts Tile */}
+                {/* ── Tile 4: Feed Posts Tile ── */}
                 <motion.div
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => { triggerSound(); setActivePivot('feed'); }}
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    navigateToPivot('feed');
+                  }}
                   style={{
-                    aspectRatio: '1/1',
+                    gridColumn: (tileSizes.feed === 'wide' ? 'span 4' : (tileSizes.feed === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.feed === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.feed !== 'wide' ? '1/1' : 'unset',
                     backgroundColor: '#D80073',
                     position: 'relative',
                     cursor: 'pointer',
                     perspective: '1000px',
                     overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
                   }}
                 >
                   <motion.div
-                    animate={{ rotateY: (enableLiveFlip && flipFeed) ? 180 : 0 }}
+                    animate={{ rotateY: ((enableLiveFlip && flipFeed) || tileFlips.feed) ? 180 : 0 }}
                     transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      transformStyle: 'preserve-3d',
-                      position: 'relative',
-                    }}
+                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
                   >
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      backgroundColor: '#D80073',
-                      color: '#FFFFFF',
-                    }}>
-                      <Film size={28} />
+                    {/* Front Face */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#D80073', color: '#FFFFFF' }}>
+                      <Film size={24} />
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 400 }}>feed posts</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{posts.length}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 400 }}>feed posts</div>
+                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{posts.length}</div>
                       </div>
                     </div>
 
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)',
-                      backgroundColor: surfaceColor,
-                      color: textColor,
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      borderLeft: `4px solid #D80073`,
-                    }}>
-                      <div style={{ fontSize: '11px', color: '#D80073', fontWeight: 700 }}>instagram feed</div>
-                      <div style={{ fontSize: '12px' }}>{posts.length} carousel posts</div>
-                      <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to view feed</div>
+                    {/* Back Face: Instagram Feed preview */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #D80073` }}>
+                      <div style={{ fontSize: '11px', color: '#D80073', fontWeight: 700 }}>instagram carousels</div>
+                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>@{igSession?.ig_username || 'vault'} • {posts.length} posts</div>
+                      <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to open feed</div>
                     </div>
                   </motion.div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('feed', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
                 </motion.div>
 
-                {/* Tile 5: Journal & Places Tile */}
+                {/* ── Tile 5: Journal & Scrapbook Tile ── */}
                 <motion.div
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => { triggerSound(); setActivePivot('journal'); }}
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    navigateToPivot('journal');
+                  }}
                   style={{
-                    aspectRatio: '1/1',
+                    gridColumn: (tileSizes.journal === 'wide' ? 'span 4' : (tileSizes.journal === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.journal === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.journal !== 'wide' ? '1/1' : 'unset',
                     backgroundColor: '#008A00',
                     color: '#FFFFFF',
                     position: 'relative',
                     cursor: 'pointer',
                     perspective: '1000px',
                     overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
                   }}
                 >
                   <motion.div
-                    animate={{ rotateY: (enableLiveFlip && flipJournal) ? 180 : 0 }}
+                    animate={{ rotateY: ((enableLiveFlip && flipJournal) || tileFlips.journal) ? 180 : 0 }}
                     transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      transformStyle: 'preserve-3d',
-                      position: 'relative',
-                    }}
+                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
                   >
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      backgroundColor: '#008A00',
-                      color: '#FFFFFF',
-                    }}>
-                      <BookOpen size={28} />
+                    {/* Front Face */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#008A00', color: '#FFFFFF' }}>
+                      <BookOpen size={24} />
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 400 }}>journal & bucket</div>
-                        <div style={{ fontSize: '28px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length + places.length}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 400 }}>journal & bucket</div>
+                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length + places.length}</div>
                       </div>
                     </div>
 
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)',
-                      backgroundColor: surfaceColor,
-                      color: textColor,
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      borderLeft: `4px solid #008A00`,
-                    }}>
+                    {/* Back Face: Scrapbook summary */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #008A00` }}>
                       <div style={{ fontSize: '11px', color: '#008A00', fontWeight: 700 }}>scrapbook hub</div>
-                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{places.length} travel goals • {journaledItems.length} notes</div>
+                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{journaledItems.length} journal notes • {places.length} places</div>
                       <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to open</div>
                     </div>
                   </motion.div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('journal', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* ── Tile 6: Places to Visit Tile ── */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    setJournalSubTab('places');
+                    navigateToPivot('journal');
+                  }}
+                  style={{
+                    gridColumn: (tileSizes.places === 'wide' ? 'span 4' : (tileSizes.places === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.places === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.places !== 'wide' ? '1/1' : 'unset',
+                    backgroundColor: '#0050EF',
+                    color: '#FFFFFF',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    perspective: '1000px',
+                    overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
+                  }}
+                >
+                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <MapPin size={24} />
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 400 }}>places to visit</div>
+                      <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{places.length}</div>
+                    </div>
+                  </div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('places', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* ── Tile 7: Vault Live Camera ── */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    handleStartCamera();
+                  }}
+                  style={{
+                    gridColumn: (tileSizes.camera === 'wide' ? 'span 4' : (tileSizes.camera === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.camera === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.camera !== 'wide' ? '1/1' : 'unset',
+                    backgroundColor: '#F09609',
+                    color: '#FFFFFF',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
+                  }}
+                >
+                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <Camera size={24} />
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 400 }}>vault camera</div>
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>+ take live photo</div>
+                    </div>
+                  </div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('camera', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* ── Tile 8: Settings & Storage Sense ── */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                  onClick={() => {
+                    if (customizeTilesMode) return;
+                    navigateToPivot('settings');
+                  }}
+                  style={{
+                    gridColumn: (tileSizes.settings === 'wide' ? 'span 4' : (tileSizes.settings === 'small' ? 'span 1' : 'span 2')),
+                    height: tileSizes.settings === 'wide' ? '140px' : 'auto',
+                    aspectRatio: tileSizes.settings !== 'wide' ? '1/1' : 'unset',
+                    backgroundColor: surfaceColor,
+                    borderLeft: `4px solid ${accent}`,
+                    position: 'relative',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
+                  }}
+                >
+                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <SettingsIcon size={24} color={accent} />
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 600 }}>settings</div>
+                      <div style={{ fontSize: '10px', color: subTextColor }}>{stats.storageMb} MB offline</div>
+                    </div>
+                  </div>
+
+                  {customizeTilesMode && (
+                    <button
+                      onClick={(e) => cycleTileSize('settings', e)}
+                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      ⤢
+                    </button>
+                  )}
                 </motion.div>
               </div>
 
-              {/* Tile 6: Vault Camera Tile (Live Capture & Viewfinder) */}
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={handleStartCamera}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#F09609',
-                  color: '#FFFFFF',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Camera size={24} />
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 400 }}>vault camera</div>
-                    <div style={{ fontSize: '11px', opacity: 0.9 }}>+ take live photo / upload master</div>
-                  </div>
-                </div>
-                <Plus size={20} />
-              </motion.div>
-
-              {/* Tile 7: ActiveSync Wide Banner */}
+              {/* ActiveSync Status Bar */}
               <motion.div
                 whileTap={{ scale: 0.98 }}
                 onClick={() => { triggerSound(); handleRunSync(); }}
@@ -2324,6 +2656,7 @@ export default function PocketCompanion() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   cursor: 'pointer',
+                  marginTop: '4px',
                 }}
               >
                 <div>
@@ -2335,30 +2668,6 @@ export default function PocketCompanion() {
                   </div>
                 </div>
                 <RefreshCw size={20} className={isSyncing ? 'spin-anim' : ''} color={accent} />
-              </motion.div>
-
-              {/* Tile 8: Settings Wide Banner */}
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={() => { triggerSound(); setActivePivot('settings'); }}
-                style={{
-                  width: '100%',
-                  backgroundColor: surfaceColor,
-                  borderLeft: `5px solid ${accent}`,
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 400 }}>Settings & Storage Sense</div>
-                  <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
-                    Theme accents, storage sense & options
-                  </div>
-                </div>
-                <SettingsIcon size={20} color={accent} />
               </motion.div>
             </div>
           )}
@@ -3746,7 +4055,7 @@ export default function PocketCompanion() {
           )}
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 6: SETTINGS & STORAGE SENSE
+              PIVOT 6: SETTINGS & STORAGE SENSE (DESKTOP PARITY)
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'settings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -3782,53 +4091,175 @@ export default function PocketCompanion() {
                 </div>
               )}
 
-              {/* Instagram Account Card */}
-              {igSession && (
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
-                    instagram archive
-                  </div>
-                  <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid ${accent}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '16px', overflow: 'hidden', flexShrink: 0 }}>
-                        {igSession.profile_pic_url ? (
-                          <OfflineMedia src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
-                        ) : (
-                          <span>{(igSession.full_name || igSession.ig_username || igSession.username || 'U').charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div>
-                        {igSession.full_name && (
-                          <div style={{ fontSize: '15px', fontWeight: 700 }}>{igSession.full_name}</div>
-                        )}
-                        <div style={{ fontSize: '13px', fontWeight: 600, opacity: igSession.full_name ? 0.85 : 1 }}>
-                          @{igSession.ig_username || igSession.username || 'user'}
+              {/* Instagram Account Card & Session Actions */}
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
+                  instagram archive & account
+                </div>
+                {igSession ? (
+                  <div style={{ backgroundColor: surfaceColor, borderLeft: `4px solid ${accent}`, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '16px', overflow: 'hidden', flexShrink: 0 }}>
+                          {igSession.profile_pic_url ? (
+                            <OfflineMedia src={igSession.profile_pic_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="IG" />
+                          ) : (
+                            <span>{(igSession.full_name || igSession.ig_username || igSession.username || 'U').charAt(0).toUpperCase()}</span>
+                          )}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#008A00', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                          <CheckCircle2 size={12} />
-                          <span>Connected & Synced</span>
+                        <div>
+                          {igSession.full_name && (
+                            <div style={{ fontSize: '15px', fontWeight: 700 }}>{igSession.full_name}</div>
+                          )}
+                          <div style={{ fontSize: '13px', fontWeight: 600, opacity: igSession.full_name ? 0.85 : 1 }}>
+                            @{igSession.ig_username || igSession.username || 'user'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#008A00', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <CheckCircle2 size={12} />
+                            <span>Vault Paired & Active</span>
+                          </div>
                         </div>
                       </div>
+
+                      {(igSession.ig_username || igSession.username) && (
+                        <a
+                          href={`https://instagram.com/${igSession.ig_username || igSession.username}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ backgroundColor: accent, color: '#FFF', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '2px' }}
+                        >
+                          Profile ↗
+                        </a>
+                      )}
                     </div>
 
-                    {(igSession.ig_username || igSession.username) && (
-                      <a
-                        href={`https://instagram.com/${igSession.ig_username || igSession.username}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ backgroundColor: accent, color: '#FFF', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '2px' }}
+                    {/* Actions: Renew Session & Rescan Metadata */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1px', backgroundColor: borderColor, borderTop: `1px solid ${borderColor}` }}>
+                      <button
+                        onClick={async () => {
+                          triggerSound();
+                          try {
+                            const res = await renewInstagramSession();
+                            showToast(res?.message || 'Instagram session refreshed');
+                          } catch (e) {
+                            showToast(`Renewal failed: ${e.message}`);
+                          }
+                        }}
+                        style={{ backgroundColor: cardColor, color: textColor, border: 'none', padding: '10px 4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
                       >
-                        Profile ↗
-                      </a>
-                    )}
+                        Renew Session
+                      </button>
+                      <button
+                        onClick={async () => {
+                          triggerSound();
+                          try {
+                            const res = await rescanMetadata();
+                            showToast(`Rescanned ${res.updated_count || 0} items`);
+                          } catch (e) {
+                            showToast(`Rescan failed: ${e.message}`);
+                          }
+                        }}
+                        style={{ backgroundColor: cardColor, color: textColor, border: 'none', padding: '10px 4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Rescan Meta
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Disconnect Instagram account from this vault?')) return;
+                          triggerSound();
+                          try {
+                            await disconnectInstagram();
+                            setIgSession(null);
+                            showToast('Disconnected Instagram');
+                          } catch (e) {
+                            showToast(`Failed: ${e.message}`);
+                          }
+                        }}
+                        style={{ backgroundColor: cardColor, color: '#A20025', border: 'none', padding: '10px 4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid #666` }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>No Instagram Account Active</div>
+                    <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
+                      Connect Instagram on your laptop vault to sync archived stories and posts.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Playback & Media Engine (Full Desktop Parity) ── */}
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
+                  playback & media engine
                 </div>
-              )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <MetroToggle
+                    label="autoplay stories & video reels"
+                    checked={playbackSettings.autoplay}
+                    onText="on"
+                    offText="off"
+                    onChange={(checked) => updatePlaybackSetting('autoplay', checked)}
+                  />
+
+                  <MetroToggle
+                    label="loop video playback"
+                    checked={playbackSettings.loopVideo}
+                    onText="on"
+                    offText="off"
+                    onChange={(checked) => updatePlaybackSetting('loopVideo', checked)}
+                  />
+
+                  <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>preferred music app</div>
+                      <div style={{ fontSize: '10px', color: subTextColor }}>used when tapping sound badges</div>
+                    </div>
+                    <select
+                      value={playbackSettings.preferredMusicApp || 'spotify'}
+                      onChange={(e) => updatePlaybackSetting('preferredMusicApp', e.target.value)}
+                      style={{ backgroundColor: cardColor, color: textColor, border: `1px solid ${borderColor}`, padding: '6px 10px', fontSize: '11px', outline: 'none' }}
+                    >
+                      <option value="spotify">Spotify</option>
+                      <option value="apple">Apple Music</option>
+                      <option value="youtube">YouTube Music</option>
+                      <option value="amazon">Amazon Music</option>
+                    </select>
+                  </div>
+
+                  <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>video skip duration</div>
+                      <div style={{ fontSize: '10px', color: subTextColor }}>seconds per double tap</div>
+                    </div>
+                    <select
+                      value={playbackSettings.skipDuration || 5}
+                      onChange={(e) => updatePlaybackSetting('skipDuration', Number(e.target.value))}
+                      style={{ backgroundColor: cardColor, color: textColor, border: `1px solid ${borderColor}`, padding: '6px 10px', fontSize: '11px', outline: 'none' }}
+                    >
+                      <option value={5}>5 seconds</option>
+                      <option value={10}>10 seconds</option>
+                      <option value={15}>15 seconds</option>
+                    </select>
+                  </div>
+
+                  <MetroToggle
+                    label="show computer vision & ai tags"
+                    checked={playbackSettings.showAITags}
+                    onText="on"
+                    offText="off"
+                    onChange={(checked) => updatePlaybackSetting('showAITags', checked)}
+                  />
+                </div>
+              </div>
 
               {/* Personalization Section */}
               <div>
                 <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
-                  personalization
+                  personalization & aesthetics
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <MetroToggle
@@ -3863,6 +4294,14 @@ export default function PocketCompanion() {
                       setSoundEnabled(checked);
                       localStorage.setItem('metro_sound', String(checked));
                     }}
+                  />
+
+                  <MetroToggle
+                    label="crt retro scanlines"
+                    checked={playbackSettings.crtMode}
+                    onText="on"
+                    offText="off"
+                    onChange={(checked) => updatePlaybackSetting('crtMode', checked)}
                   />
                 </div>
               </div>

@@ -1,11 +1,12 @@
 /**
- * MemWault Mobile IndexedDB Offline Storage Engine
+ * MemWault Mobile IndexedDB & CacheStorage Offline Storage Engine
  * Provides persistent local storage for stories, feed posts, journals, 
- * and mobile-captured camera photos directly on the phone.
+ * highlights, and real media blobs (images/videos/audio) directly on the phone.
  */
 
 const DB_NAME = 'memwault_mobile_vault';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+const CACHE_NAME = 'memwault-media-vault-v2';
 
 let dbPromise = null;
 
@@ -36,7 +37,12 @@ export function openMobileDB() {
         db.createObjectStore('highlights', { keyPath: 'id' });
       }
 
-      // Object store for pending mobile uploads (photos added on phone to sync to PC)
+      // Object store for binary media blobs (offline media cache)
+      if (!db.objectStoreNames.contains('media_blobs')) {
+        db.createObjectStore('media_blobs', { keyPath: 'url' });
+      }
+
+      // Object store for pending mobile uploads
       if (!db.objectStoreNames.contains('pending_uploads')) {
         db.createObjectStore('pending_uploads', { keyPath: 'id', autoIncrement: true });
       }
@@ -58,6 +64,82 @@ export function openMobileDB() {
   });
 
   return dbPromise;
+}
+
+/**
+ * Cache a media URL as a binary Blob in both IndexedDB and CacheStorage
+ */
+export async function cacheMediaBlob(url, blob) {
+  if (!url || !blob) return null;
+  try {
+    // 1. Save to CacheStorage for Service Worker interception
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const headers = new Headers({
+          'Content-Type': blob.type || 'image/jpeg',
+          'Content-Length': String(blob.size),
+        });
+        await cache.put(url, new Response(blob, { headers }));
+      } catch (e) {}
+    }
+
+    // 2. Save to IndexedDB media_blobs
+    const db = await openMobileDB();
+    const tx = db.transaction(['media_blobs'], 'readwrite');
+    const store = tx.objectStore('media_blobs');
+    store.put({
+      url,
+      blob,
+      size: blob.size,
+      mime: blob.type,
+      cached_at: new Date().toISOString(),
+    });
+
+    await new Promise((res, rej) => {
+      tx.oncomplete = res;
+      tx.onerror = rej;
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Failed to cache media blob:', err);
+    return false;
+  }
+}
+
+/**
+ * Retrieve cached blob for a media URL
+ */
+export async function getCachedMediaBlob(url) {
+  if (!url) return null;
+  try {
+    const db = await openMobileDB();
+    const tx = db.transaction(['media_blobs'], 'readonly');
+    const store = tx.objectStore('media_blobs');
+    const request = store.get(url);
+
+    return new Promise((resolve) => {
+      request.onsuccess = () => {
+        if (request.result?.blob) {
+          resolve(request.result.blob);
+        } else {
+          // Fallback to CacheStorage
+          if (typeof caches !== 'undefined') {
+            caches.open(CACHE_NAME).then(cache => cache.match(url)).then(res => {
+              if (res) res.blob().then(resolve).catch(() => resolve(null));
+              else resolve(null);
+            }).catch(() => resolve(null));
+          } else {
+            resolve(null);
+          }
+        }
+      };
+      request.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    return null;
+  }
 }
 
 /**
@@ -141,12 +223,54 @@ export async function getOfflinePosts() {
       request.onerror = () => reject(request.error);
     });
   } catch (err) {
+    console.error('Failed to get offline posts:', err);
     return [];
   }
 }
 
 /**
- * Queue a photo/video captured on phone to be synced to PC
+ * Save highlights into local offline IndexedDB
+ */
+export async function saveHighlightsOffline(highlights) {
+  try {
+    const db = await openMobileDB();
+    const tx = db.transaction(['highlights'], 'readwrite');
+    const store = tx.objectStore('highlights');
+
+    for (const hl of highlights) {
+      store.put(hl);
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Get offline highlights
+ */
+export async function getOfflineHighlights() {
+  try {
+    const db = await openMobileDB();
+    const tx = db.transaction(['highlights'], 'readonly');
+    const store = tx.objectStore('highlights');
+    const request = store.getAll();
+
+    return new Promise((resolve) => {
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => resolve([]);
+    });
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Queue a new photo taken on the phone
  */
 export async function addPendingMobileUpload(uploadData) {
   try {
@@ -247,28 +371,57 @@ export async function getSyncMeta(key, defaultValue = null) {
 }
 
 /**
- * Get device storage estimation
+ * Get accurate device storage usage in MB from media blobs + IndexedDB
  */
 export async function getStorageStats() {
   try {
     const memories = await getOfflineMemories();
     const posts = await getOfflinePosts();
     const pending = await getPendingMobileUploads();
+    const highlights = await getOfflineHighlights();
     
-    // Estimate size in bytes
-    let estimatedBytes = JSON.stringify(memories).length + JSON.stringify(posts).length;
+    let totalBytes = JSON.stringify(memories).length + JSON.stringify(posts).length + JSON.stringify(highlights).length;
+    
     for (const p of pending) {
-      if (p.dataUrl) estimatedBytes += p.dataUrl.length;
+      if (p.dataUrl) totalBytes += p.dataUrl.length;
+      if (p.size) totalBytes += p.size;
     }
 
-    const mb = (estimatedBytes / (1024 * 1024)).toFixed(2);
+    // Measure media_blobs store size
+    const db = await openMobileDB();
+    if (db.objectStoreNames.contains('media_blobs')) {
+      const tx = db.transaction(['media_blobs'], 'readonly');
+      const store = tx.objectStore('media_blobs');
+      const allBlobs = await new Promise((res) => {
+        const req = store.getAll();
+        req.onsuccess = () => res(req.result || []);
+        req.onerror = () => res([]);
+      });
+      for (const b of allBlobs) {
+        totalBytes += (b.size || b.blob?.size || 0);
+      }
+    }
+
+    // Try navigator.storage.estimate if available
+    if (navigator.storage && navigator.storage.estimate) {
+      try {
+        const est = await navigator.storage.estimate();
+        if (est.usage && est.usage > totalBytes) {
+          totalBytes = est.usage;
+        }
+      } catch (e) {}
+    }
+
+    const mb = (totalBytes / (1024 * 1024)).toFixed(2);
     return {
       memoryCount: memories.length,
       postCount: posts.length,
       pendingCount: pending.length,
-      storageMb: mb
+      highlightCount: highlights.length,
+      storageMb: mb,
+      bytes: totalBytes
     };
   } catch (err) {
-    return { memoryCount: 0, postCount: 0, pendingCount: 0, storageMb: '0.00' };
+    return { memoryCount: 0, postCount: 0, pendingCount: 0, highlightCount: 0, storageMb: '0.00', bytes: 0 };
   }
 }

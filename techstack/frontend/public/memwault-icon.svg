@@ -1,20 +1,20 @@
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Rounded Base with Rich Accent Gradient -->
-  <rect width="64" height="64" rx="14" fill="#004EA2" />
-  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="36" fill="#0A0A0F" />
+  <!-- Deep Radial Shutter Glow -->
+  <circle cx="96" cy="96" r="76" fill="#141420" stroke="#0050EF" stroke-width="4" />
   
-  <!-- 4-Color Metro Windows Phone Tile Motif -->
-  <!-- Top-Left Crimson -->
-  <rect x="14" y="14" width="16" height="16" fill="#E81123" />
-  <!-- Top-Right Emerald -->
-  <rect x="34" y="14" width="16" height="16" fill="#00B294" />
-  <!-- Bottom-Left Cobalt -->
-  <rect x="14" y="34" width="16" height="16" fill="#0078D7" />
-  <!-- Bottom-Right Amber/Mango -->
-  <rect x="34" y="34" width="16" height="16" fill="#FFB900" />
+  <!-- Outer Mechanical Shutter Aperture Blades -->
+  <circle cx="96" cy="96" r="60" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+  <path d="M96 36L126 78L96 96L66 78Z" fill="#0050EF" opacity="0.85" />
+  <path d="M156 96L114 126L96 96L114 66Z" fill="#1BA1E2" opacity="0.85" />
+  <path d="M96 156L66 114L96 96L126 114Z" fill="#008299" opacity="0.85" />
+  <path d="M36 96L78 66L96 96L78 126Z" fill="#0050EF" opacity="0.85" />
+
+  <!-- Center Vault Lens Core -->
+  <circle cx="96" cy="96" r="28" fill="#0A0A0F" stroke="#FFFFFF" stroke-width="3" />
+  <circle cx="96" cy="96" r="14" fill="#0050EF" />
+  <circle cx="92" cy="92" r="5" fill="#FFFFFF" opacity="0.8" />
   
-  <!-- Center Memory Vault Shutter -->
-  <circle cx="32" cy="32" r="10" fill="#0E1726" stroke="#FFFFFF" stroke-width="2" />
-  <circle cx="32" cy="32" r="4.5" fill="#FFFFFF" />
-  <path d="M30 33.5L34 33.5L32 39Z" fill="#FFFFFF" />
+  <!-- MemWault 'M' Vault Monogram -->
+  <path d="M86 104V88L96 96L106 88V104" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

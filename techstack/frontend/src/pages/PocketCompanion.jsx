@@ -259,6 +259,67 @@ function OfflineMedia({
   );
 }
 
+/**
+ * Resilient Soundtrack Album Cover Thumbnail
+ * Displays the real album/story thumbnail artwork with proxy fallback and placeholder
+ */
+function SoundtrackArtwork({ src, title, size = 42 }) {
+  const [hasError, setHasError] = useState(false);
+  const [triedProxy, setTriedProxy] = useState(false);
+  const [imgSrc, setImgSrc] = useState(src);
+
+  useEffect(() => {
+    setImgSrc(src);
+    setHasError(false);
+    setTriedProxy(false);
+  }, [src]);
+
+  if (!imgSrc || hasError) {
+    return (
+      <div style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        backgroundColor: '#1E1E1E',
+        color: '#FFF',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '4px',
+        flexShrink: 0
+      }}>
+        <Music size={Math.round(size * 0.45)} color="rgba(255,255,255,0.7)" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: '4px',
+      overflow: 'hidden',
+      backgroundColor: '#111',
+      flexShrink: 0,
+      position: 'relative'
+    }}>
+      <img
+        src={imgSrc}
+        alt={title || 'Cover'}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        loading="lazy"
+        onError={() => {
+          if (!triedProxy && typeof src === 'string' && src.startsWith('http')) {
+            setTriedProxy(true);
+            setImgSrc(`/api/v1/proxy/image?url=${encodeURIComponent(src)}`);
+          } else {
+            setHasError(true);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export default function PocketCompanion() {
   // ── Theme & Customization States ──────────────────────────────────────────
   const [accent, setAccent] = useState(() => localStorage.getItem('metro_accent') || '#0050EF');
@@ -1573,10 +1634,12 @@ export default function PocketCompanion() {
         const key = `${track}_${artist || ''}`.toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
+          const coverArt = s.thumbnail_url || s.cover_media_url || s.display_url || s.media_url || s.raw_media_url || (Array.isArray(s.preview_stories) ? s.preview_stories[0] : null) || (s.s3_key_compressed ? `/media/${s.s3_key_compressed}` : null);
           list.push({
             track_title: track,
             artist_name: artist || 'Instagram Audio',
             audio_url: s.music?.audio_url || null,
+            cover_art: coverArt,
             storyId: s.id,
             date: s.taken_at,
             type: 'story'
@@ -1592,10 +1655,12 @@ export default function PocketCompanion() {
         const key = `${track}_${artist || ''}`.toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
+          const coverArt = p.thumbnail_url || p.display_url || p.media_url || p.media_items?.[0]?.display_url || (Array.isArray(p.preview_stories) ? p.preview_stories[0] : null) || (p.s3_key_compressed ? `/media/${p.s3_key_compressed}` : null);
           list.push({
             track_title: track,
             artist_name: artist || 'Instagram Audio',
             audio_url: p.music?.audio_url || null,
+            cover_art: coverArt,
             postId: p.id,
             date: p.taken_at || p.timestamp,
             type: 'post'
@@ -2368,6 +2433,9 @@ export default function PocketCompanion() {
                 opacity: activePivot === tab.id ? 1 : 0.3,
                 transition: 'opacity 0.2s ease, transform 0.2s ease',
                 transform: activePivot === tab.id ? 'scale(1)' : 'scale(0.96)',
+                WebkitTapHighlightColor: 'transparent',
+                outline: 'none',
+                userSelect: 'none',
               }}
             >
               {tab.label}
@@ -4987,158 +5055,178 @@ export default function PocketCompanion() {
           {/* ══════════════════════════════════════════════════════
               PIVOT 6: MUSIC VAULT & VINYL PLAYER (METRO HUB)
              ══════════════════════════════════════════════════════ */}
-          {activePivot === 'music' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{ fontSize: '20px', fontWeight: 300, color: accent }}>
-                  music hub & soundtracks
+          {activePivot === 'music' && (() => {
+            const currentPlayingTrack = activeSoundtrackTrack || filteredSoundtracks[0] || allVaultSoundtracks[0] || { track_title: 'Archived Vault Track', artist_name: 'MemWault Audio' };
+            const currentTrackIndex = filteredSoundtracks.findIndex(t => t.track_title === currentPlayingTrack?.track_title);
+            
+            const handleNextTrack = () => {
+              if (filteredSoundtracks.length === 0) return;
+              const nextIdx = currentTrackIndex >= 0 ? (currentTrackIndex + 1) % filteredSoundtracks.length : 0;
+              setActiveSoundtrackTrack(filteredSoundtracks[nextIdx]);
+              triggerSound();
+            };
+
+            const handlePrevTrack = () => {
+              if (filteredSoundtracks.length === 0) return;
+              const prevIdx = currentTrackIndex >= 0 ? (currentTrackIndex - 1 + filteredSoundtracks.length) % filteredSoundtracks.length : 0;
+              setActiveSoundtrackTrack(filteredSoundtracks[prevIdx]);
+              triggerSound();
+            };
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 300, color: accent }}>
+                    music hub & soundtracks
+                  </div>
+                  <div style={{ fontSize: '12px', color: subTextColor }}>
+                    {allVaultSoundtracks.length} tracks preserved
+                  </div>
                 </div>
-                <div style={{ fontSize: '12px', color: subTextColor }}>
-                  {allVaultSoundtracks.length} tracks preserved
+
+                {/* Live Turntable Player with Proprietary Next/Prev Track Navigation */}
+                <div style={{
+                  backgroundColor: surfaceColor,
+                  border: `1px solid ${borderColor}`,
+                  borderRadius: '8px',
+                  padding: '12px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                }}>
+                  <MusicPlayer
+                    key={currentPlayingTrack?.track_title || 'main_music'}
+                    music={currentPlayingTrack}
+                    onNextTrack={handleNextTrack}
+                    onPrevTrack={handlePrevTrack}
+                    autoPlay={Boolean(activeSoundtrackTrack)}
+                  />
                 </div>
-              </div>
 
-              {/* Live Turntable Player */}
-              <div style={{
-                backgroundColor: surfaceColor,
-                border: `1px solid ${borderColor}`,
-                borderRadius: '8px',
-                padding: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-              }}>
-                <MusicPlayer
-                  music={activeSoundtrackTrack || allVaultSoundtracks[0] || { track_title: 'Archived Vault Track', artist_name: 'MemWault Audio' }}
-                />
-              </div>
+                {/* Soundtrack Search & List */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="search soundtracks or artists..."
+                    value={soundtrackSearch}
+                    onChange={(e) => setSoundtrackSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: cardColor,
+                      border: `2px solid ${borderColor}`,
+                      color: textColor,
+                      padding: '8px 12px 8px 34px',
+                      fontSize: '13px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  />
+                  <Search size={14} color={subTextColor} style={{ position: 'absolute', left: '10px', top: '10px' }} />
+                </div>
 
-              {/* Soundtrack Search & List */}
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="search soundtracks or artists..."
-                  value={soundtrackSearch}
-                  onChange={(e) => setSoundtrackSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: cardColor,
-                    border: `2px solid ${borderColor}`,
-                    color: textColor,
-                    padding: '8px 12px 8px 34px',
-                    fontSize: '13px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <Search size={14} color={subTextColor} style={{ position: 'absolute', left: '10px', top: '10px' }} />
-              </div>
-
-              {/* Soundtracks List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {filteredSoundtracks.map((item, sIdx) => {
-                  const isCur = (activeSoundtrackTrack?.track_title || allVaultSoundtracks[0]?.track_title) === item.track_title;
-                  return (
-                    <motion.div
-                      key={sIdx}
-                      whileTap={{ scale: 0.98 }}
-                      style={{
-                        backgroundColor: surfaceColor,
-                        borderLeft: isCur ? `4px solid ${accent}` : `4px solid ${borderColor}`,
-                        padding: '10px 12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => {
-                        triggerSound();
-                        setActiveSoundtrackTrack(item);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          backgroundColor: isCur ? accent : cardColor,
-                          color: '#FFF',
+                {/* Soundtracks List with Real Cover Art */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredSoundtracks.map((item, sIdx) => {
+                    const isCur = currentPlayingTrack?.track_title === item.track_title;
+                    return (
+                      <motion.div
+                        key={sIdx}
+                        whileTap={{ scale: 0.98 }}
+                        style={{
+                          backgroundColor: surfaceColor,
+                          borderLeft: isCur ? `4px solid ${accent}` : `4px solid ${borderColor}`,
+                          padding: '10px 12px',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: '4px',
-                          flexShrink: 0
-                        }}>
-                          <Music size={18} />
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: isCur ? accent : textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.track_title}
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          WebkitTapHighlightColor: 'transparent',
+                          userSelect: 'none',
+                        }}
+                        onClick={() => {
+                          triggerSound();
+                          setActiveSoundtrackTrack(item);
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                          {/* Real Album/Story Cover Artwork */}
+                          <SoundtrackArtwork src={item.cover_art} title={item.track_title} size={44} />
+                          
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: isCur ? accent : textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {item.track_title}
+                            </div>
+                            <div style={{ fontSize: '11px', color: subTextColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {item.artist_name || 'Instagram Audio'} • <span style={{ opacity: 0.7 }}>{item.date ? new Date(item.date).toLocaleDateString() : 'Archive'}</span>
+                            </div>
                           </div>
-                          <div style={{ fontSize: '11px', color: subTextColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.artist_name || 'Instagram Audio'} • <span style={{ opacity: 0.7 }}>{item.date ? new Date(item.date).toLocaleDateString() : 'Archive'}</span>
-                          </div>
                         </div>
-                      </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {item.storyId && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          {item.storyId && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                triggerSound();
+                                const targetStory = stories.find(s => s.id === item.storyId);
+                                if (targetStory) {
+                                  setSelectedStory(targetStory);
+                                  setStoryDetailTab('preview');
+                                }
+                              }}
+                              style={{
+                                backgroundColor: 'transparent',
+                                border: `1px solid ${borderColor}`,
+                                color: subTextColor,
+                                padding: '4px 8px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                WebkitTapHighlightColor: 'transparent',
+                                outline: 'none'
+                              }}
+                              title="Jump to Memory"
+                            >
+                              <span>Story</span>
+                              <ExternalLink size={10} />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               triggerSound();
-                              const targetStory = stories.find(s => s.id === item.storyId);
-                              if (targetStory) {
-                                setSelectedStory(targetStory);
-                                setStoryDetailTab('preview');
-                              }
+                              setActiveSoundtrackTrack(item);
                             }}
                             style={{
-                              backgroundColor: 'transparent',
-                              border: `1px solid ${borderColor}`,
-                              color: subTextColor,
-                              padding: '4px 8px',
-                              fontSize: '10px',
+                              backgroundColor: isCur ? accent : 'transparent',
+                              border: `1px solid ${accent}`,
+                              color: isCur ? '#FFF' : accent,
+                              padding: '4px 10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
                               cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
+                              WebkitTapHighlightColor: 'transparent',
+                              outline: 'none'
                             }}
-                            title="Jump to Memory"
                           >
-                            <span>Story</span>
-                            <ExternalLink size={10} />
+                            {isCur ? '♫ SPIN' : 'PLAY'}
                           </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            triggerSound();
-                            setActiveSoundtrackTrack(item);
-                          }}
-                          style={{
-                            backgroundColor: isCur ? accent : 'transparent',
-                            border: `1px solid ${accent}`,
-                            color: isCur ? '#FFF' : accent,
-                            padding: '4px 10px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {isCur ? '♫ SPIN' : 'PLAY'}
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
 
-                {filteredSoundtracks.length === 0 && (
-                  <div style={{ padding: '32px 0', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
-                    No soundtracks matched your search.
-                  </div>
-                )}
+                  {filteredSoundtracks.length === 0 && (
+                    <div style={{ padding: '32px 0', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
+                      No soundtracks matched your search.
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ══════════════════════════════════════════════════════
               PIVOT 7: SETTINGS & STORAGE SENSE (DESKTOP PARITY)

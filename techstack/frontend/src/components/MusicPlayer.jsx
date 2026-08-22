@@ -173,10 +173,13 @@ export default function MusicPlayer({
   music, 
   onPlayStateChange, 
   onExternalOpen,
-  showTurntable = undefined // If undefined, reads from localStorage or settings
+  showTurntable = undefined, // If undefined, reads from localStorage or settings
+  onNextTrack = undefined,
+  onPrevTrack = undefined,
+  autoPlay = false
 }) {
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [artworkUrl, setArtworkUrl] = useState(null);
+  const [artworkUrl, setArtworkUrl] = useState(() => music?.cover_art || music?.cover_media_url || null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -200,6 +203,11 @@ export default function MusicPlayer({
       return;
     }
 
+    // Initialize with direct cover art from memory if present
+    if (music.cover_art || music.cover_media_url) {
+      setArtworkUrl(music.cover_art || music.cover_media_url);
+    }
+
     let isMounted = true;
     async function fetchPreview() {
       try {
@@ -211,6 +219,13 @@ export default function MusicPlayer({
           setPreviewUrl(data.results[0].previewUrl);
           if (data.results[0].artworkUrl100) {
             setArtworkUrl(data.results[0].artworkUrl100.replace('100x100bb', '300x300bb'));
+          }
+          if (autoPlay || isPlaying) {
+            setTimeout(() => {
+              if (audioRef.current && isMounted) {
+                audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+              }
+            }, 100);
           }
         }
       } catch (err) {
@@ -236,7 +251,11 @@ export default function MusicPlayer({
 
   const skipAmount = settings.skipDuration || 5;
 
-  const skipBackward = () => {
+  const handleBackwardClick = () => {
+    if (onPrevTrack) {
+      onPrevTrack();
+      return;
+    }
     if (audioRef.current) {
       const target = Math.max(0, audioRef.current.currentTime - skipAmount);
       audioRef.current.currentTime = target;
@@ -244,7 +263,11 @@ export default function MusicPlayer({
     }
   };
 
-  const skipForward = () => {
+  const handleForwardClick = () => {
+    if (onNextTrack) {
+      onNextTrack();
+      return;
+    }
     if (audioRef.current) {
       const target = Math.min(duration, audioRef.current.currentTime + skipAmount);
       audioRef.current.currentTime = target;
@@ -309,7 +332,11 @@ export default function MusicPlayer({
           src={previewUrl}
           onTimeUpdate={handleTimeUpdate} 
           onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => { setIsPlaying(false); setProgress(duration); }}
+          onEnded={() => { 
+            setIsPlaying(false); 
+            setProgress(duration); 
+            if (onNextTrack) onNextTrack();
+          }}
         />
       )}
 
@@ -439,9 +466,22 @@ export default function MusicPlayer({
         {/* Bottom Section: Playback Controls */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '32px', marginTop: '-2px' }}>
           <button 
-            onClick={skipBackward} 
-            disabled={!previewUrl}
-            style={{ background: 'transparent', border: 'none', color: '#FFFFFF', opacity: previewUrl ? 1 : 0.4, cursor: previewUrl ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}
+            onClick={handleBackwardClick} 
+            disabled={!previewUrl && !onPrevTrack}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: '#FFFFFF', 
+              opacity: (previewUrl || onPrevTrack) ? 1 : 0.4, 
+              cursor: (previewUrl || onPrevTrack) ? 'pointer' : 'default', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '8px',
+              WebkitTapHighlightColor: 'transparent',
+              outline: 'none'
+            }}
+            title={onPrevTrack ? "Previous Track" : `Rewind ${skipAmount}s`}
           >
             <Rewind size={26} fill="currentColor" />
           </button>
@@ -449,7 +489,20 @@ export default function MusicPlayer({
           <button 
             onClick={togglePlay} 
             disabled={loading || !previewUrl}
-            style={{ background: 'transparent', border: 'none', color: '#FFFFFF', opacity: (!loading && !previewUrl) ? 0.4 : 1, cursor: previewUrl ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: '#FFFFFF', 
+              opacity: (!loading && !previewUrl) ? 0.4 : 1, 
+              cursor: previewUrl ? 'pointer' : 'default', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '8px',
+              WebkitTapHighlightColor: 'transparent',
+              outline: 'none'
+            }}
+            title={isPlaying ? "Pause" : "Play"}
           >
             {loading ? (
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
@@ -463,9 +516,22 @@ export default function MusicPlayer({
           </button>
 
           <button 
-            onClick={skipForward} 
-            disabled={!previewUrl}
-            style={{ background: 'transparent', border: 'none', color: '#FFFFFF', opacity: previewUrl ? 1 : 0.4, cursor: previewUrl ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}
+            onClick={handleForwardClick} 
+            disabled={!previewUrl && !onNextTrack}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: '#FFFFFF', 
+              opacity: (previewUrl || onNextTrack) ? 1 : 0.4, 
+              cursor: (previewUrl || onNextTrack) ? 'pointer' : 'default', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '8px',
+              WebkitTapHighlightColor: 'transparent',
+              outline: 'none'
+            }}
+            title={onNextTrack ? "Next Track" : `Forward ${skipAmount}s`}
           >
             <FastForward size={26} fill="currentColor" />
           </button>

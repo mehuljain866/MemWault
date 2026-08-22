@@ -1,6 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ══════════════════════════════════════════════════════════════
+   GLOBAL MOBILE TAP & SELECTION RESET (NO BLUE HIGHLIGHT BOXES)
+   ══════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+}
+
+button, a, input, [role="button"], [tabindex] {
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+}
+
+button:focus, a:focus, input:focus {
+  outline: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
    MemWault — Universal 17-Theme Design System Matrix
    8 Material Worlds + 7 Design Eras + 2 Canonical Bases
    ══════════════════════════════════════════════════════════════ */

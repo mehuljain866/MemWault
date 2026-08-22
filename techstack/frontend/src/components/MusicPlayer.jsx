@@ -4,8 +4,8 @@ import { Rewind, FastForward, Play, Pause, Music as MusicIcon, Disc3 } from 'luc
 
 /**
  * Animated Turntable Artwork Component
- * Replaces the album cover with a realistic rotating vinyl disc,
- * vinyl grooves, center label art, and mechanical tonearm.
+ * Replaces the album cover with a realistic rotating circular vinyl disc,
+ * metallic turntable platter rim, vinyl grooves, center label art, and mechanical tonearm.
  */
 function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
   return (
@@ -14,11 +14,15 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
       style={{
         width: `${size}px`,
         height: `${size}px`,
+        minWidth: `${size}px`,
+        minHeight: `${size}px`,
+        aspectRatio: '1 / 1',
         position: 'relative',
         cursor: 'pointer',
         flexShrink: 0,
         borderRadius: '50%',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.18)',
+        backgroundColor: '#0a0a0a',
         userSelect: 'none',
       }}
       title={isPlaying ? "Tap to Pause" : "Tap to Play Turntable"}
@@ -29,6 +33,7 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
           width: '100%',
           height: '100%',
           borderRadius: '50%',
+          aspectRatio: '1 / 1',
           background: `
             radial-gradient(circle at center,
               #111 0%,
@@ -45,13 +50,14 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
               #050505 100%
             )
           `,
-          boxShadow: 'inset 0 0 4px rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.6)',
+          boxShadow: 'inset 0 0 4px rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.6)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
           animation: isPlaying ? 'spin 1.818s linear infinite' : 'none',
           transition: 'transform 0.5s ease-out',
+          overflow: 'hidden',
         }}
       >
         {/* Vinyl Sheen Overlay (Specular light reflections) */}
@@ -60,6 +66,7 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
+            aspectRatio: '1 / 1',
             background: 'conic-gradient(from 45deg, rgba(255,255,255,0.14) 0deg, transparent 60deg, rgba(255,255,255,0.14) 180deg, transparent 240deg, rgba(255,255,255,0.14) 360deg)',
             pointerEvents: 'none',
           }}
@@ -71,6 +78,7 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
             width: '42%',
             height: '42%',
             borderRadius: '50%',
+            aspectRatio: '1 / 1',
             overflow: 'hidden',
             backgroundColor: '#0050EF',
             display: 'flex',
@@ -82,7 +90,7 @@ function TurntableArtwork({ artworkUrl, isPlaying, onTogglePlay, size = 64 }) {
           }}
         >
           {artworkUrl ? (
-            <img src={artworkUrl} alt="Label" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={artworkUrl} alt="Label" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
           ) : (
             <Disc3 size={14} color="#FFF" />
           )}

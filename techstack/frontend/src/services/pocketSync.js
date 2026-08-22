@@ -25,6 +25,21 @@ function dataURLtoBlob(dataurl) {
   }
 }
 
+export function getOnThisDayMemory(stories) {
+  if (!stories || stories.length === 0) return null;
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentDate = today.getDate();
+
+  const exactMatch = stories.find(s => {
+    if (!s.taken_at) return false;
+    const d = new Date(s.taken_at);
+    return d.getMonth() === currentMonth && d.getDate() === currentDate;
+  });
+
+  return exactMatch || stories[0] || null;
+}
+
 export async function getPocketSyncMeta() {
   return await getSyncMeta('pocket_sync_meta', {
     lastSync: null,

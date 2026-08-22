@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check, Star } from 'lucide-react'
@@ -11,9 +12,22 @@ import { getSettings } from '../services/settings'
  *  - isSelected    {boolean}  whether this card is currently selected
  *  - onSelect      {function} called with story.id when the card is tapped in select mode
  */
-export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect, autoplayVideo = true }) {
+export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect, autoplayVideo }) {
   const navigate = useNavigate()
-  const isWin98 = getSettings().themeId === 'win98'
+  const settings = getSettings()
+  const isWin98 = settings.themeId === 'win98'
+  const isAutoplay = autoplayVideo !== undefined ? Boolean(autoplayVideo) : (settings.timelineAutoplayVideo !== false)
+
+  const videoRef = useRef(null)
+
+  useEffect(() => {
+    if (!videoRef.current) return
+    if (!isAutoplay) {
+      videoRef.current.pause()
+    } else {
+      videoRef.current.play().catch(() => {})
+    }
+  }, [isAutoplay])
 
   // Ensure the datetime string is treated as UTC by appending 'Z' if missing
   const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
@@ -95,23 +109,23 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
       {story.media_url ? (
         isVideo ? (
           <video
+            ref={videoRef}
             className="ios-story-card__media"
             src={story.media_url}
-            autoPlay={autoplayVideo}
+            autoPlay={isAutoplay}
             muted
             loop
             playsInline
             preload="metadata"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             onMouseEnter={(e) => {
-              if (!autoplayVideo && !isSelectMode) {
+              if (!isAutoplay && !isSelectMode) {
                 e.target.play().catch(() => {})
               }
             }}
             onMouseLeave={(e) => {
-              if (!autoplayVideo && !isSelectMode) {
+              if (!isAutoplay && !isSelectMode) {
                 e.target.pause()
-                e.target.currentTime = 0
               }
             }}
           />

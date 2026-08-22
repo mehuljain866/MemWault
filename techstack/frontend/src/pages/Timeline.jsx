@@ -20,9 +20,21 @@ function ClusterMediaItem({ story, autoplay = true }) {
   const url = story.thumbnail_url || story.media_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
   if (!url) return null
   const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof url === 'string' && (url.includes('.mp4') || url.includes('.mov') || url.includes('video')))
+  const videoRef = useRef(null)
+
+  useEffect(() => {
+    if (!videoRef.current) return
+    if (!autoplay) {
+      videoRef.current.pause()
+    } else {
+      videoRef.current.play().catch(() => {})
+    }
+  }, [autoplay])
+
   if (isVideo) {
     return (
       <video 
+        ref={videoRef}
         src={url} 
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
         autoPlay={autoplay}
@@ -31,7 +43,7 @@ function ClusterMediaItem({ story, autoplay = true }) {
         playsInline 
         preload="metadata"
         onMouseEnter={!autoplay ? (e) => e.target.play().catch(() => {}) : undefined}
-        onMouseLeave={!autoplay ? (e) => { e.target.pause(); e.target.currentTime = 0; } : undefined}
+        onMouseLeave={!autoplay ? (e) => { e.target.pause(); } : undefined}
       />
     )
   }

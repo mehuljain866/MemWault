@@ -845,7 +845,7 @@ export default function Settings() {
         {/* Auto-Play Toggle */}
         <div className="settings-row-panel" style={{ padding: '14px 16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div className="settings-item-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Auto-Play Videos</div>
+            <div className="settings-item-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Auto-Play Videos (Detail View)</div>
             <div className="settings-item-val" style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>Automatically start playback when opening a memory</div>
           </div>
           <input
@@ -853,6 +853,20 @@ export default function Settings() {
             className="ios-toggle"
             checked={playbackSettings.autoplay !== false}
             onChange={(e) => handleSettingChange('autoplay', e.target.checked)}
+          />
+        </div>
+
+        {/* Timeline & Memories Video Playback Toggle */}
+        <div className="settings-row-panel" style={{ padding: '14px 16px', borderBottom: '1px solid var(--ios-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="settings-item-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>Play Videos in Timeline & Memories Feed</div>
+            <div className="settings-item-val" style={{ fontSize: '12px', color: 'var(--ios-text-secondary)' }}>Auto-play video thumbnails in the memories grid on /timeline (hover to play when disabled)</div>
+          </div>
+          <input
+            type="checkbox"
+            className="ios-toggle"
+            checked={playbackSettings.timelineAutoplayVideo !== false}
+            onChange={(e) => handleSettingChange('timelineAutoplayVideo', e.target.checked)}
           />
         </div>
 

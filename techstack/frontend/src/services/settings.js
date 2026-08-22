@@ -25,6 +25,7 @@ export const THEME_CATALOG = [
 
 const DEFAULT_SETTINGS = {
   autoplay: true,
+  timelineAutoplayVideo: true, // auto-play video thumbnails in /timeline memories view
   loopVideo: true,
   autoplayDelay: 0,
   preferredMusicApp: 'spotify',
@@ -118,5 +119,8 @@ export function getSettings() {
 
 export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('memwault-settings-changed'));
+  }
 }
 

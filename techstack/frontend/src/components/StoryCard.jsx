@@ -10,7 +10,7 @@ import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play
  *  - isSelected    {boolean}  whether this card is currently selected
  *  - onSelect      {function} called with story.id when the card is tapped in select mode
  */
-export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect }) {
+export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect, autoplayVideo = true }) {
   const navigate = useNavigate()
 
   // Ensure the datetime string is treated as UTC by appending 'Z' if missing
@@ -85,12 +85,23 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
           <video
             className="ios-story-card__media"
             src={story.media_url}
-            autoPlay
+            autoPlay={autoplayVideo}
             muted
             loop
             playsInline
             preload="metadata"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onMouseEnter={(e) => {
+              if (!autoplayVideo && !isSelectMode) {
+                e.target.play().catch(() => {})
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!autoplayVideo && !isSelectMode) {
+                e.target.pause()
+                e.target.currentTime = 0
+              }
+            }}
           />
         ) : (
           <img

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getStories, bulkUpdateStories, triggerScrape } from '../services/api'
+import { getSettings } from '../services/settings'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react'
 
 // Helper for Year/Month cluster preview
-function ClusterMediaItem({ story }) {
+function ClusterMediaItem({ story, autoplay = true }) {
   if (!story) return null
   const url = story.thumbnail_url || story.media_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
   if (!url) return null
@@ -24,11 +25,13 @@ function ClusterMediaItem({ story }) {
       <video 
         src={url} 
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
-        autoPlay
+        autoPlay={autoplay}
         muted 
         loop
         playsInline 
         preload="metadata"
+        onMouseEnter={!autoplay ? (e) => e.target.play().catch(() => {}) : undefined}
+        onMouseLeave={!autoplay ? (e) => { e.target.pause(); e.target.currentTime = 0; } : undefined}
       />
     )
   }
@@ -42,19 +45,19 @@ function ClusterMediaItem({ story }) {
   )
 }
 
-function ClusterPreview({ stories, size }) {
+function ClusterPreview({ stories, size, autoplay = true }) {
   const previews = stories.slice(0, 4)
   if (previews.length === 0) return null
 
   if (previews.length === 1 || size < 80) {
-    return <ClusterMediaItem story={previews[0]} />
+    return <ClusterMediaItem story={previews[0]} autoplay={autoplay} />
   }
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '1px', background: 'var(--ios-border)' }}>
       {previews.map((s, idx) => (
         <div key={s.id || idx} style={{ overflow: 'hidden', position: 'relative' }}>
-          <ClusterMediaItem story={s} />
+          <ClusterMediaItem story={s} autoplay={autoplay} />
         </div>
       ))}
     </div>
@@ -74,6 +77,21 @@ export default function Timeline({ isReelView = false }) {
   
   // Clean zoom levels: 'year' | 'month' | 'day'
   const [zoomLevel, setZoomLevel] = useState('day')
+
+  // ── Playback Settings ──────────────────────────────────
+  const [autoplayVideo, setAutoplayVideo] = useState(() => getSettings().timelineAutoplayVideo !== false)
+
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setAutoplayVideo(getSettings().timelineAutoplayVideo !== false)
+    }
+    window.addEventListener('storage', handleSettingsUpdate)
+    window.addEventListener('memwault-settings-changed', handleSettingsUpdate)
+    return () => {
+      window.removeEventListener('storage', handleSettingsUpdate)
+      window.removeEventListener('memwault-settings-changed', handleSettingsUpdate)
+    }
+  }, [])
 
   // ── Multi-select state ──────────────────────────────────
   const [selectedIds, setSelectedIds] = useState([])
@@ -593,7 +611,7 @@ export default function Timeline({ isReelView = false }) {
                           outline: selectedIds.includes(story.id) ? '2px solid var(--ios-accent)' : 'none'
                         }}
                       >
-                        <ClusterPreview stories={[story]} size={60} />
+                        <ClusterPreview stories={[story]} size={60} autoplay={autoplayVideo} />
                       </motion.div>
                     )
                   }
@@ -607,6 +625,7 @@ export default function Timeline({ isReelView = false }) {
                       isSelectMode={isSelectMode}
                       isSelected={selectedIds.includes(story.id)}
                       onSelect={toggleCard}
+                      autoplayVideo={autoplayVideo}
                     />
                   )
                 })}

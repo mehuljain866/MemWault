@@ -608,13 +608,51 @@ export default function StoryDetail() {
 
                   {story.is_close_friends && (
                     <InfoRow icon={Star} label="Close Friends Audience" value="">
-                      <div style={{ fontSize: '13px', color: '#00D26A', fontWeight: 600, marginTop: '4px' }}>
-                        ⭐ Shared exclusively with Close Friends
+                      <div style={{
+                        fontSize: isWin98 ? '11px' : '13px',
+                        color: isWin98 ? '#000000' : '#00D26A',
+                        fontWeight: 'bold',
+                        marginTop: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {isWin98 ? (
+                          <span style={{
+                            background: '#5cb85c',
+                            border: '1px solid #000',
+                            boxShadow: 'inset 1px 1px #fff, inset -1px -1px #808080',
+                            color: '#000',
+                            padding: '2px 6px',
+                            fontSize: '10px'
+                          }}>
+                            ★ Close Friends
+                          </span>
+                        ) : '⭐ Shared exclusively with Close Friends'}
                       </div>
                       {story.audience_snapshot && story.audience_snapshot.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
                           {story.audience_snapshot.map((u, i) => (
-                            <span key={i} style={{ background: 'rgba(0,210,106,0.15)', color: '#00D26A', padding: '3px 8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600 }}>
+                            <span 
+                              key={i} 
+                              style={isWin98 ? {
+                                background: '#ffffff',
+                                border: '1px solid #808080',
+                                boxShadow: 'inset 1px 1px #000000, inset -1px -1px #ffffff',
+                                color: '#005500',
+                                padding: '2px 6px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                fontFamily: 'monospace'
+                              } : {
+                                background: 'rgba(0,210,106,0.15)',
+                                color: '#00D26A',
+                                padding: '3px 8px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 600
+                              }}
+                            >
                               @{u}
                             </span>
                           ))}

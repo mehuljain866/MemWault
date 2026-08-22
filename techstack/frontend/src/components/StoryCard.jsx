@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play, Check, Star } from 'lucide-react'
+import { getSettings } from '../services/settings'
 
 /**
  * StoryCard
@@ -12,6 +13,7 @@ import { Music, MapPin, Users, Link as LinkIcon, Image as ImageIcon, Video, Play
  */
 export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = false, isSelected = false, onSelect, autoplayVideo = true }) {
   const navigate = useNavigate()
+  const isWin98 = getSettings().themeId === 'win98'
 
   // Ensure the datetime string is treated as UTC by appending 'Z' if missing
   const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
@@ -67,7 +69,17 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
     >
       {/* Close Friends Emerald Star Badge (Top Left) */}
       {story.is_close_friends && zoomLevel === 'day' && (
-        <div style={{
+        <div style={isWin98 ? {
+          position: 'absolute', top: '10px', left: '10px',
+          padding: '3px 8px',
+          background: '#5cb85c',
+          border: '1px solid #000000',
+          boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+          color: '#000000', fontSize: '11px', fontWeight: 'bold',
+          fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+          display: 'flex', alignItems: 'center', gap: '4px',
+          zIndex: 6
+        } : {
           position: 'absolute', top: '12px', left: '12px',
           padding: '4px 8px', borderRadius: '10px',
           background: 'linear-gradient(135deg, #00D26A, #00A854)',
@@ -75,7 +87,7 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
           display: 'flex', alignItems: 'center', gap: '4px',
           boxShadow: '0 2px 8px rgba(0,210,106,0.5)', zIndex: 6
         }}>
-          <Star size={11} fill="#fff" /> CF
+          <Star size={11} fill="#fff" stroke={isWin98 ? "#000" : "none"} strokeWidth={isWin98 ? 1.5 : 0} /> CF
         </div>
       )}
 

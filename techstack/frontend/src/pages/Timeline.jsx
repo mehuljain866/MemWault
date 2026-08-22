@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getStories, bulkUpdateStories, triggerScrape } from '../services/api'
-import { getSettings } from '../services/settings'
+import { getSettings, saveSettings } from '../services/settings'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
@@ -9,7 +9,7 @@ import FastScrollbar from '../components/FastScrollbar'
 import { useOutletContext } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Filter, Image as ImageIcon, Video, BoxSelect, RefreshCcw, RefreshCw,
+  Filter, Image as ImageIcon, Video, VideoOff, BoxSelect, RefreshCcw, RefreshCw,
   ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers,
   Star, Users, Globe, Search, CheckCircle2
 } from 'lucide-react'
@@ -92,6 +92,13 @@ export default function Timeline({ isReelView = false }) {
       window.removeEventListener('memwault-settings-changed', handleSettingsUpdate)
     }
   }, [])
+
+  const toggleAutoplay = () => {
+    const nextVal = !autoplayVideo
+    setAutoplayVideo(nextVal)
+    const current = getSettings()
+    saveSettings({ ...current, timelineAutoplayVideo: nextVal })
+  }
 
   // ── Multi-select state ──────────────────────────────────
   const [selectedIds, setSelectedIds] = useState([])
@@ -363,6 +370,32 @@ export default function Timeline({ isReelView = false }) {
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Video Autoplay / Motion Toggle */}
+          {!isSelectMode && (
+            <button
+              onClick={toggleAutoplay}
+              className={`segment-btn ${autoplayVideo ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: autoplayVideo ? 'var(--ios-accent)' : 'var(--ios-bg-card)',
+                color: autoplayVideo ? '#ffffff' : 'var(--ios-text-secondary)',
+                border: autoplayVideo ? 'none' : '1px solid var(--ios-border)',
+                transition: 'all 0.15s ease'
+              }}
+              title={autoplayVideo ? "Click to stop playing video thumbnails (speeds up page & saves GPU)" : "Click to auto-play video thumbnails in feed"}
+            >
+              {autoplayVideo ? <Video size={14} /> : <VideoOff size={14} />}
+              <span>{autoplayVideo ? 'Motion: ON' : 'Motion: OFF'}</span>
+            </button>
           )}
 
           {/* Sync Button */}

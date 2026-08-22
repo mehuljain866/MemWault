@@ -354,7 +354,24 @@ export default function PocketCompanion() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [batteryLevel, setBatteryLevel] = useState(null);
 
-  // ── Authentic Lumia Live Tile Sizing & Customization ──────────────────────
+  // ── Authentic Lumia Live Tile Sizing, Order & Customization ───────────────
+  const DEFAULT_TILE_ORDER = ['onThisDay', 'photos', 'highlights', 'feed', 'journal', 'places', 'camera', 'settings'];
+  const [tileOrder, setTileOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('metro_tile_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const missing = DEFAULT_TILE_ORDER.filter(k => !parsed.includes(k));
+          return [...parsed, ...missing];
+        }
+      }
+      return DEFAULT_TILE_ORDER;
+    } catch (e) {
+      return DEFAULT_TILE_ORDER;
+    }
+  });
+
   const [tileSizes, setTileSizes] = useState(() => {
     try {
       const saved = localStorage.getItem('metro_tile_sizes');
@@ -388,6 +405,43 @@ export default function PocketCompanion() {
     showToast(`Tile resized to ${next.toUpperCase()}`);
   };
 
+  const moveTile = (tileKey, direction, e) => {
+    if (e) e.stopPropagation();
+    triggerSound();
+    const idx = tileOrder.indexOf(tileKey);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= tileOrder.length) return;
+
+    const newOrder = [...tileOrder];
+    const [removed] = newOrder.splice(idx, 1);
+    newOrder.splice(targetIdx, 0, removed);
+    setTileOrder(newOrder);
+    try {
+      localStorage.setItem('metro_tile_order', JSON.stringify(newOrder));
+    } catch (err) {}
+    showToast(`Moved tile ${direction === 'up' ? 'earlier' : 'later'}`);
+  };
+
+  const resetTileLayout = () => {
+    triggerSound();
+    setTileOrder(DEFAULT_TILE_ORDER);
+    const defaultSizes = {
+      onThisDay: 'wide',
+      photos: 'wide',
+      highlights: 'medium',
+      feed: 'medium',
+      journal: 'medium',
+      places: 'medium',
+      camera: 'small',
+      settings: 'small'
+    };
+    setTileSizes(defaultSizes);
+    localStorage.removeItem('metro_tile_order');
+    localStorage.setItem('metro_tile_sizes', JSON.stringify(defaultSizes));
+    showToast('Tile layout reset to default Lumia grid');
+  };
+
   // ── Manual & Automated 3D Live Tile Flip States ───────────────────────────
   const [tileFlips, setTileFlips] = useState({
     onThisDay: false,
@@ -396,12 +450,50 @@ export default function PocketCompanion() {
     feed: false,
     journal: false,
     places: false,
+    camera: false,
+    settings: false,
   });
 
   const toggleTileFlip = (key, e) => {
     if (e) e.stopPropagation();
     triggerSound();
     setTileFlips(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Touch tracking for swiping tiles to flip
+  const touchStartCoords = useRef({});
+
+  const handleTileTouchStart = (key, e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartCoords.current[key] = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now()
+      };
+    }
+  };
+
+  const handleTileTouchEnd = (key, onDefaultClick, e) => {
+    const start = touchStartCoords.current[key];
+    if (!start) {
+      if (onDefaultClick) onDefaultClick(e);
+      return;
+    }
+    const endX = e.changedTouches ? e.changedTouches[0].clientX : 0;
+    const endY = e.changedTouches ? e.changedTouches[0].clientY : 0;
+    const deltaX = endX - start.x;
+    const deltaY = endY - start.y;
+    const elapsed = Date.now() - start.time;
+
+    // If swipe distance > 28px horizontally or vertically
+    if (Math.abs(deltaX) > 28 || Math.abs(deltaY) > 28) {
+      if (e) e.stopPropagation();
+      toggleTileFlip(key, e);
+    } else if (elapsed < 350) {
+      // Tap action
+      if (onDefaultClick) onDefaultClick(e);
+    }
+    delete touchStartCoords.current[key];
   };
 
   const [flipToday, setFlipToday] = useState(false);
@@ -2322,486 +2414,649 @@ export default function PocketCompanion() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
               {/* Customize Mode Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '11px', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
-                  {customizeTilesMode ? 'PIN & RESIZE MODE (TAP ⤢ TO CYCLE SIZES)' : 'PINNED LIVE TILES'}
+                  {customizeTilesMode ? 'CUSTOMIZE TILES (MOVE ▲▼ & RESIZE ⤢)' : 'PINNED LIVE TILES'}
                 </div>
-                <button
-                  onClick={() => { triggerSound(); setCustomizeTilesMode(!customizeTilesMode); }}
-                  style={{
-                    backgroundColor: customizeTilesMode ? accent : surfaceColor,
-                    color: customizeTilesMode ? '#FFFFFF' : textColor,
-                    border: `1px solid ${borderColor}`,
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Sliders size={12} />
-                  <span>{customizeTilesMode ? 'Done' : 'Customize Tiles'}</span>
-                </button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {customizeTilesMode && (
+                    <button
+                      onClick={resetTileLayout}
+                      style={{
+                        backgroundColor: 'transparent',
+                        color: textColor,
+                        border: `1px solid ${borderColor}`,
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Reset Layout
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { triggerSound(); setCustomizeTilesMode(!customizeTilesMode); }}
+                    style={{
+                      backgroundColor: customizeTilesMode ? accent : surfaceColor,
+                      color: customizeTilesMode ? '#FFFFFF' : textColor,
+                      border: `1px solid ${borderColor}`,
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Sliders size={12} />
+                    <span>{customizeTilesMode ? 'Done ✓' : 'Customize Tiles'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Responsive 4-Column Live Tiles Grid */}
+              {/* Responsive 4-Column Reorderable Live Tiles Grid */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: '10px',
                 width: '100%',
               }}>
-                
-                {/* ── Tile 1: On This Day Flashback ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    triggerSound();
-                    if (currentFlashback) openStoryView(currentFlashback);
-                    else navigateToPivot('memories');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.onThisDay === 'wide' ? 'span 4' : (tileSizes.onThisDay === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.onThisDay === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.onThisDay !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: accent,
-                    position: 'relative',
-                    cursor: 'pointer',
-                    perspective: '1000px',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <motion.div
-                    animate={{ rotateX: ((enableLiveFlip && flipToday) || tileFlips.onThisDay) ? 180 : 0 }}
-                    transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
-                  >
-                    {/* Front Face: Visual Flashback */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', display: 'flex', backgroundColor: accent, color: '#FFFFFF' }}>
-                      {currentFlashback && (
-                        <div style={{ width: tileSizes.onThisDay === 'wide' ? '40%' : (tileSizes.onThisDay === 'small' ? '100%' : '50%'), height: '100%', backgroundColor: '#000', position: 'relative' }}>
-                          <OfflineMedia
-                            src={currentFlashback.media_url}
-                            type={currentFlashback.media_type === 2 ? 'video' : 'image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            alt="Flashback"
-                          />
-                          {(currentFlashback.media_type === 2 || currentFlashback.is_reel) && (
-                            <div style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '2px 4px', borderRadius: '2px' }}>
-                              <Film size={10} color="#FFF" />
+                {tileOrder.map((tileKey, orderIdx) => {
+                  const size = tileSizes[tileKey] || 'medium';
+                  const isSmall = size === 'small';
+                  const isWide = size === 'wide';
+                  const gridSpan = isWide ? 'span 4' : (isSmall ? 'span 1' : 'span 2');
+                  const height = isWide ? '140px' : 'auto';
+                  const aspectRatio = !isWide ? '1/1' : 'unset';
+
+                  // Move controls for customize mode
+                  const moveControls = customizeTilesMode && (
+                    <>
+                      {orderIdx > 0 && (
+                        <button
+                          onClick={(e) => moveTile(tileKey, 'up', e)}
+                          title="Move earlier"
+                          style={{ position: 'absolute', top: '4px', left: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid rgba(255,255,255,0.7)', width: '22px', height: '22px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          ▲
+                        </button>
+                      )}
+                      {orderIdx < tileOrder.length - 1 && (
+                        <button
+                          onClick={(e) => moveTile(tileKey, 'down', e)}
+                          title="Move later"
+                          style={{ position: 'absolute', top: '4px', right: isSmall ? '4px' : '30px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid rgba(255,255,255,0.7)', width: '22px', height: '22px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          ▼
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => cycleTileSize(tileKey, e)}
+                        title="Resize"
+                        style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid rgba(255,255,255,0.7)', width: '22px', height: '22px', borderRadius: '50%', fontSize: '11px', cursor: 'pointer', zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        ⤢
+                      </button>
+                    </>
+                  );
+
+                  // ── 1. ON THIS DAY FLASHBACK TILE ──
+                  if (tileKey === 'onThisDay') {
+                    return (
+                      <motion.div
+                        key="onThisDay"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('onThisDay', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('onThisDay', () => {
+                          if (customizeTilesMode) return;
+                          triggerSound();
+                          if (currentFlashback) openStoryView(currentFlashback);
+                          else navigateToPivot('memories');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          triggerSound();
+                          if (currentFlashback) openStoryView(currentFlashback);
+                          else navigateToPivot('memories');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: accent,
+                          position: 'relative',
+                          cursor: 'pointer',
+                          perspective: '1000px',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <motion.div
+                          animate={{ rotateX: ((enableLiveFlip && flipToday) || tileFlips.onThisDay) ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', display: 'flex', backgroundColor: accent, color: '#FFFFFF' }}>
+                            {isSmall ? (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                <Calendar size={34} color="#FFF" strokeWidth={1.8} />
+                                <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                  {flashbacks.length}
+                                </span>
+                              </div>
+                            ) : (
+                              <>
+                                {currentFlashback && (
+                                  <div style={{ width: isWide ? '40%' : '50%', height: '100%', backgroundColor: '#000', position: 'relative' }}>
+                                    <OfflineMedia
+                                      src={currentFlashback.media_url}
+                                      type={currentFlashback.media_type === 2 ? 'video' : 'image'}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                      alt="Flashback"
+                                    />
+                                    {(currentFlashback.media_type === 2 || currentFlashback.is_reel) && (
+                                      <div style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '2px 4px', borderRadius: '2px' }}>
+                                        <Film size={10} color="#FFF" />
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
+                                  <div>
+                                    <div style={{ display: 'inline-block', backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 6px', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', marginBottom: '4px' }}>
+                                      {currentFlashback?.badgeText || 'ON THIS DAY'}
+                                    </div>
+                                    <div style={{ fontSize: '14px', fontWeight: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {currentFlashback?.location_name || (currentFlashback?.taken_at ? new Date(currentFlashback.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'MemWault Vault')}
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: '10px', opacity: 0.9, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                    {currentFlashback?.relativeLabel || currentFlashback?.caption_text || 'Relive your archived memories.'}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backfaceVisibility: 'hidden',
+                            transform: 'rotateX(180deg)',
+                            backgroundColor: surfaceColor,
+                            color: textColor,
+                            padding: isSmall ? '6px' : '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            borderLeft: `4px solid ${accent}`,
+                          }}>
+                            {isSmall ? (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <Sparkles size={24} color={accent} />
+                                <span style={{ fontSize: '9px', fontWeight: 700, marginTop: '2px' }}>today</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: accent, fontWeight: 700, letterSpacing: '0.05em' }}>
+                                    {currentFlashback?.badgeText || 'ANNIVERSARY FLASHBACK'}
+                                  </div>
+                                  <div style={{ fontSize: '12px', marginTop: '4px', lineHeight: 1.3, fontWeight: 300 }}>
+                                    {currentFlashback?.journal_note || currentFlashback?.caption_text || 'Tap to inspect memory details & soundtrack.'}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', opacity: 0.7 }}>
+                                  <span>{flashbacks.length} throwback memories</span>
+                                  <span>swipe to flip</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 2. PHOTOS HUB TILE ──
+                  if (tileKey === 'photos') {
+                    return (
+                      <motion.div
+                        key="photos"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('photos', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('photos', () => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('memories');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('memories');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: accent,
+                          position: 'relative',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        {isSmall ? (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', color: '#FFF' }}>
+                            <ImageIcon size={34} color="#FFF" strokeWidth={1.8} />
+                            <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                              {stories.length}
+                            </span>
+                          </div>
+                        ) : stories.length >= 4 ? (
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: isWide ? 'repeat(4, 1fr)' : '1fr 1fr',
+                            gridTemplateRows: isWide ? '1fr' : '1fr 1fr',
+                            width: '100%',
+                            height: '100%',
+                            gap: '2px',
+                            backgroundColor: '#000',
+                          }}>
+                            {[0, 1, 2, 3].map(cellIdx => {
+                              const s = stories[photoSubTileIndices[cellIdx] % stories.length];
+                              const isFlipped = photoSubTileFlips[cellIdx];
+                              return (
+                                <div key={cellIdx} style={{ width: '100%', height: '100%', perspective: '600px', overflow: 'hidden', position: 'relative' }}>
+                                  <motion.div
+                                    animate={{ rotateY: isFlipped ? 180 : 0 }}
+                                    transition={{ duration: 0.6, ease: 'easeInOut' }}
+                                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
+                                  >
+                                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+                                      <OfflineMedia src={s?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
+                                    </div>
+                                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                                      <OfflineMedia src={stories[(photoSubTileIndices[cellIdx] + 1) % stories.length]?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
+                                    </div>
+                                  </motion.div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#FFF' }}>
+                            <ImageIcon size={26} />
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 400 }}>memories</div>
+                              <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {!isSmall && (
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF', fontSize: '10px', fontWeight: 600 }}>
+                            <span>photos hub</span>
+                            <span>{stories.length}</span>
+                          </div>
+                        )}
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 3. HIGHLIGHTS HUB TILE ──
+                  if (tileKey === 'highlights') {
+                    return (
+                      <motion.div
+                        key="highlights"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('highlights', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('highlights', () => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('highlights');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('highlights');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: '#FA6800',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          perspective: '1000px',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <motion.div
+                          animate={{ rotateY: ((enableLiveFlip && flipHighlights) || tileFlips.highlights) ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: '#FA6800', color: '#FFFFFF' }}>
+                            <Sparkles size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                {highlights.length}
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 400 }}>highlights</div>
+                                <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || '0'}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid #FA6800` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#FA6800' }}>
+                                REELS
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: '#FA6800', fontWeight: 700 }}>story reels</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.3 }}>{highlights.length} curated reels with music</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 4. FEED POSTS TILE ──
+                  if (tileKey === 'feed') {
+                    return (
+                      <motion.div
+                        key="feed"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('feed', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('feed', () => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('feed');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('feed');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: '#D80073',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          perspective: '1000px',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <motion.div
+                          animate={{ rotateY: ((enableLiveFlip && flipFeed) || tileFlips.feed) ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: '#D80073', color: '#FFFFFF' }}>
+                            <Film size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                {posts.length}
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 400 }}>feed posts</div>
+                                <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{posts.length}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid #D80073` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#D80073' }}>
+                                FEED
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: '#D80073', fontWeight: 700 }}>instagram carousels</div>
+                                <div style={{ fontSize: '11px', lineHeight: 1.3 }}>@{igSession?.ig_username || 'vault'} • {posts.length} posts</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 5. JOURNAL & SCRAPBOOK TILE ──
+                  if (tileKey === 'journal') {
+                    return (
+                      <motion.div
+                        key="journal"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('journal', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('journal', () => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('journal');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('journal');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: '#008A00',
+                          color: '#FFFFFF',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          perspective: '1000px',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <motion.div
+                          animate={{ rotateY: ((enableLiveFlip && flipJournal) || tileFlips.journal) ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: '#008A00', color: '#FFFFFF' }}>
+                            <BookOpen size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                {journaledItems.length + places.length}
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 400 }}>journal & bucket</div>
+                                <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length + places.length}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid #008A00` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#008A00' }}>
+                                NOTES
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: '#008A00', fontWeight: 700 }}>scrapbook hub</div>
+                                <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{journaledItems.length} journal notes • {places.length} places</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 6. PLACES TO VISIT TILE ──
+                  if (tileKey === 'places') {
+                    return (
+                      <motion.div
+                        key="places"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('places', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('places', () => {
+                          if (customizeTilesMode) return;
+                          setJournalSubTab('places');
+                          navigateToPivot('journal');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          setJournalSubTab('places');
+                          navigateToPivot('journal');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: '#0050EF',
+                          color: '#FFFFFF',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
+                          <MapPin size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
+                          {isSmall ? (
+                            <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                              {places.length}
+                            </span>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 400 }}>places to visit</div>
+                              <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{places.length}</div>
                             </div>
                           )}
                         </div>
-                      )}
-                      {tileSizes.onThisDay !== 'small' && (
-                        <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
-                          <div>
-                            <div style={{ display: 'inline-block', backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 6px', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', marginBottom: '4px' }}>
-                              {currentFlashback?.badgeText || 'ON THIS DAY'}
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 7. VAULT LIVE CAMERA TILE ──
+                  if (tileKey === 'camera') {
+                    return (
+                      <motion.div
+                        key="camera"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('camera', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('camera', () => {
+                          if (customizeTilesMode) return;
+                          handleStartCamera();
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          handleStartCamera();
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: '#F09609',
+                          color: '#FFFFFF',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
+                          <Camera size={isSmall ? 36 : 26} color="#FFF" strokeWidth={1.8} />
+                          {isSmall ? (
+                            <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em' }}>
+                              CAMERA
+                            </span>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 400 }}>vault camera</div>
+                              <div style={{ fontSize: '12px', opacity: 0.9 }}>+ take live photo</div>
                             </div>
-                            <div style={{ fontSize: '14px', fontWeight: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {currentFlashback?.location_name || (currentFlashback?.taken_at ? new Date(currentFlashback.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'MemWault Vault')}
+                          )}
+                        </div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
+
+                  // ── 8. SETTINGS & STORAGE SENSE TILE ──
+                  if (tileKey === 'settings') {
+                    return (
+                      <motion.div
+                        key="settings"
+                        whileTap={{ scale: 0.97 }}
+                        onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
+                        onTouchStart={(e) => handleTileTouchStart('settings', e)}
+                        onTouchEnd={(e) => handleTileTouchEnd('settings', () => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('settings');
+                        }, e)}
+                        onClick={() => {
+                          if (customizeTilesMode) return;
+                          navigateToPivot('settings');
+                        }}
+                        style={{
+                          gridColumn: gridSpan,
+                          height: height,
+                          aspectRatio: aspectRatio,
+                          backgroundColor: surfaceColor,
+                          borderLeft: `4px solid ${accent}`,
+                          position: 'relative',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
+                        }}
+                      >
+                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
+                          <SettingsIcon size={isSmall ? 36 : 26} color={accent} strokeWidth={1.8} />
+                          {isSmall ? (
+                            <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em', color: subTextColor }}>
+                              SETTINGS
+                            </span>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600 }}>settings</div>
+                              <div style={{ fontSize: '10px', color: subTextColor }}>{stats.storageMb} MB offline</div>
                             </div>
-                          </div>
-                          <div style={{ fontSize: '10px', opacity: 0.9, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {currentFlashback?.relativeLabel || currentFlashback?.caption_text || 'Relive your archived memories.'}
-                          </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                        {moveControls}
+                      </motion.div>
+                    );
+                  }
 
-                    {/* Back Face: Detailed Contextual Throwback */}
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backfaceVisibility: 'hidden',
-                      transform: 'rotateX(180deg)',
-                      backgroundColor: surfaceColor,
-                      color: textColor,
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      borderLeft: `4px solid ${accent}`,
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '10px', color: accent, fontWeight: 700, letterSpacing: '0.05em' }}>
-                          {currentFlashback?.badgeText || 'ANNIVERSARY FLASHBACK'}
-                        </div>
-                        <div style={{ fontSize: '12px', marginTop: '4px', lineHeight: 1.3, fontWeight: 300 }}>
-                          {currentFlashback?.journal_note || currentFlashback?.caption_text || 'Tap to inspect memory details & soundtrack.'}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', opacity: 0.7 }}>
-                        <span>{flashbacks.length} throwback memories</span>
-                        <span>tap to view</span>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Corner Resize Cycle Button */}
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('onThisDay', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 2: Photos Hub (WP8.1 Living Collage) ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    navigateToPivot('memories');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.photos === 'wide' ? 'span 4' : (tileSizes.photos === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.photos === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.photos !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: accent,
-                    position: 'relative',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  {stories.length >= 4 ? (
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: tileSizes.photos === 'wide' ? 'repeat(4, 1fr)' : '1fr 1fr',
-                      gridTemplateRows: tileSizes.photos === 'wide' ? '1fr' : '1fr 1fr',
-                      width: '100%',
-                      height: '100%',
-                      gap: '2px',
-                      backgroundColor: '#000',
-                    }}>
-                      {[0, 1, 2, 3].map(cellIdx => {
-                        const s = stories[photoSubTileIndices[cellIdx] % stories.length];
-                        const isFlipped = photoSubTileFlips[cellIdx];
-                        return (
-                          <div key={cellIdx} style={{ width: '100%', height: '100%', perspective: '600px', overflow: 'hidden', position: 'relative' }}>
-                            <motion.div
-                              animate={{ rotateY: isFlipped ? 180 : 0 }}
-                              transition={{ duration: 0.6, ease: 'easeInOut' }}
-                              style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
-                            >
-                              <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
-                                <OfflineMedia src={s?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
-                              </div>
-                              <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                                <OfflineMedia src={stories[(photoSubTileIndices[cellIdx] + 1) % stories.length]?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
-                              </div>
-                            </motion.div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#FFF' }}>
-                      <ImageIcon size={24} />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 400 }}>memories</div>
-                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF', fontSize: '10px', fontWeight: 600 }}>
-                    <span>photos hub</span>
-                    <span>{stories.length}</span>
-                  </div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('photos', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 3: Highlights Hub Tile ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    navigateToPivot('highlights');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.highlights === 'wide' ? 'span 4' : (tileSizes.highlights === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.highlights === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.highlights !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: '#FA6800',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    perspective: '1000px',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <motion.div
-                    animate={{ rotateY: ((enableLiveFlip && flipHighlights) || tileFlips.highlights) ? 180 : 0 }}
-                    transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
-                  >
-                    {/* Front Face */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#FA6800', color: '#FFFFFF' }}>
-                      <Sparkles size={24} />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 400 }}>highlights</div>
-                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{highlights.length || 'Vault'}</div>
-                      </div>
-                    </div>
-
-                    {/* Back Face: Story Reels info */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #FA6800` }}>
-                      <div style={{ fontSize: '11px', color: '#FA6800', fontWeight: 700 }}>story reels</div>
-                      <div style={{ fontSize: '12px', lineHeight: 1.3 }}>{highlights.length} curated reels with music</div>
-                      <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to play</div>
-                    </div>
-                  </motion.div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('highlights', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 4: Feed Posts Tile ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    navigateToPivot('feed');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.feed === 'wide' ? 'span 4' : (tileSizes.feed === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.feed === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.feed !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: '#D80073',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    perspective: '1000px',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <motion.div
-                    animate={{ rotateY: ((enableLiveFlip && flipFeed) || tileFlips.feed) ? 180 : 0 }}
-                    transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
-                  >
-                    {/* Front Face */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#D80073', color: '#FFFFFF' }}>
-                      <Film size={24} />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 400 }}>feed posts</div>
-                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{posts.length}</div>
-                      </div>
-                    </div>
-
-                    {/* Back Face: Instagram Feed preview */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #D80073` }}>
-                      <div style={{ fontSize: '11px', color: '#D80073', fontWeight: 700 }}>instagram carousels</div>
-                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>@{igSession?.ig_username || 'vault'} • {posts.length} posts</div>
-                      <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to open feed</div>
-                    </div>
-                  </motion.div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('feed', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 5: Journal & Scrapbook Tile ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    navigateToPivot('journal');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.journal === 'wide' ? 'span 4' : (tileSizes.journal === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.journal === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.journal !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: '#008A00',
-                    color: '#FFFFFF',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    perspective: '1000px',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <motion.div
-                    animate={{ rotateY: ((enableLiveFlip && flipJournal) || tileFlips.journal) ? 180 : 0 }}
-                    transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
-                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
-                  >
-                    {/* Front Face */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#008A00', color: '#FFFFFF' }}>
-                      <BookOpen size={24} />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 400 }}>journal & bucket</div>
-                        <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{journaledItems.length + places.length}</div>
-                      </div>
-                    </div>
-
-                    {/* Back Face: Scrapbook summary */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: `4px solid #008A00` }}>
-                      <div style={{ fontSize: '11px', color: '#008A00', fontWeight: 700 }}>scrapbook hub</div>
-                      <div style={{ fontSize: '11px', lineHeight: 1.3 }}>{journaledItems.length} journal notes • {places.length} places</div>
-                      <div style={{ fontSize: '10px', opacity: 0.7 }}>tap to open</div>
-                    </div>
-                  </motion.div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('journal', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 6: Places to Visit Tile ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    setJournalSubTab('places');
-                    navigateToPivot('journal');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.places === 'wide' ? 'span 4' : (tileSizes.places === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.places === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.places !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: '#0050EF',
-                    color: '#FFFFFF',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    perspective: '1000px',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <MapPin size={24} />
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 400 }}>places to visit</div>
-                      <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{places.length}</div>
-                    </div>
-                  </div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('places', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 7: Vault Live Camera ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    handleStartCamera();
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.camera === 'wide' ? 'span 4' : (tileSizes.camera === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.camera === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.camera !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: '#F09609',
-                    color: '#FFFFFF',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <Camera size={24} />
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 400 }}>vault camera</div>
-                      <div style={{ fontSize: '12px', opacity: 0.9 }}>+ take live photo</div>
-                    </div>
-                  </div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('camera', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
-
-                {/* ── Tile 8: Settings & Storage Sense ── */}
-                <motion.div
-                  whileTap={{ scale: 0.97 }}
-                  onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
-                  onClick={() => {
-                    if (customizeTilesMode) return;
-                    navigateToPivot('settings');
-                  }}
-                  style={{
-                    gridColumn: (tileSizes.settings === 'wide' ? 'span 4' : (tileSizes.settings === 'small' ? 'span 1' : 'span 2')),
-                    height: tileSizes.settings === 'wide' ? '140px' : 'auto',
-                    aspectRatio: tileSizes.settings !== 'wide' ? '1/1' : 'unset',
-                    backgroundColor: surfaceColor,
-                    borderLeft: `4px solid ${accent}`,
-                    position: 'relative',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    outline: customizeTilesMode ? `2px dashed ${textColor}` : 'none',
-                  }}
-                >
-                  <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <SettingsIcon size={24} color={accent} />
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 600 }}>settings</div>
-                      <div style={{ fontSize: '10px', color: subTextColor }}>{stats.storageMb} MB offline</div>
-                    </div>
-                  </div>
-
-                  {customizeTilesMode && (
-                    <button
-                      onClick={(e) => cycleTileSize('settings', e)}
-                      style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.85)', color: '#FFF', border: '1px solid #FFF', width: '24px', height: '24px', borderRadius: '50%', fontSize: '12px', cursor: 'pointer', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ⤢
-                    </button>
-                  )}
-                </motion.div>
+                  return null;
+                })}
               </div>
 
               {/* ActiveSync Status Bar */}

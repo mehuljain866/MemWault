@@ -15,12 +15,17 @@ from app.config import get_settings
 settings = get_settings()
 
 # ── Async Engine ─────────────────────────────────────────
+engine_kwargs = {"echo": settings.debug}
+if settings.database_type != "sqlite":
+    engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_pre_ping": True,
+    })
+
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.debug,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
+    **engine_kwargs
 )
 
 # ── Session Factory ──────────────────────────────────────
@@ -53,31 +58,10 @@ async def get_db() -> AsyncSession:
 
 # ── Lifecycle ────────────────────────────────────────────
 async def init_db():
-    """Create all tables and run lightweight migrations."""
+    """Create all tables. Call once on startup."""
     async with engine.begin() as conn:
         from app import models  # noqa: F401 – import to register models
         await conn.run_sync(Base.metadata.create_all)
-
-        # Auto-migrate columns for SQLite if missing
-        if settings.database_type == "sqlite":
-            def run_sqlite_migrations(connection):
-                cursor = connection.connection.cursor()
-                cursor.execute("PRAGMA table_info(stories)")
-                cols = {row[1] for row in cursor.fetchall()}
-                
-                migrations = [
-                    ("filter_name", "VARCHAR(128)"),
-                    ("filter_type", "INTEGER"),
-                    ("filter_creator", "VARCHAR(128)"),
-                    ("filter_icon_url", "TEXT"),
-                    ("effect_id", "VARCHAR(64)"),
-                ]
-                for col_name, col_type in migrations:
-                    if col_name not in cols:
-                        cursor.execute(f"ALTER TABLE stories ADD COLUMN {col_name} {col_type}")
-                connection.connection.commit()
-
-            await conn.run_sync(run_sqlite_migrations)
 
 
 async def close_db():

@@ -34,8 +34,8 @@ function LiveMovingWaveform({ isPlaying }) {
 
 // ── Resilient Story Thumbnail Scrubber Item ──
 function StoryThumbnail({ story, isActive, onClick }) {
-  const isVid = story?.media_type === 2 || Boolean(story?.music) || story?.is_reel || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')));
-  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : '');
+  const isVid = story?.media_type === 2 || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov')));
+  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/media/${story.s3_key_compressed}` : '');
   const [src, setSrc] = useState(rawUrl);
   const [hasError, setHasError] = useState(false);
 
@@ -74,13 +74,15 @@ function StoryThumbnail({ story, isActive, onClick }) {
           <video 
             src={src} 
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
-            autoPlay
             muted 
-            loop
             playsInline 
             preload="metadata"
             onError={() => {
-              setHasError(true);
+              if (rawUrl && !rawUrl.startsWith('/api/v1/proxy') && rawUrl.startsWith('http')) {
+                setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(rawUrl)}`);
+              } else {
+                setHasError(true);
+              }
             }}
           />
         ) : (

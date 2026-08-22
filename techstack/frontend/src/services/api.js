@@ -57,9 +57,8 @@ async function apiFetch(endpoint, options = {}) {
 
   if (response.status === 401) {
     clearToken();
-    // Only redirect to /login if we're not already on public/guest routes
-    const path = window.location.pathname;
-    if (!path.startsWith('/login') && !path.startsWith('/pocket') && !path.startsWith('/upload-link') && !path.startsWith('/mobile-paint')) {
+    // Only redirect if we're not already on the login page (avoids infinite spinner bug)
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/pocket')) {
       window.location.href = '/login';
     }
     const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));

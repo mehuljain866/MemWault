@@ -189,7 +189,7 @@ export default function Archives() {
 
 // ── ArchiveCard ──────────────────────────────────────────────────
 function ArchiveCard({ story, isRestoring, onRestore, onNavigate }) {
-  const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof story.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')))
+  const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (story.media_url && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')))
   const dateStrUtc = story.taken_at + (story.taken_at.endsWith('Z') ? '' : 'Z')
   const date = new Date(dateStrUtc)
   const dateStr = date.toLocaleDateString('en-US', {
@@ -224,9 +224,9 @@ function ArchiveCard({ story, isRestoring, onRestore, onNavigate }) {
           isVideo ? (
             <video
               src={story.media_url}
-              autoPlay
               muted
               loop
+              autoPlay
               playsInline
               preload="metadata"
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}

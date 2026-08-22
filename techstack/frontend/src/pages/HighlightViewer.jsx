@@ -305,7 +305,7 @@ export default function HighlightViewer() {
               marginTop: '8px',
             }}>
               {dateStories.map((story, idx) => {
-                const isVideo = story.media_type === 2
+                const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (story.media_url && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')))
                 const thumbSrc = story.media_url
 
                 return (
@@ -348,6 +348,9 @@ export default function HighlightViewer() {
                         <video
                           src={thumbSrc}
                           muted
+                          loop
+                          autoPlay
+                          playsInline
                           preload="metadata"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />

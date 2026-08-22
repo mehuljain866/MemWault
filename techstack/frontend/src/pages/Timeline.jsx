@@ -16,17 +16,15 @@ import {
 // Helper for Year/Month cluster preview
 function ClusterMediaItem({ story }) {
   if (!story) return null
-  const url = story.thumbnail_url || story.media_url || (story.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : null)
+  const url = story.media_url || (story.s3_key_compressed ? `/media/${story.s3_key_compressed}` : null)
   if (!url) return null
-  const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof url === 'string' && (url.includes('.mp4') || url.includes('.mov') || url.includes('video')))
+  const isVideo = story.media_type === 2 || url.includes('.mp4') || url.includes('.mov')
   if (isVideo) {
     return (
       <video 
-        src={url} 
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
-        autoPlay
+        src={`${url}#t=0.1`} 
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
         muted 
-        loop
         playsInline 
         preload="metadata"
       />
@@ -36,7 +34,7 @@ function ClusterMediaItem({ story }) {
     <img 
       src={url} 
       alt="" 
-      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
       loading="lazy"
     />
   )

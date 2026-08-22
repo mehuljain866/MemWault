@@ -419,7 +419,7 @@ export default function JournalApp() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '48px', height: '64px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#000' }}>
-                    {selectedStory.media_type === 2 ? (
+                    {selectedStory.media_type === 2 || Boolean(selectedStory.music) || selectedStory.is_reel || (getMediaUrl(selectedStory) && (getMediaUrl(selectedStory).includes('.mp4') || getMediaUrl(selectedStory).includes('.mov') || getMediaUrl(selectedStory).includes('video'))) ? (
                       <video src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                     ) : (
                       <img src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -532,7 +532,7 @@ export default function JournalApp() {
                     justifyContent: 'center',
                   }}
                 >
-                  {selectedStory.media_type === 2 ? (
+                  {selectedStory.media_type === 2 || Boolean(selectedStory.music) || selectedStory.is_reel || (getMediaUrl(selectedStory) && (getMediaUrl(selectedStory).includes('.mp4') || getMediaUrl(selectedStory).includes('.mov') || getMediaUrl(selectedStory).includes('video'))) ? (
                     <video src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} autoPlay loop muted playsInline />
                   ) : (
                     <img src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
@@ -818,8 +818,8 @@ export default function JournalApp() {
                           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         >
                           <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000', position: 'relative' }}>
-                            {story.media_type === 2 ? (
-                              <video src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            {story.media_type === 2 || Boolean(story.music) || story.is_reel || (getMediaUrl(story) && (getMediaUrl(story).includes('.mp4') || getMediaUrl(story).includes('.mov') || getMediaUrl(story).includes('video'))) ? (
+                              <video src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline preload="metadata" />
                             ) : (
                               <img src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             )}

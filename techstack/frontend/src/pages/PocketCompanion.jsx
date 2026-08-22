@@ -108,11 +108,40 @@ function RenderStickerIcon({ name, size = 16, color = '#FFF' }) {
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
  */
+function getMediaUrl(item) {
+  if (!item) return '';
+  if (typeof item === 'string') return item;
+  if (item.cover_media_url) return item.cover_media_url;
+  if (item.thumbnail_url) return item.thumbnail_url;
+  if (item.display_url) return item.display_url;
+  if (item.media_url) return item.media_url;
+  if (item.raw_media_url) return item.raw_media_url;
+  if (item.instagram_media_url) return item.instagram_media_url;
+  if (item.image_versions2?.candidates?.[0]?.url) return item.image_versions2.candidates[0].url;
+  if (item.preview_stories && item.preview_stories.length > 0) {
+    const p = item.preview_stories[0];
+    return typeof p === 'string' ? p : (p?.media_url || p?.display_url || p?.raw_media_url || '');
+  }
+  if (item.stories && item.stories.length > 0) {
+    const s = item.stories[0];
+    return typeof s === 'string' ? s : (s?.media_url || s?.display_url || s?.raw_media_url || '');
+  }
+  if (item.media_items && item.media_items.length > 0) {
+    const first = item.media_items[0];
+    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || '';
+  }
+  if (item.s3_key_compressed) return `/media/${item.s3_key_compressed}`;
+  if (item.s3_key) return `/media/${item.s3_key}`;
+  return '';
+}
+
+/**
+ * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
+ */
 function useOfflineMediaUrl(url) {
   const [src, setSrc] = useState(() => {
     if (!url) return '';
-    if (typeof url === 'object') return url.media_url || url.display_url || url.raw_media_url || '';
-    return url;
+    return typeof url === 'object' ? getMediaUrl(url) : url;
   });
 
   useEffect(() => {
@@ -120,7 +149,7 @@ function useOfflineMediaUrl(url) {
       setSrc('');
       return;
     }
-    const rawUrl = typeof url === 'object' ? (url.media_url || url.display_url || url.raw_media_url || '') : url;
+    const rawUrl = typeof url === 'object' ? getMediaUrl(url) : url;
     if (!rawUrl) {
       setSrc('');
       return;
@@ -229,24 +258,6 @@ function OfflineMedia({
   );
 }
 
-function getMediaUrl(item) {
-  if (!item) return '';
-  if (item.cover_media_url) return item.cover_media_url;
-  if (item.preview_stories && item.preview_stories.length > 0) {
-    const p = item.preview_stories[0];
-    return typeof p === 'string' ? p : (p?.media_url || p?.display_url || '');
-  }
-  if (item.stories && item.stories.length > 0) {
-    const s = item.stories[0];
-    return typeof s === 'string' ? s : (s?.media_url || s?.display_url || '');
-  }
-  if (item.media_items && item.media_items.length > 0) {
-    const first = item.media_items[0];
-    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || '';
-  }
-  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || (item.s3_key_compressed ? `/media/${item.s3_key_compressed}` : '');
-}
-
 export default function PocketCompanion() {
   // ── Theme & Customization States ──────────────────────────────────────────
   const [accent, setAccent] = useState(() => localStorage.getItem('metro_accent') || '#0050EF');
@@ -257,6 +268,7 @@ export default function PocketCompanion() {
   const [serverHost, setServerHost] = useState(() => localStorage.getItem('metro_server_host') || window.location.hostname || '192.168.29.50');
 
   // ── Navigation & Content States ───────────────────────────────────────────
+  const PIVOT_TABS = ['start', 'memories', 'highlights', 'feed', 'journal', 'settings'];
   const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'settings'
   const [journalSubTab, setJournalSubTab] = useState('notes'); // 'notes' | 'places'
   const [stories, setStories] = useState([]);
@@ -265,6 +277,10 @@ export default function PocketCompanion() {
   const [pendingUploads, setPendingUploads] = useState([]);
   const [stats, setStats] = useState({ memoryCount: 0, postCount: 0, pendingCount: 0, highlightCount: 0, storageMb: '0.00' });
   const [igSession, setIgSession] = useState(null);
+
+  // ── All Apps Lumia Drawer State ───────────────────────────────────────────
+  const [showAllAppsModal, setShowAllAppsModal] = useState(false);
+  const [allAppsSearch, setAllAppsSearch] = useState('');
 
   // ── Places to Visit State (Full Desktop Parity) ───────────────────────────
   const [places, setPlaces] = useState(() => {
@@ -293,6 +309,16 @@ export default function PocketCompanion() {
   const [postSlideIndex, setPostSlideIndex] = useState(0);
   const [postDetailTab, setPostDetailTab] = useState('info'); // 'info' | 'journal' | 'music' | 'data'
   const [postVersionMap, setPostVersionMap] = useState({}); // { [mediaId]: 'raw' | 'instagram' }
+
+  // ── Custom Desktop Parity Stickers for Scrapbook ──────────────────────────
+  const CUSTOM_STICKER_SETS = [
+    { id: 'stamp_vault', label: 'VAULT SEAL', bg: '#A20025', text: 'MEMWAULT ARCHIVE', icon: '🏛️' },
+    { id: 'stamp_loc', label: 'PASSPORT', bg: '#0050EF', text: 'VERIFIED LOCATION', icon: '✈️' },
+    { id: 'stamp_sound', label: 'VINYL', bg: '#1DB954', text: 'SOUNDTRACK 33⅓', icon: '🎵' },
+    { id: 'stamp_date', label: 'TIMECODE', bg: '#FA6800', text: 'ON THIS DAY', icon: '⏳' },
+    { id: 'stamp_polaroid', label: 'POLAROID', bg: '#E8E8E8', text: 'ORIGINAL SHOT', icon: '📸', darkText: true },
+    { id: 'stamp_fav', label: 'FAVORITE', bg: '#D80073', text: 'CORE MEMORY', icon: '💖' },
+  ];
 
   // ── On This Day Flashback States ──────────────────────────────────────────
   const [flashbackIndex, setFlashbackIndex] = useState(0);
@@ -337,20 +363,23 @@ export default function PocketCompanion() {
 
   // ── MS Paint / Finger Doodling Studio States ──────────────────────────────
   const [paintModalOpen, setPaintModalOpen] = useState(false);
-  const [paintTool, setPaintTool] = useState('brush'); // 'pencil' | 'brush' | 'highlighter' | 'eraser'
-  const [drawingColor, setDrawingColor] = useState('#0050EF');
-  const [brushSize, setBrushSize] = useState(4);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [paintColor, setPaintColor] = useState('#FF0000');
+  const [paintBrushSize, setPaintBrushSize] = useState(4);
+  const [paintTool, setPaintTool] = useState('pen'); // 'pen' | 'highlighter' | 'eraser'
   const paintCanvasRef = useRef(null);
+  const isPainting = useRef(false);
+  const lastPaintPos = useRef({ x: 0, y: 0 });
 
   // ── PWA Installation States ───────────────────────────────────────────────
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
-  // ── Status Bar States ─────────────────────────────────────────────────────
+  // ── System Status Engine ──────────────────────────────────────────────────
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ percent: 0, stage: '' });
+  const [toastMessage, setToastMessage] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [batteryLevel, setBatteryLevel] = useState(null);
 
@@ -460,8 +489,9 @@ export default function PocketCompanion() {
     setTileFlips(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Touch tracking for swiping tiles to flip
+  // Touch tracking for swiping tiles to flip vs clicking to navigate
   const touchStartCoords = useRef({});
+  const swipedTileRecently = useRef(false);
 
   const handleTileTouchStart = (key, e) => {
     if (e.touches && e.touches[0]) {
@@ -473,27 +503,114 @@ export default function PocketCompanion() {
     }
   };
 
-  const handleTileTouchEnd = (key, onDefaultClick, e) => {
+  const handleTileTouchEnd = (key, e) => {
     const start = touchStartCoords.current[key];
-    if (!start) {
-      if (onDefaultClick) onDefaultClick(e);
-      return;
+    if (!start) return;
+    const endX = e.changedTouches ? e.changedTouches[0].clientX : 0;
+    const endY = e.changedTouches ? e.changedTouches[0].clientY : 0;
+    const deltaX = endX - start.x;
+    const deltaY = endY - start.y;
+
+    if (Math.abs(deltaX) > 24 || Math.abs(deltaY) > 24) {
+      if (e) e.stopPropagation();
+      swipedTileRecently.current = true;
+      setTimeout(() => { swipedTileRecently.current = false; }, 300);
+      toggleTileFlip(key, e);
     }
+    delete touchStartCoords.current[key];
+  };
+
+  const handleTileClick = (key, onAction, e) => {
+    if (customizeTilesMode) return;
+    if (swipedTileRecently.current) return;
+    triggerSound();
+    if (onAction) onAction(e);
+  };
+
+  // ── Viewport Horizontal Swipe Gesture for Metro Pivot Tabs ───────────────
+  const touchStartPivotCoords = useRef({ x: 0, y: 0, time: 0 });
+
+  const handleViewportTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartPivotCoords.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now()
+      };
+    }
+  };
+
+  const handleViewportTouchEnd = (e) => {
+    const start = touchStartPivotCoords.current;
+    if (!start || !start.time) return;
     const endX = e.changedTouches ? e.changedTouches[0].clientX : 0;
     const endY = e.changedTouches ? e.changedTouches[0].clientY : 0;
     const deltaX = endX - start.x;
     const deltaY = endY - start.y;
     const elapsed = Date.now() - start.time;
 
-    // If swipe distance > 28px horizontally or vertically
-    if (Math.abs(deltaX) > 28 || Math.abs(deltaY) > 28) {
-      if (e) e.stopPropagation();
-      toggleTileFlip(key, e);
-    } else if (elapsed < 350) {
-      // Tap action
-      if (onDefaultClick) onDefaultClick(e);
+    // Fast horizontal swipe on main viewport (dominant horizontal delta > 50px)
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > 1.3 * Math.abs(deltaY) && elapsed < 600) {
+      if (!selectedStory && !activeHighlight && selectedPostIndex === null && !paintModalOpen && !newJournalModalOpen && !cameraModalOpen && !musicModalTrack && !showAllAppsModal) {
+        const currentIdx = PIVOT_TABS.indexOf(activePivot);
+        if (currentIdx !== -1) {
+          if (deltaX < -50 && currentIdx < PIVOT_TABS.length - 1) {
+            navigateToPivot(PIVOT_TABS[currentIdx + 1]);
+          } else if (deltaX > 50 && currentIdx > 0) {
+            navigateToPivot(PIVOT_TABS[currentIdx - 1]);
+          }
+        }
+      }
     }
-    delete touchStartCoords.current[key];
+    touchStartPivotCoords.current = { x: 0, y: 0, time: 0 };
+  };
+
+  // ── Swipe Gestures Between Memories/Stories in Story View ─────────────────
+  const touchStartMemoryCoords = useRef({ x: 0, y: 0, time: 0 });
+
+  const handlePrevMemoryStory = () => {
+    if (!selectedStory || stories.length === 0) return;
+    triggerSound();
+    const currentIdx = stories.findIndex(s => s.id === selectedStory.id);
+    const prevIdx = currentIdx <= 0 ? stories.length - 1 : currentIdx - 1;
+    setSelectedStory(stories[prevIdx]);
+  };
+
+  const handleNextMemoryStory = () => {
+    if (!selectedStory || stories.length === 0) return;
+    triggerSound();
+    const currentIdx = stories.findIndex(s => s.id === selectedStory.id);
+    const nextIdx = (currentIdx + 1) % stories.length;
+    setSelectedStory(stories[nextIdx]);
+  };
+
+  const handleMemoryTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartMemoryCoords.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now()
+      };
+    }
+  };
+
+  const handleMemoryTouchEnd = (e) => {
+    const start = touchStartMemoryCoords.current;
+    if (!start || !start.time) return;
+    const endX = e.changedTouches ? e.changedTouches[0].clientX : 0;
+    const endY = e.changedTouches ? e.changedTouches[0].clientY : 0;
+    const deltaX = endX - start.x;
+    const deltaY = endY - start.y;
+    const elapsed = Date.now() - start.time;
+
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > 1.2 * Math.abs(deltaY) && elapsed < 500) {
+      if (deltaX < -40) {
+        handleNextMemoryStory();
+      } else if (deltaX > 40) {
+        handlePrevMemoryStory();
+      }
+    }
+    touchStartMemoryCoords.current = { x: 0, y: 0, time: 0 };
   };
 
   const [flipToday, setFlipToday] = useState(false);
@@ -1367,6 +1484,79 @@ export default function PocketCompanion() {
     ...stories.filter(s => s.journal_note && s.journal_note.trim().length > 0).map(s => ({ ...s, _isPost: false })),
     ...posts.filter(p => p.journal_note && p.journal_note.trim().length > 0).map(p => ({ ...p, _isPost: true }))
   ];
+
+  // ── Auto-Extracted Visited Places Engine (Full Desktop Parity) ────────────
+  const visitedLocations = useMemo(() => {
+    const map = new Map();
+    
+    // 1. Extract from stories with location geotags
+    stories.forEach(s => {
+      if (s.location_name && s.location_name.trim()) {
+        const loc = s.location_name.trim();
+        if (!map.has(loc)) {
+          map.set(loc, {
+            id: `loc_${loc}`,
+            title: loc,
+            location: loc,
+            category: 'Travel',
+            visited: true,
+            count: 1,
+            lastVisited: s.taken_at,
+            sampleItem: s
+          });
+        } else {
+          const item = map.get(loc);
+          item.count += 1;
+          if (s.taken_at && (!item.lastVisited || new Date(s.taken_at) > new Date(item.lastVisited))) {
+            item.lastVisited = s.taken_at;
+            item.sampleItem = s;
+          }
+        }
+      }
+    });
+
+    // 2. Extract from posts with location geotags
+    posts.forEach(p => {
+      if (p.location_name && p.location_name.trim()) {
+        const loc = p.location_name.trim();
+        if (!map.has(loc)) {
+          map.set(loc, {
+            id: `loc_${loc}`,
+            title: loc,
+            location: loc,
+            category: 'Travel',
+            visited: true,
+            count: 1,
+            lastVisited: p.taken_at || p.timestamp,
+            sampleItem: p
+          });
+        } else {
+          const item = map.get(loc);
+          item.count += 1;
+        }
+      }
+    });
+
+    // 3. Include completed bucket list destinations
+    places.filter(p => p.completed).forEach(p => {
+      const loc = p.location ? `${p.title} (${p.location})` : p.title;
+      if (!map.has(loc)) {
+        map.set(loc, {
+          id: p.id,
+          title: p.title,
+          location: p.location || p.title,
+          category: p.category || 'Travel',
+          visited: true,
+          count: 1,
+          lastVisited: null,
+          sampleItem: null,
+          notes: p.notes
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [stories, posts, places]);
 
   // ── Pivot Tabs ────────────────────────────────────────────────────────────
   const pivotList = [
@@ -2404,6 +2594,8 @@ export default function PocketCompanion() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -18 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
+          onTouchStart={handleViewportTouchStart}
+          onTouchEnd={handleViewportTouchEnd}
           style={{ flex: 1, padding: '12px 16px', overflowY: 'auto' }}
         >
 
@@ -2510,18 +2702,11 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('onThisDay', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('onThisDay', () => {
-                          if (customizeTilesMode) return;
-                          triggerSound();
+                        onTouchEnd={(e) => handleTileTouchEnd('onThisDay', e)}
+                        onClick={(e) => handleTileClick('onThisDay', () => {
                           if (currentFlashback) openStoryView(currentFlashback);
                           else navigateToPivot('memories');
                         }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          triggerSound();
-                          if (currentFlashback) openStoryView(currentFlashback);
-                          else navigateToPivot('memories');
-                        }}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2553,7 +2738,7 @@ export default function PocketCompanion() {
                                 {currentFlashback && (
                                   <div style={{ width: isWide ? '40%' : '50%', height: '100%', backgroundColor: '#000', position: 'relative' }}>
                                     <OfflineMedia
-                                      src={currentFlashback.media_url}
+                                      src={getMediaUrl(currentFlashback)}
                                       type={currentFlashback.media_type === 2 ? 'video' : 'image'}
                                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                       alt="Flashback"
@@ -2626,20 +2811,15 @@ export default function PocketCompanion() {
 
                   // ── 2. PHOTOS HUB TILE ──
                   if (tileKey === 'photos') {
+                    const mediaPool = stories.length > 0 ? stories : (highlights.length > 0 ? highlights : posts);
                     return (
                       <motion.div
                         key="photos"
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('photos', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('photos', () => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('memories');
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('memories');
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('photos', e)}
+                        onClick={(e) => handleTileClick('photos', () => navigateToPivot('memories'), e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2647,64 +2827,90 @@ export default function PocketCompanion() {
                           backgroundColor: accent,
                           position: 'relative',
                           cursor: 'pointer',
+                          perspective: '1000px',
                           overflow: 'hidden',
                           outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
                         }}
                       >
-                        {isSmall ? (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', color: '#FFF' }}>
-                            <ImageIcon size={34} color="#FFF" strokeWidth={1.8} />
-                            <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
-                              {stories.length}
-                            </span>
-                          </div>
-                        ) : stories.length >= 4 ? (
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: isWide ? 'repeat(4, 1fr)' : '1fr 1fr',
-                            gridTemplateRows: isWide ? '1fr' : '1fr 1fr',
-                            width: '100%',
-                            height: '100%',
-                            gap: '2px',
-                            backgroundColor: '#000',
-                          }}>
-                            {[0, 1, 2, 3].map(cellIdx => {
-                              const s = stories[photoSubTileIndices[cellIdx] % stories.length];
-                              const isFlipped = photoSubTileFlips[cellIdx];
-                              return (
-                                <div key={cellIdx} style={{ width: '100%', height: '100%', perspective: '600px', overflow: 'hidden', position: 'relative' }}>
-                                  <motion.div
-                                    animate={{ rotateY: isFlipped ? 180 : 0 }}
-                                    transition={{ duration: 0.6, ease: 'easeInOut' }}
-                                    style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
-                                  >
-                                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
-                                      <OfflineMedia src={s?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
+                        <motion.div
+                          animate={{ rotateY: tileFlips.photos ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', width: '100%', height: '100%' }}>
+                            {isSmall ? (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', color: '#FFF' }}>
+                                <ImageIcon size={34} color="#FFF" strokeWidth={1.8} />
+                                <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                  {stories.length || mediaPool.length}
+                                </span>
+                              </div>
+                            ) : mediaPool.length > 0 ? (
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: isWide ? 'repeat(4, 1fr)' : '1fr 1fr',
+                                gridTemplateRows: isWide ? '1fr' : '1fr 1fr',
+                                width: '100%',
+                                height: '100%',
+                                gap: '2px',
+                                backgroundColor: '#000',
+                              }}>
+                                {[0, 1, 2, 3].map(cellIdx => {
+                                  const s = mediaPool[photoSubTileIndices[cellIdx] % mediaPool.length];
+                                  const sNext = mediaPool[(photoSubTileIndices[cellIdx] + 1) % mediaPool.length];
+                                  const isFlipped = photoSubTileFlips[cellIdx];
+                                  return (
+                                    <div key={cellIdx} style={{ width: '100%', height: '100%', perspective: '600px', overflow: 'hidden', position: 'relative' }}>
+                                      <motion.div
+                                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                                        transition={{ duration: 0.6, ease: 'easeInOut' }}
+                                        style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
+                                      >
+                                        <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
+                                          <OfflineMedia src={getMediaUrl(s)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
+                                        </div>
+                                        <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                                          <OfflineMedia src={getMediaUrl(sNext)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
+                                        </div>
+                                      </motion.div>
                                     </div>
-                                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                                      <OfflineMedia src={stories[(photoSubTileIndices[cellIdx] + 1) % stories.length]?.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
-                                    </div>
-                                  </motion.div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#FFF' }}>
+                                <ImageIcon size={26} />
+                                <div>
+                                  <div style={{ fontSize: '11px', fontWeight: 400 }}>memories</div>
+                                  <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div style={{ padding: '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#FFF' }}>
-                            <ImageIcon size={26} />
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 400 }}>memories</div>
-                              <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{stories.length}</div>
-                            </div>
-                          </div>
-                        )}
+                              </div>
+                            )}
 
-                        {!isSmall && (
-                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF', fontSize: '10px', fontWeight: 600 }}>
-                            <span>photos hub</span>
-                            <span>{stories.length}</span>
+                            {!isSmall && (
+                              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#FFF', fontSize: '10px', fontWeight: 600 }}>
+                                <span>photos hub</span>
+                                <span>{stories.length}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', borderLeft: `4px solid ${accent}` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: accent }}>
+                                PHOTOS
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: accent, fontWeight: 700 }}>photos hub</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.3 }}>{stories.length} stories • {flashbacks.length} flashbacks</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
                         {moveControls}
                       </motion.div>
                     );
@@ -2718,14 +2924,8 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('highlights', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('highlights', () => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('highlights');
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('highlights');
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('highlights', e)}
+                        onClick={(e) => handleTileClick('highlights', () => navigateToPivot('highlights'), e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2786,14 +2986,8 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('feed', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('feed', () => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('feed');
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('feed');
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('feed', e)}
+                        onClick={(e) => handleTileClick('feed', () => navigateToPivot('feed'), e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2854,14 +3048,8 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('journal', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('journal', () => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('journal');
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('journal');
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('journal', e)}
+                        onClick={(e) => handleTileClick('journal', () => navigateToPivot('journal'), e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2923,16 +3111,11 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('places', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('places', () => {
-                          if (customizeTilesMode) return;
-                          setJournalSubTab('places');
+                        onTouchEnd={(e) => handleTileTouchEnd('places', e)}
+                        onClick={(e) => handleTileClick('places', () => {
+                          setJournalSubTab('visited');
                           navigateToPivot('journal');
                         }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          setJournalSubTab('places');
-                          navigateToPivot('journal');
-                        }}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2941,23 +3124,46 @@ export default function PocketCompanion() {
                           color: '#FFFFFF',
                           position: 'relative',
                           cursor: 'pointer',
+                          perspective: '1000px',
                           overflow: 'hidden',
                           outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
                         }}
                       >
-                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
-                          <MapPin size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
-                          {isSmall ? (
-                            <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
-                              {places.length}
-                            </span>
-                          ) : (
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 400 }}>places to visit</div>
-                              <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{places.length}</div>
-                            </div>
-                          )}
-                        </div>
+                        <motion.div
+                          animate={{ rotateY: tileFlips.places ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: '#0050EF', color: '#FFFFFF', boxSizing: 'border-box' }}>
+                            <MapPin size={isSmall ? 34 : 26} color="#FFF" strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', right: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                {visitedLocations.length + places.length}
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 400 }}>places & visited</div>
+                                <div style={{ fontSize: '24px', fontWeight: 200, lineHeight: 1 }}>{visitedLocations.length + places.length}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid #0050EF` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#0050EF' }}>
+                                PLACES
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: '#0050EF', fontWeight: 700 }}>places & travel</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.3 }}>{visitedLocations.length} visited • {places.filter(p => !p.completed).length} to visit</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
                         {moveControls}
                       </motion.div>
                     );
@@ -2971,14 +3177,8 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('camera', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('camera', () => {
-                          if (customizeTilesMode) return;
-                          handleStartCamera();
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          handleStartCamera();
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('camera', e)}
+                        onClick={(e) => handleTileClick('camera', handleStartCamera, e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -2987,23 +3187,46 @@ export default function PocketCompanion() {
                           color: '#FFFFFF',
                           position: 'relative',
                           cursor: 'pointer',
+                          perspective: '1000px',
                           overflow: 'hidden',
                           outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
                         }}
                       >
-                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
-                          <Camera size={isSmall ? 36 : 26} color="#FFF" strokeWidth={1.8} />
-                          {isSmall ? (
-                            <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em' }}>
-                              CAMERA
-                            </span>
-                          ) : (
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 400 }}>vault camera</div>
-                              <div style={{ fontSize: '12px', opacity: 0.9 }}>+ take live photo</div>
-                            </div>
-                          )}
-                        </div>
+                        <motion.div
+                          animate={{ rotateY: tileFlips.camera ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: '#F09609', color: '#FFFFFF', boxSizing: 'border-box' }}>
+                            <Camera size={isSmall ? 36 : 26} color="#FFF" strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em' }}>
+                                CAMERA
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 400 }}>vault camera</div>
+                                <div style={{ fontSize: '12px', opacity: 0.9 }}>+ take live photo</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid #F09609` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#F09609' }}>
+                                PRO CAM
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: '#F09609', fontWeight: 700 }}>lumia camera</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.3 }}>Instant vault snapshot studio</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
                         {moveControls}
                       </motion.div>
                     );
@@ -3017,14 +3240,8 @@ export default function PocketCompanion() {
                         whileTap={{ scale: 0.97 }}
                         onContextMenu={(e) => { e.preventDefault(); setCustomizeTilesMode(true); }}
                         onTouchStart={(e) => handleTileTouchStart('settings', e)}
-                        onTouchEnd={(e) => handleTileTouchEnd('settings', () => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('settings');
-                        }, e)}
-                        onClick={() => {
-                          if (customizeTilesMode) return;
-                          navigateToPivot('settings');
-                        }}
+                        onTouchEnd={(e) => handleTileTouchEnd('settings', e)}
+                        onClick={(e) => handleTileClick('settings', () => navigateToPivot('settings'), e)}
                         style={{
                           gridColumn: gridSpan,
                           height: height,
@@ -3033,23 +3250,46 @@ export default function PocketCompanion() {
                           borderLeft: `4px solid ${accent}`,
                           position: 'relative',
                           cursor: 'pointer',
+                          perspective: '1000px',
                           overflow: 'hidden',
                           outline: customizeTilesMode ? `2px dashed #FFF` : 'none',
                         }}
                       >
-                        <div style={{ padding: isSmall ? '8px' : '12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', boxSizing: 'border-box' }}>
-                          <SettingsIcon size={isSmall ? 36 : 26} color={accent} strokeWidth={1.8} />
-                          {isSmall ? (
-                            <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em', color: subTextColor }}>
-                              SETTINGS
-                            </span>
-                          ) : (
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 600 }}>settings</div>
-                              <div style={{ fontSize: '10px', color: subTextColor }}>{stats.storageMb} MB offline</div>
-                            </div>
-                          )}
-                        </div>
+                        <motion.div
+                          animate={{ rotateY: tileFlips.settings ? 180 : 0 }}
+                          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+                          style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* Front Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', padding: isSmall ? '8px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', backgroundColor: surfaceColor, color: textColor, boxSizing: 'border-box' }}>
+                            <SettingsIcon size={isSmall ? 36 : 26} color={accent} strokeWidth={1.8} />
+                            {isSmall ? (
+                              <span style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '8px', fontWeight: 800, letterSpacing: '0.08em', color: subTextColor }}>
+                                SETTINGS
+                              </span>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600 }}>settings</div>
+                                <div style={{ fontSize: '10px', color: subTextColor }}>{stats.storageMb} MB offline</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Back Face */}
+                          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundColor: surfaceColor, color: textColor, padding: isSmall ? '6px' : '12px', display: 'flex', flexDirection: 'column', justifyContent: isSmall ? 'center' : 'space-between', alignItems: isSmall ? 'center' : 'flex-start', borderLeft: `4px solid ${accent}` }}>
+                            {isSmall ? (
+                              <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: accent }}>
+                                SYSTEM
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '11px', color: accent, fontWeight: 700 }}>storage sense</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.3 }}>ActiveSync • {stats.memoryCount} media blobs</div>
+                                <div style={{ fontSize: '10px', opacity: 0.7 }}>swipe to flip</div>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
                         {moveControls}
                       </motion.div>
                     );
@@ -3057,6 +3297,29 @@ export default function PocketCompanion() {
 
                   return null;
                 })}
+              </div>
+
+              {/* Lumia All Apps Navigation Circle Button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', marginBottom: '8px' }}>
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => { triggerSound(); setShowAllAppsModal(true); }}
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    border: `2px solid ${textColor}`,
+                    backgroundColor: 'transparent',
+                    color: textColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                  title="All Apps List"
+                >
+                  <ArrowRight size={20} />
+                </motion.button>
               </div>
 
               {/* ActiveSync Status Bar */}
@@ -3072,7 +3335,7 @@ export default function PocketCompanion() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   cursor: 'pointer',
-                  marginTop: '4px',
+                  marginTop: '2px',
                 }}
               >
                 <div>
@@ -3085,6 +3348,120 @@ export default function PocketCompanion() {
                 </div>
                 <RefreshCw size={20} className={isSyncing ? 'spin-anim' : ''} color={accent} />
               </motion.div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════
+              LUMIA ALL APPS DRAWER MODAL
+             ══════════════════════════════════════════════════════ */}
+          {showAllAppsModal && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: surfaceColor,
+              zIndex: 100005,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '18px 20px',
+              overflowY: 'auto',
+            }}>
+              {/* Header & Search */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '28px', fontWeight: 200, letterSpacing: '-0.5px' }}>apps</div>
+                <button
+                  onClick={() => setShowAllAppsModal(false)}
+                  style={{ background: 'none', border: 'none', color: textColor, cursor: 'pointer' }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div style={{ position: 'relative', marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  placeholder="search apps..."
+                  value={allAppsSearch}
+                  onChange={(e) => setAllAppsSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: cardColor,
+                    border: `2px solid ${borderColor}`,
+                    color: textColor,
+                    padding: '10px 12px 10px 36px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <Search size={16} color={subTextColor} style={{ position: 'absolute', left: '12px', top: '12px' }} />
+              </div>
+
+              {/* Filtered Apps List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { id: 'archives', name: 'Archives & Timeline', letter: 'A', icon: Film, pivot: 'memories', desc: 'Browse full media timeline & year filter' },
+                  { id: 'camera', name: 'Camera (Vault Studio)', letter: 'C', icon: Camera, action: 'camera', desc: 'Snap instant photos & attach to vault' },
+                  { id: 'doodle', name: 'Doodle Studio (MS Paint)', letter: 'D', icon: Palette, action: 'doodle', desc: 'Draw sketches & handwritten notes' },
+                  { id: 'feed', name: 'Feed & Carousels', letter: 'F', icon: Film, pivot: 'feed', desc: 'Multi-photo carousels & captions' },
+                  { id: 'highlights', name: 'Highlights & Story Reels', letter: 'H', icon: Sparkles, pivot: 'highlights', desc: 'Curated story albums with soundtracks' },
+                  { id: 'journal', name: 'Journal & Scrapbook', letter: 'J', icon: BookOpen, pivot: 'journal', desc: 'Rich memory entries, stickers & places' },
+                  { id: 'map', name: 'Map & Travel Geotags', letter: 'M', icon: MapPin, pivot: 'journal', subTab: 'places', desc: 'Explore geotagged memories & destinations' },
+                  { id: 'memories', name: 'Memories & Flashbacks', letter: 'M', icon: ImageIcon, pivot: 'memories', desc: 'Daily flashbacks, videos & photos' },
+                  { id: 'music', name: 'Music Player & Vinyl', letter: 'M', icon: Music, action: 'music', desc: 'Integrated turntable vinyl player' },
+                  { id: 'places', name: 'Places to Visit', letter: 'P', icon: Compass, pivot: 'journal', subTab: 'places', desc: 'Bucket list & destination tracker' },
+                  { id: 'settings', name: 'Settings & Storage Sense', letter: 'S', icon: SettingsIcon, pivot: 'settings', desc: 'Manage offline storage & aesthetics' },
+                  { id: 'sync', name: 'Sync Hub (ActiveSync)', letter: 'S', icon: RefreshCw, action: 'sync', desc: 'Wireless sync with laptop & IndexedDB' },
+                ].filter(app => !allAppsSearch || app.name.toLowerCase().includes(allAppsSearch.toLowerCase())).map((app) => {
+                  const IconComp = app.icon;
+                  return (
+                    <motion.div
+                      key={app.id}
+                      whileTap={{ scale: 0.98, backgroundColor: accent, color: '#FFF' }}
+                      onClick={() => {
+                        triggerSound();
+                        setShowAllAppsModal(false);
+                        if (app.action === 'camera') handleStartCamera();
+                        else if (app.action === 'doodle') setPaintModalOpen(true);
+                        else if (app.action === 'music') {
+                          if (musicModalTrack) setMusicModalTrack(null);
+                          else setMusicModalTrack(stories.find(s => s.music)?.music || { track_title: 'MemWault Soundtrack' });
+                        }
+                        else if (app.action === 'sync') handleRunSync();
+                        else if (app.pivot) {
+                          if (app.subTab) setJournalSubTab(app.subTab);
+                          navigateToPivot(app.pivot);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px',
+                        padding: '10px 8px',
+                        cursor: 'pointer',
+                        borderBottom: `1px solid ${borderColor}`,
+                      }}
+                    >
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        backgroundColor: accent,
+                        color: '#FFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <IconComp size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 400 }}>{app.name}</div>
+                        <div style={{ fontSize: '11px', color: subTextColor }}>{app.desc}</div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -3301,36 +3678,64 @@ export default function PocketCompanion() {
           {/* ── MEMORY DETAIL VIEW (LUMIA INSPECTOR) ───────────── */}
           {activePivot === 'memories' && selectedStory && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <button
-                onClick={() => { triggerSound(); setSelectedStory(null); }}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  onClick={() => { triggerSound(); setSelectedStory(null); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'none',
+                    border: 'none',
+                    color: accent,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  <ArrowLeft size={16} />
+                  <span>back to memories</span>
+                </button>
+
+                {stories.length > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={handlePrevMemoryStory}
+                      title="Previous Memory"
+                      style={{ backgroundColor: surfaceColor, border: `1px solid ${borderColor}`, color: textColor, padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      ◀
+                    </button>
+                    <span style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
+                      {stories.findIndex(s => s.id === selectedStory.id) + 1} / {stories.length}
+                    </span>
+                    <button
+                      onClick={handleNextMemoryStory}
+                      title="Next Memory"
+                      style={{ backgroundColor: surfaceColor, border: `1px solid ${borderColor}`, color: textColor, padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Fullscreen Media Canvas with Touch Swipe Gestures */}
+              <div 
+                onTouchStart={handleMemoryTouchStart}
+                onTouchEnd={handleMemoryTouchEnd}
                 style={{
-                  alignSelf: 'flex-start',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'none',
-                  border: 'none',
-                  color: accent,
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: 0,
+                  width: '100%',
+                  backgroundColor: '#000000',
+                  position: 'relative',
+                  border: `1px solid ${accent}`,
+                  overflow: 'hidden',
+                  touchAction: 'pan-y',
                 }}
               >
-                <ArrowLeft size={16} />
-                <span>back to memories</span>
-              </button>
-
-              {/* Fullscreen Media Canvas */}
-              <div style={{
-                width: '100%',
-                backgroundColor: '#000000',
-                position: 'relative',
-                border: `1px solid ${accent}`,
-                overflow: 'hidden',
-              }}>
                 <OfflineMedia
-                  src={selectedStory.media_url}
+                  src={getMediaUrl(selectedStory)}
                   type={selectedStory.media_type === 2 ? 'video' : 'image'}
                   style={{ width: '100%', maxHeight: '55vh', objectFit: 'contain', display: 'block', margin: '0 auto' }}
                   controls={selectedStory.media_type === 2}
@@ -3458,34 +3863,33 @@ export default function PocketCompanion() {
                             setEditingItemId(selectedStory.id);
                             setJournalDraft(selectedStory.journal_note || '');
                           }}
-                          style={{ background: 'none', border: 'none', color: accent, fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}
                         >
-                          <Edit3 size={12} />
-                          <span>{selectedStory.journal_note ? 'edit note' : '+ add note'}</span>
+                          edit note
                         </button>
                       )}
                     </div>
 
                     {editingItemId === selectedStory.id ? (
-                      <div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <textarea
                           value={journalDraft}
                           onChange={(e) => setJournalDraft(e.target.value)}
-                          placeholder="Write your personal memories, thoughts, or feelings about this story..."
-                          rows={4}
+                          placeholder="Write your thoughts about this memory..."
                           style={{
                             width: '100%',
+                            minHeight: '80px',
                             backgroundColor: cardColor,
                             color: textColor,
                             border: `1px solid ${accent}`,
                             padding: '8px',
                             fontSize: '12px',
                             fontFamily: 'inherit',
-                            boxSizing: 'border-box',
                             outline: 'none',
+                            boxSizing: 'border-box',
                           }}
                         />
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
                             onClick={() => setEditingItemId(null)}
                             style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '4px 12px', fontSize: '11px', cursor: 'pointer' }}
@@ -3507,6 +3911,30 @@ export default function PocketCompanion() {
                       </div>
                     )}
 
+                    {/* Attached Stickers */}
+                    {placedStickers.length > 0 && (
+                      <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {placedStickers.map(stk => (
+                          <div
+                            key={stk.id}
+                            style={{
+                              backgroundColor: stk.bg,
+                              color: stk.darkText ? '#000' : '#FFF',
+                              padding: '3px 8px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>{stk.icon}</span>
+                            <span>{stk.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Attached Doodle if present */}
                     {(() => {
                       let doodles = [];
@@ -3523,6 +3951,46 @@ export default function PocketCompanion() {
                         </div>
                       );
                     })()}
+                  </div>
+
+                  {/* Sticker Tray */}
+                  <div style={{ backgroundColor: surfaceColor, padding: '10px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: subTextColor, marginBottom: '6px', letterSpacing: '0.05em' }}>
+                      STICKER STAMPS (TAP TO ATTACH):
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {CUSTOM_STICKER_SETS.map(sticker => {
+                        const isSelected = placedStickers.some(s => s.id === sticker.id);
+                        return (
+                          <button
+                            key={sticker.id}
+                            onClick={() => {
+                              triggerSound();
+                              if (isSelected) {
+                                setPlacedStickers(prev => prev.filter(s => s.id !== sticker.id));
+                              } else {
+                                setPlacedStickers(prev => [...prev, sticker]);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: isSelected ? sticker.bg : cardColor,
+                              color: isSelected ? (sticker.darkText ? '#000' : '#FFF') : textColor,
+                              border: `1px solid ${isSelected ? sticker.bg : borderColor}`,
+                              padding: '4px 8px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>{sticker.icon}</span>
+                            <span>{sticker.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Actions: Paint Doodle & Camera Snapshot */}
@@ -3600,16 +4068,60 @@ export default function PocketCompanion() {
                     </div>
                   </div>
 
+                  {storyViewersList.length > 5 && (
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        placeholder="search viewers..."
+                        value={viewerSearch}
+                        onChange={(e) => setViewerSearch(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: cardColor,
+                          border: `1px solid ${borderColor}`,
+                          color: textColor,
+                          padding: '6px 8px 6px 28px',
+                          fontSize: '11px',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <Search size={13} color={subTextColor} style={{ position: 'absolute', left: '8px', top: '8px' }} />
+                    </div>
+                  )}
+
                   {storyViewersList.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
-                      {storyViewersList.map((viewer, vIdx) => (
-                        <div key={vIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: `1px solid ${borderColor}` }}>
-                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
-                            {(viewer.username || viewer.user_name || 'U')[0].toUpperCase()}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
+                      {storyViewersList.filter(v => !viewerSearch || (v.username || v.user_name || v.full_name || '').toLowerCase().includes(viewerSearch.toLowerCase())).map((viewer, vIdx) => {
+                        const vPic = viewer.profile_pic_url || viewer.profile_picture || viewer.profile_image_url;
+                        return (
+                          <div key={vIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${borderColor}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {vPic ? (
+                                  <img
+                                    src={`/api/v1/proxy/image?url=${encodeURIComponent(vPic)}`}
+                                    alt={viewer.username}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => { e.target.src = vPic; }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{(viewer.username || viewer.user_name || 'U')[0].toUpperCase()}</span>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 600 }}>{viewer.username || viewer.user_name || 'Viewer'}</div>
+                                {viewer.full_name && (
+                                  <div style={{ fontSize: '11px', color: subTextColor }}>{viewer.full_name}</div>
+                                )}
+                              </div>
+                            </div>
+                            {viewer.is_verified && (
+                              <span style={{ fontSize: '10px', color: '#1DA1F2', fontWeight: 'bold' }}>✓ Verified</span>
+                            )}
                           </div>
-                          <span style={{ fontSize: '12px', fontWeight: 500 }}>{viewer.username || viewer.user_name || viewer.full_name || 'Viewer'}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{ fontSize: '11px', color: subTextColor, padding: '12px 0', textAlign: 'center' }}>
@@ -4264,44 +4776,61 @@ export default function PocketCompanion() {
           )}
 
           {/* ══════════════════════════════════════════════════════
-              PIVOT 5: JOURNAL & BUCKET LIST (DESKTOP PARITY)
+              PIVOT 5: JOURNAL, PLACES VISITED & BUCKET LIST
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'journal' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
-              {/* Segmented Tab: [Memories Notes] vs [Places to Visit] */}
-              <div style={{ display: 'flex', gap: '8px', borderBottom: `2px solid ${borderColor}`, paddingBottom: '6px' }}>
+              {/* Segmented Tab: [Memories Notes] vs [Places Visited] vs [Places to Visit] */}
+              <div style={{ display: 'flex', gap: '6px', borderBottom: `2px solid ${borderColor}`, paddingBottom: '6px', overflowX: 'auto' }}>
                 <button
                   onClick={() => setJournalSubTab('notes')}
                   style={{
                     backgroundColor: journalSubTab === 'notes' ? '#008A00' : 'transparent',
                     color: journalSubTab === 'notes' ? '#FFF' : textColor,
                     border: 'none',
-                    padding: '6px 14px',
-                    fontSize: '12px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  Memories & Scrapbook ({journaledItems.length})
+                  Notes ({journaledItems.length})
+                </button>
+                <button
+                  onClick={() => setJournalSubTab('visited')}
+                  style={{
+                    backgroundColor: journalSubTab === 'visited' ? '#0050EF' : 'transparent',
+                    color: journalSubTab === 'visited' ? '#FFF' : textColor,
+                    border: 'none',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Places Visited ({visitedLocations.length})
                 </button>
                 <button
                   onClick={() => setJournalSubTab('places')}
                   style={{
-                    backgroundColor: journalSubTab === 'places' ? '#008A00' : 'transparent',
+                    backgroundColor: journalSubTab === 'places' ? '#FA6800' : 'transparent',
                     color: journalSubTab === 'places' ? '#FFF' : textColor,
                     border: 'none',
-                    padding: '6px 14px',
-                    fontSize: '12px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  Places to Visit ({places.length})
+                  Places to Visit ({places.filter(p => !p.completed).length})
                 </button>
               </div>
 
-              {journalSubTab === 'notes' ? (
+              {journalSubTab === 'notes' && (
                 /* Sub-tab 1: Notes & Scrapbooks */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4393,12 +4922,109 @@ export default function PocketCompanion() {
                     </div>
                   )}
                 </div>
-              ) : (
-                /* Sub-tab 2: Places to Visit / Bucket List (Full Desktop Feature) */
+              )}
+
+              {/* Sub-tab 2: Places Visited (Auto Geotags + Completed Bucket List) */}
+              {journalSubTab === 'visited' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
+                      {visitedLocations.length} VISITED PLACES & GEOTAGS
+                    </div>
+                  </div>
+
+                  {visitedLocations.length === 0 ? (
+                    <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center' }}>
+                      <MapPin size={36} color="#0050EF" style={{ margin: '0 auto 10px auto' }} />
+                      <div style={{ fontSize: '14px', fontWeight: 300 }}>no visited places detected yet</div>
+                      <div style={{ fontSize: '11px', color: subTextColor, marginTop: '4px' }}>
+                        Geotagged locations from your Instagram stories and completed bucket list destinations automatically appear here.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {visitedLocations.map((loc, idx) => (
+                        <motion.div
+                          key={loc.id || idx}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            triggerSound();
+                            setSearchQuery(loc.title || loc.location);
+                            setActivePivot('memories');
+                          }}
+                          style={{
+                            backgroundColor: surfaceColor,
+                            borderLeft: `4px solid #0050EF`,
+                            padding: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '12px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                            {loc.sampleItem ? (
+                              <div style={{ width: '48px', height: '48px', backgroundColor: '#000', flexShrink: 0, overflow: 'hidden' }}>
+                                <OfflineMedia
+                                  src={getMediaUrl(loc.sampleItem)}
+                                  type={loc.sampleItem.media_type === 2 ? 'video' : 'image'}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  alt={loc.title}
+                                />
+                              </div>
+                            ) : (
+                              <div style={{ width: '48px', height: '48px', backgroundColor: '#0050EF', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <MapPin size={22} />
+                              </div>
+                            )}
+
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {loc.title || loc.location}
+                              </div>
+                              <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#0050EF', fontWeight: 600 }}>{loc.count} {loc.count === 1 ? 'memory' : 'memories'}</span>
+                                {loc.lastVisited && (
+                                  <span>• Last visited: {new Date(loc.lastVisited).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerSound();
+                              setSearchQuery(loc.title || loc.location);
+                              setActivePivot('memories');
+                            }}
+                            style={{
+                              backgroundColor: '#0050EF',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              padding: '6px 10px',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                            }}
+                          >
+                            Explore ↗
+                          </button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-tab 3: Places to Visit / Bucket List (Full Desktop Feature) */}
+              {journalSubTab === 'places' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {/* Add Place Form */}
                   <form onSubmit={handleAddPlace} style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#008A00' }}>+ ADD PLACE TO VISIT</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#FA6800' }}>+ ADD PLACE TO VISIT</div>
                     <input
                       type="text"
                       placeholder="Destination / Experience name..."
@@ -4427,30 +5053,30 @@ export default function PocketCompanion() {
                       </select>
                       <button
                         type="submit"
-                        style={{ backgroundColor: '#008A00', color: '#FFF', border: 'none', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                        style={{ backgroundColor: '#FA6800', color: '#FFF', border: 'none', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         Add
                       </button>
                     </div>
                   </form>
 
-                  {/* Places List */}
+                  {/* Places to Visit List */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {places.map(p => (
                       <div
                         key={p.id}
                         style={{
                           backgroundColor: surfaceColor,
-                          borderLeft: p.completed ? '4px solid #666' : '4px solid #008A00',
+                          borderLeft: p.completed ? '4px solid #0050EF' : '4px solid #FA6800',
                           padding: '10px 12px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          opacity: p.completed ? 0.6 : 1.0,
+                          opacity: p.completed ? 0.75 : 1.0,
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                          <div onClick={() => togglePlaceCompleted(p.id)} style={{ cursor: 'pointer', color: p.completed ? '#666' : '#008A00' }}>
+                          <div onClick={() => togglePlaceCompleted(p.id)} style={{ cursor: 'pointer', color: p.completed ? '#0050EF' : '#FA6800' }}>
                             {p.completed ? <CheckSquare size={18} /> : <Square size={18} />}
                           </div>
                           <div style={{ minWidth: 0 }}>
@@ -4458,7 +5084,8 @@ export default function PocketCompanion() {
                               {p.title}
                             </div>
                             <div style={{ fontSize: '10px', color: subTextColor }}>
-                              📍 {p.location} • <span style={{ color: '#008A00' }}>{p.category}</span>
+                              📍 {p.location} • <span style={{ color: p.completed ? '#0050EF' : '#FA6800' }}>{p.category}</span>
+                              {p.completed && <span style={{ color: '#0050EF', fontWeight: 'bold', marginLeft: '6px' }}>✓ Visited</span>}
                             </div>
                           </div>
                         </div>
@@ -4478,38 +5105,7 @@ export default function PocketCompanion() {
           {activePivot === 'settings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
               
-              {/* Standalone Installation Card */}
-              {!isInstalled && (
-                <div style={{
-                  backgroundColor: surfaceColor,
-                  borderLeft: `4px solid ${accent}`,
-                  padding: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Install Standalone App</div>
-                    <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>Install on home screen without browser bars</div>
-                  </div>
-                  <button
-                    onClick={handleInstallPwa}
-                    style={{
-                      backgroundColor: accent,
-                      color: '#FFFFFF',
-                      border: 'none',
-                      padding: '6px 14px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Install Now
-                  </button>
-                </div>
-              )}
-
-              {/* Instagram Account Card & Session Actions */}
+              {/* Instagram Account Card & Session Actions (Topmost Profile) */}
               <div>
                 <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
                   instagram archive & account
@@ -4603,11 +5199,42 @@ export default function PocketCompanion() {
                   <div style={{ backgroundColor: surfaceColor, padding: '14px', borderLeft: `4px solid #666` }}>
                     <div style={{ fontSize: '13px', fontWeight: 600 }}>No Instagram Account Active</div>
                     <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
-                      Connect Instagram on your laptop vault to sync archived stories and posts.
+                      Connect Instagram on your laptop desktop vault and run ActiveSync to sync sessions.
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Standalone Installation Card */}
+              {!isInstalled && (
+                <div style={{
+                  backgroundColor: surfaceColor,
+                  borderLeft: `4px solid ${accent}`,
+                  padding: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Install Standalone App</div>
+                    <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>Install on home screen without browser bars</div>
+                  </div>
+                  <button
+                    onClick={handleInstallPwa}
+                    style={{
+                      backgroundColor: accent,
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '6px 14px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Install Now
+                  </button>
+                </div>
+              )}
 
               {/* ── Playback & Media Engine (Full Desktop Parity) ── */}
               <div>

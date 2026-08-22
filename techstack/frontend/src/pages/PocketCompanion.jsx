@@ -28,6 +28,7 @@ import {
   getHighlights, getHighlightStories, getInstagramSession 
 } from '../services/api';
 import { playWin98Click } from '../services/win98Audio';
+import MusicPlayer from '../components/MusicPlayer';
 
 // ── 20 Metro Accent Colors ──────────────────────────────────────────────────
 const METRO_ACCENTS = [
@@ -1773,33 +1774,7 @@ export default function PocketCompanion() {
         </div>
       )}
 
-      {/* ── Metro Status Bar (Top) ────────────────────────────── */}
-      <div style={{
-        height: '24px',
-        padding: '0 16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '11px',
-        color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
-        backgroundColor: bgColor,
-        zIndex: 50,
-        fontWeight: 600,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Wifi size={12} color={isSyncing ? accent : textColor} />
-          <span style={{ letterSpacing: '0.06em', fontSize: '10px' }}>MEMWAULT</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {batteryLevel !== null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '10px' }}>{batteryLevel}%</span>
-              <Battery size={13} color={batteryLevel < 20 ? '#A20025' : textColor} />
-            </div>
-          )}
-          <span>{currentTime}</span>
-        </div>
-      </div>
+      
 
       {/* ── Metro App Header & Horizontal Pivot Tabs ─────────── */}
       <div style={{ padding: '8px 16px 2px 16px', backgroundColor: bgColor }}>

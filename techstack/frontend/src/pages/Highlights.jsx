@@ -19,13 +19,19 @@ import HighlightCreatorModal from '../components/HighlightCreatorModal'
 // ── Helper for rendering images or videos seamlessly ──────────
 function MediaPreview({ url, style }) {
   if (!url) return null
-  const isVideo = url.includes('.mp4') || url.includes('.mov')
+  
+  // IG CDN URLs sometimes lack extensions, assume video if it contains .mp4, .mov, or _n.mp4 (typical IG video)
+  const isVideo = typeof url === 'string' && (
+    url.includes('.mp4') || 
+    url.includes('.mov') || 
+    url.includes('video')
+  )
   
   if (isVideo) {
     return (
       <video
         src={url}
-        style={style}
+        style={{ ...style, display: 'block' }}
         autoPlay
         muted
         loop
@@ -37,7 +43,7 @@ function MediaPreview({ url, style }) {
   return (
     <img
       src={url}
-      style={style}
+      style={{ ...style, display: 'block' }}
       onError={e => { e.target.style.display = 'none' }}
     />
   )

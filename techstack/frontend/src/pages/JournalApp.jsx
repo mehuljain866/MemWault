@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   BookOpen, MapPin, Plus, CheckSquare, Square, Trash2, 
@@ -12,6 +12,24 @@ import MSPaintModal from '../components/MSPaintModal'
 import MDEditor from '@uiw/react-md-editor'
 import { useNavigate } from 'react-router-dom'
 
+const CUSTOM_STICKER_SETS = [
+  { id: 'stamp_vault', label: 'VAULT SEAL', bg: '#A20025', text: 'MEMWAULT ARCHIVE', icon: '🏛️' },
+  { id: 'stamp_loc', label: 'PASSPORT', bg: '#0050EF', text: 'VERIFIED LOCATION', icon: '✈️' },
+  { id: 'stamp_sound', label: 'VINYL', bg: '#1DB954', text: 'SOUNDTRACK 33⅓', icon: '🎵' },
+  { id: 'stamp_date', label: 'TIMECODE', bg: '#FA6800', text: 'ON THIS DAY', icon: '⏳' },
+  { id: 'stamp_polaroid', label: 'POLAROID', bg: '#E8E8E8', text: 'ORIGINAL SHOT', icon: '📸', darkText: true },
+  { id: 'stamp_fav', label: 'FAVORITE', bg: '#D80073', text: 'CORE MEMORY', icon: '💖' },
+]
+
+function getMediaUrl(item) {
+  if (!item) return ''
+  if (item.media_items && item.media_items.length > 0) {
+    const first = item.media_items[0]
+    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || ''
+  }
+  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || ''
+}
+
 export default function JournalApp() {
   const [activeTab, setActiveTab] = useState('memories') // 'memories' | 'places'
   const [allStories, setAllStories] = useState([])
@@ -24,6 +42,8 @@ export default function JournalApp() {
   const [journalText, setJournalText] = useState('')
   const [doodles, setDoodles] = useState([])
   const [saving, setSaving] = useState(false)
+  const [placedStickers, setPlacedStickers] = useState([])
+  const scrapbookRef = useRef(null)
 
   // Places to Visit state
   const [places, setPlaces] = useState(() => {
@@ -77,12 +97,30 @@ export default function JournalApp() {
     setSelectedStory(story)
     try {
       const full = await getStory(story.id)
-      setJournalText(full.journal_note || '')
+      let note = full?.journal_note || story.journal_note || ''
+      const stickerMatch = note.match(/\n\nStickers:\s*(.*)/)
+      let extractedStickers = []
+      if (stickerMatch) {
+        const stickerTexts = stickerMatch[1].split(' • ')
+        extractedStickers = CUSTOM_STICKER_SETS.filter(s => stickerTexts.includes(s.text))
+        note = note.replace(/\n\nStickers:\s*(.*)/, '')
+      }
+      setJournalText(note)
+      setPlacedStickers(extractedStickers)
       // Load any stored doodles
       const savedDoodles = localStorage.getItem(`memwault_doodles_${story.id}`)
       setDoodles(savedDoodles ? JSON.parse(savedDoodles) : [])
     } catch (e) {
-      setJournalText(story.journal_note || '')
+      let note = story.journal_note || ''
+      const stickerMatch = note.match(/\n\nStickers:\s*(.*)/)
+      let extractedStickers = []
+      if (stickerMatch) {
+        const stickerTexts = stickerMatch[1].split(' • ')
+        extractedStickers = CUSTOM_STICKER_SETS.filter(s => stickerTexts.includes(s.text))
+        note = note.replace(/\n\nStickers:\s*(.*)/, '')
+      }
+      setJournalText(note)
+      setPlacedStickers(extractedStickers)
       setDoodles([])
     }
   }
@@ -92,13 +130,17 @@ export default function JournalApp() {
     if (isWin98) playWin98Click()
     setSaving(true)
     try {
-      await updateStory(selectedStory.id, { journal_note: journalText })
+      let fullNote = journalText
+      if (placedStickers.length > 0) {
+        fullNote += `\n\nStickers: ${placedStickers.map(s => s.text).join(' • ')}`
+      }
+      await updateStory(selectedStory.id, { journal_note: fullNote })
       // Save doodles
       localStorage.setItem(`memwault_doodles_${selectedStory.id}`, JSON.stringify(doodles))
       
       // Update local allStories item
-      setAllStories(prev => prev.map(s => s.id === selectedStory.id ? { ...s, journal_note: journalText } : s))
-      setSelectedStory(prev => prev ? { ...prev, journal_note: journalText } : null)
+      setAllStories(prev => prev.map(s => s.id === selectedStory.id ? { ...s, journal_note: fullNote } : s))
+      setSelectedStory(prev => prev ? { ...prev, journal_note: fullNote } : null)
       alert('Journal saved successfully!')
     } catch (err) {
       alert('Failed to save journal note: ' + err.message)
@@ -332,7 +374,7 @@ export default function JournalApp() {
                       }}
                     >
                       <div style={{ width: '38px', height: '50px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#333', flexShrink: 0 }}>
-                        <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: isWin98 ? '11px' : '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -378,9 +420,9 @@ export default function JournalApp() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '48px', height: '64px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#000' }}>
                     {selectedStory.media_type === 2 ? (
-                      <video src={selectedStory.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
+                      <video src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                     ) : (
-                      <img src={selectedStory.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )}
                   </div>
                   <div>
@@ -459,6 +501,114 @@ export default function JournalApp() {
                   ))}
                 </div>
               )}
+
+              {/* Interactive Scrapbook Canvas */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: isWin98 ? '#e0e0e0' : 'rgba(255,255,255,0.03)',
+                padding: '8px',
+                border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                borderRadius: isWin98 ? '0' : '10px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: isWin98 ? '#000080' : 'var(--ios-text-secondary)' }}>
+                    Scrapbook Canvas (Drag Stickers Here)
+                  </span>
+                </div>
+                
+                <div
+                  ref={scrapbookRef}
+                  style={{
+                    width: '100%',
+                    height: '240px',
+                    backgroundColor: '#000',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {selectedStory.media_type === 2 ? (
+                    <video src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} autoPlay loop muted playsInline />
+                  ) : (
+                    <img src={getMediaUrl(selectedStory)} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
+                  )}
+                  {placedStickers.map((stk, idx) => (
+                    <motion.div
+                      key={idx}
+                      drag
+                      dragConstraints={scrapbookRef}
+                      whileDrag={{ scale: 1.18, zIndex: 100 }}
+                      style={{
+                        position: 'absolute',
+                        backgroundColor: stk.bg,
+                        color: stk.darkText ? '#000' : '#FFF',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'grab',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      <span>{stk.icon}</span>
+                      <span>{stk.text}</span>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Sticker Tray */}
+                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '6px 0', scrollbarWidth: 'none' }}>
+                  {CUSTOM_STICKER_SETS.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        if (isWin98) playWin98Click()
+                        setPlacedStickers([...placedStickers, s])
+                      }}
+                      style={{
+                        backgroundColor: s.bg,
+                        color: s.darkText ? '#000' : '#FFF',
+                        border: 'none',
+                        padding: '4px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {s.icon} {s.label}
+                    </button>
+                  ))}
+                  {placedStickers.length > 0 && (
+                    <button
+                      onClick={() => setPlacedStickers([])}
+                      style={{
+                        backgroundColor: '#cc0000',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '4px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Clear Stickers
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {/* Full Markdown Note Editor Viewport */}
               <div style={{
@@ -669,9 +819,9 @@ export default function JournalApp() {
                         >
                           <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000', position: 'relative' }}>
                             {story.media_type === 2 ? (
-                              <video src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                              <video src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                             ) : (
-                              <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <img src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             )}
 
                             {hasJournal && (

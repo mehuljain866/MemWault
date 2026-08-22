@@ -610,16 +610,40 @@ export default function JournalApp() {
                 </div>
               </div>
 
+              {/* Story Original Caption Callout if available */}
+              {selectedStory.caption_text && (
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: isWin98 ? '#ffffcc' : 'rgba(255,255,255,0.05)',
+                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  borderRadius: isWin98 ? '0' : '8px',
+                  fontSize: isWin98 ? '11px' : '12px',
+                  color: isWin98 ? '#000' : 'var(--ios-text-secondary)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '6px'
+                }}>
+                  <span style={{ fontWeight: 'bold', color: isWin98 ? '#000080' : 'var(--ios-accent)' }}>Original Caption:</span>
+                  <span style={{ flex: 1, fontStyle: 'italic' }}>{selectedStory.caption_text}</span>
+                </div>
+              )}
+
               {/* Full Markdown Note Editor Viewport */}
-              <div style={{
-                flex: 1,
-                backgroundColor: '#ffffff',
-                border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
-                boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-              }}>
+              <div 
+                data-color-mode={isWin98 ? "light" : "dark"}
+                style={{
+                  flex: 1,
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-bg-card, #161618)',
+                  color: isWin98 ? '#000000' : 'var(--ios-text-primary, #ffffff)',
+                  border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
+                  borderRadius: isWin98 ? '0' : '10px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '200px'
+                }}
+              >
                 <MDEditor
                   value={journalText}
                   onChange={(val) => setJournalText(val || '')}

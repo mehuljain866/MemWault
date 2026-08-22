@@ -740,6 +740,10 @@ class InstagramScraper:
                     "link_title": getattr(link, "link_title", None),
                 })
 
+        # ── Camera & Filter Metadata ────────────────────
+        filter_info = self._extract_filter_from_raw(raw)
+        parsed.update(filter_info)
+
         # ── Build Manifest ──────────────────────────────
         parsed["manifest"] = self._build_manifest(parsed)
 
@@ -808,6 +812,10 @@ class InstagramScraper:
         )
         parsed["is_close_friends"] = is_cf
         parsed["audience_snapshot"] = item.get("audience_snapshot") or []
+
+        # ── Camera & Filter Metadata ────────────────────
+        filter_info = self._extract_filter_from_raw(item)
+        parsed.update(filter_info)
 
         # ── Location ────────────────────────────────────
         location = item.get("location")
@@ -1015,6 +1023,78 @@ class InstagramScraper:
             "height": music_sticker.get("height"),
             "rotation": music_sticker.get("rotation"),
         }
+
+    def _extract_filter_from_raw(self, raw: dict) -> dict:
+        """
+        Extract filter and camera effect metadata from raw Instagram story payload.
+        Handles AR Spark effects, creator filters, and swipe-on color grading presets.
+        """
+        filter_map = {
+            0: "Normal",
+            1: "Clarendon",
+            24: "Gingham",
+            25: "Moon",
+            605: "Jakarta",
+            606: "New York",
+            607: "Buenos Aires",
+            608: "Abu Dhabi",
+            609: "Melbourne",
+            610: "Lagos",
+            611: "Oslo",
+            612: "Tokyo",
+            613: "Cairo",
+            614: "Jaipur",
+            615: "Paris",
+            616: "Los Angeles",
+            617: "Rio de Janeiro",
+        }
+
+        filter_data = {
+            "filter_name": None,
+            "filter_type": None,
+            "filter_creator": None,
+            "filter_icon_url": None,
+            "effect_id": None,
+        }
+
+        if not raw or not isinstance(raw, dict):
+            return filter_data
+
+        # 1. Check creative_config / effect_configs (AR Spark effects)
+        creative_config = raw.get("creative_config") or {}
+        effect_configs = creative_config.get("effect_configs") or raw.get("effect_configs") or []
+        if effect_configs and isinstance(effect_configs, list) and len(effect_configs) > 0:
+            eff = effect_configs[0]
+            if isinstance(eff, dict):
+                filter_data["filter_name"] = eff.get("name") or eff.get("title")
+                filter_data["effect_id"] = str(eff.get("id") or eff.get("effect_id", "")) or None
+                att_user = eff.get("attribution_user") or eff.get("author") or {}
+                if isinstance(att_user, dict):
+                    filter_data["filter_creator"] = att_user.get("username")
+                elif isinstance(att_user, str):
+                    filter_data["filter_creator"] = att_user
+                icon_url = eff.get("icon_url") or eff.get("thumbnail_url")
+                if icon_url and isinstance(icon_url, dict):
+                    filter_data["filter_icon_url"] = icon_url.get("uri") or icon_url.get("url")
+                elif isinstance(icon_url, str):
+                    filter_data["filter_icon_url"] = icon_url
+
+        # 2. Check filter_type enum / swipe-on color grading filter
+        filter_type = raw.get("filter_type")
+        if filter_type is not None:
+            try:
+                filter_data["filter_type"] = int(filter_type)
+                if not filter_data["filter_name"] and filter_data["filter_type"] in filter_map:
+                    filter_data["filter_name"] = filter_map[filter_data["filter_type"]]
+                    filter_data["filter_creator"] = "instagram"
+            except (ValueError, TypeError):
+                pass
+
+        # 3. Check direct filter_name
+        if not filter_data["filter_name"] and raw.get("filter_name"):
+            filter_data["filter_name"] = raw.get("filter_name")
+
+        return filter_data
 
     def _build_manifest(self, parsed: dict) -> dict:
         """

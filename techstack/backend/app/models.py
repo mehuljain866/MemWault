@@ -163,6 +163,13 @@ class Story(Base):
     og_reel_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     og_reel_plays: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # ── Camera & Filter Metadata ────────────────────────
+    filter_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    filter_type: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    filter_creator: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    filter_icon_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    effect_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     # Relationships
     user: Mapped["User"] = relationship(back_populates="stories")
     highlight_links: Mapped[list["HighlightStoryLink"]] = relationship(

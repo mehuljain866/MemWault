@@ -222,6 +222,13 @@ class StoryRead(BaseModel):
     viewer_count: Optional[int] = None
     like_count: Optional[int] = None
 
+    # Camera & Filter Metadata
+    filter_name: Optional[str] = None
+    filter_type: Optional[int] = None
+    filter_creator: Optional[str] = None
+    filter_icon_url: Optional[str] = None
+    effect_id: Optional[str] = None
+
     # Related entities
     music: Optional[StoryMusicRead] = None
     mentions: list[StoryMentionRead] = []
@@ -240,6 +247,8 @@ class StoryUpdate(BaseModel):
     audience_snapshot: Optional[list[str]] = None
     primary_view: Optional[str] = None
     journal_note: Optional[str] = None
+    filter_name: Optional[str] = None
+    filter_creator: Optional[str] = None
 
 
 class StoryBulkUpdate(BaseModel):

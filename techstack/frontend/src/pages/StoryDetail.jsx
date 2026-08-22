@@ -8,7 +8,7 @@ import MusicPlayer from '../components/MusicPlayer'
 import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
 import StreetViewModal from '../components/StreetViewModal'
 import MDEditor, { commands } from '@uiw/react-md-editor'
-import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3, Images, FileText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3, Images, FileText, Wand2 } from 'lucide-react'
 import { getSettings } from '../services/settings'
 
 export default function StoryDetail() {
@@ -604,6 +604,42 @@ export default function StoryDetail() {
                   </InfoRow>
 
                   {story.caption_text && <InfoRow icon={MessageCircle} label="Caption" value={story.caption_text} />}
+                  {story.filter_name && (
+                    <InfoRow icon={Wand2} label="Camera Filter / AR Effect" value={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                        <span style={isWin98 ? {
+                          background: '#ffffff',
+                          border: '1px solid #808080',
+                          boxShadow: 'inset 1px 1px #000000, inset -1px -1px #ffffff',
+                          color: '#000080',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          fontFamily: '"MS Sans Serif", Tahoma, Arial, monospace',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        } : {
+                          background: 'rgba(255, 45, 85, 0.12)',
+                          color: '#ff2d55',
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}>
+                          ✨ {story.filter_name}
+                        </span>
+                        {story.filter_creator && (
+                          <span style={{ fontSize: isWin98 ? '11px' : '12px', color: 'var(--ios-text-secondary)', fontWeight: 500 }}>
+                            by @{story.filter_creator}
+                          </span>
+                        )}
+                      </div>
+                    } />
+                  )}
                   {story.is_ai_generated != null && <InfoRow icon={Sparkles} label="AI Generation" value={story.is_ai_generated ? "True" : "False"} />}
                   {story.viewer_count != null && <InfoRow icon={Eye} label="Views" value={story.viewer_count} />}
                   <InfoRow icon={FileType} label="Visibility" value="">

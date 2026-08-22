@@ -84,15 +84,16 @@ export default function StoryCard({ story, hideTitle, zoomLevel, isSelectMode = 
         isVideo ? (
           <video
             className="ios-story-card__media"
-            src={story.media_url}
+            src={story.media_url ? (story.media_url.includes('#t=') ? story.media_url : `${story.media_url}#t=0.001`) : ''}
             muted
             loop
+            playsInline
             preload="metadata"
             onMouseEnter={(e) => !isSelectMode && e.target.play()}
             onMouseLeave={(e) => {
               if (!isSelectMode) {
                 e.target.pause()
-                e.target.currentTime = 0
+                e.target.currentTime = 0.001
               }
             }}
           />

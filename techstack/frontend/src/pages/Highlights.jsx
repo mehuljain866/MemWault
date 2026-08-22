@@ -19,32 +19,66 @@ import HighlightCreatorModal from '../components/HighlightCreatorModal'
 // ── Helper for rendering images or videos seamlessly ──────────
 function MediaPreview({ url, style }) {
   if (!url) return null
+  const [src, setSrc] = useState(url);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setSrc(url);
+    setHasError(false);
+  }, [url]);
+
+  if (hasError) {
+    return (
+      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#141414' }}>
+        <ImageIcon size={18} style={{ opacity: 0.25, color: '#FFF' }} />
+      </div>
+    );
+  }
   
   // IG CDN URLs sometimes lack extensions, assume video if it contains .mp4, .mov, or _n.mp4 (typical IG video)
-  const isVideo = typeof url === 'string' && (
-    url.includes('.mp4') || 
-    url.includes('.mov') || 
-    url.includes('video')
+  const isVideo = typeof src === 'string' && (
+    src.includes('.mp4') || 
+    src.includes('.mov') || 
+    src.includes('video') ||
+    src.startsWith('data:video')
   )
   
   if (isVideo) {
+    const videoSrc = (src.includes('#t=') || src.startsWith('blob:')) ? src : `${src}#t=0.001`;
     return (
       <video
-        src={url}
+        src={videoSrc}
         style={{ ...style, display: 'block' }}
         autoPlay
         muted
         loop
         playsInline
-        onError={e => { e.target.style.display = 'none' }}
+        preload="metadata"
+        onLoadedData={(e) => {
+          try { if (e.target.paused) e.target.play().catch(() => {}); } catch(err){}
+        }}
+        onError={() => {
+          if (url && !url.startsWith('/api/v1/proxy') && url.startsWith('http')) {
+            setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`);
+          } else {
+            setHasError(true);
+          }
+        }}
       />
     )
   }
   return (
     <img
-      src={url}
+      src={src}
       style={{ ...style, display: 'block' }}
-      onError={e => { e.target.style.display = 'none' }}
+      loading="lazy"
+      onError={() => {
+        if (url && !url.startsWith('/api/v1/proxy') && url.startsWith('http')) {
+          setSrc(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`);
+        } else {
+          setHasError(true);
+        }
+      }}
     />
   )
 }

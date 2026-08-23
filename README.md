@@ -1,17 +1,17 @@
-# MemWault - Personal Memory Preservation & Archiving
+# MemWault
 
 <p align="center">
-  <img src="screenshots/dashboard_home.jpg" alt="MemWault Main Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+  <img src="screenshots/dashboard_home.jpg" alt="MemWault Dashboard" width="100%" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
 </p>
 
 <p align="center">
-  <b>MemWault is a private, self-hosted digital archive for preserving, organizing, and replaying personal social-media memories. It archives Instagram Stories, Reels, and their surrounding context—music, locations, tags, engagement metrics, and personal journals—into a searchable memory archive under your control.</b>
+  <b>A self-hosted personal memory archive for preserving social media stories, posts, and personal journals in a private, searchable vault under your control.</b>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-v3.2-0A84FF?style=for-the-badge&logo=appstore&logoColor=white" alt="Version 3.2" />
-  <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20Framer%20Motion-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="Frontend React 19" />
-  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend FastAPI" />
+  <img src="https://img.shields.io/badge/Version-v3.2.0-0A84FF?style=for-the-badge" alt="Version 3.2.0" />
+  <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.10+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-FF9500?style=for-the-badge" alt="PolyForm License" />
 </p>
 
@@ -23,208 +23,51 @@
 
 ## Table of Contents
 
-- [Features Overview](#features-overview)
-- [Architecture & Data Model](#architecture--data-model)
-- [Quick Start & Installation](#quick-start--installation)
-- [Changelog & Evolution](#changelog--evolution)
-  - [Repository Structure](#repository-structure)
-  - [Quickstart & Development](#quickstart--development)
-  - [Docker Setup](#docker-setup)
-  - [Configuration](#configuration)
-  - [Known Limitations](#known-limitations)
-  - [Design Decisions](#design-decisions)
-  - [License](#license)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture & Data Model](#architecture)
+- [Repository Structure](#repository-structure)
+- [Quickstart & Installation](#quickstart--installation)
+- [Docker Setup](#docker-setup)
+- [Configuration](#configuration)
+- [Changelog](#changelog)
+- [License](#license)
 
 ---
 
-## Why MemWault?
+## Overview
 
-> **Social media is ephemeral. Your memories shouldn't be.**
+Social media platforms treat memories as temporary content designed for engagement loops. When posts expire or platforms change, the surrounding context—captions, music, location tags, timestamps, and personal reflections—is often lost.
 
-Instagram stores the temporary interface around your memories, but it doesn't give you a permanent, independent memory archive with its full context preserved. MemWault exists to make that archive yours.
+**MemWault** creates an independent, self-hosted archive that keeps your media and metadata together in standard, open formats on your own machine or private storage.
 
-- 🔒 **Data Ownership & Portability:** Maintain an independent local copy of your memory history free from cloud lock-in.
-- 📜 **Context Preservation:** Capture not just the photo or video, but the surrounding narrative—music, locations, tags, engagement, and personal journal notes.
-- 🛡️ **Account Safety & Privacy:** Scraper workflows operate locally with rate limiting and deliberately avoid volatile endpoints to reduce account restriction risk.
-- 🏛️ **Preservation Over Reinterpretation:** Media is stored in its authentic raw format, with metadata layered around it rather than altering the archived Story itself.
-
----
-
-## Product Philosophy: Sanctuary vs Platform
-
-> **Social media is designed to extract your attention. MemWault is designed to preserve your memories.**
-
-Mainstream platforms are engineered around ads, engagement loops, algorithmic feeds, and dark patterns whose goal is to extract your time and monetize your social graph. 
-
-MemWault is built upon a radically different philosophy: **A user-owned, distraction-free sanctuary for personal reflection.**
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  SOCIAL PLATFORMS                                           │
-│  • Goal: Extract attention & maximize ad impressions        │
-│  • Medium: Algorithmic feeds, infinite scrolls, nudges      │
-│  • UI: Rigid, platform-enforced, optimized for consumption  │
-└─────────────────────────────────────────────────────────────┘
-                              vs
-┌─────────────────────────────────────────────────────────────┐
-│  MEMWAULT (Your Personal Memory Archive)                    │
-│  • Goal: Pure reflection, preservation & meaning-making     │
-│  • Medium: Local-first, zero ads, zero behavioral traps     │
-│  • UI: Radical customization — you decide how to experience │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### The Core Tenets of MemWault:
-
-1. **Simple, Sovereign Interaction Flow**:
-   Open MemWault → Explore your memories → Reflect and journal → Customize your atmosphere → Leave with peace of mind. No notifications, no unskippable sponsored content, and no algorithmic traps.
-
-2. **Radical Aesthetic Customization as a Philosophy**:
-   - **Instagram says:** *“Here is the interface we designed to maximize engagement with our platform.”*
-   - **MemWault says:** *“Here is your archive. **You decide how you want to experience it.**”*
-   
-   Customization is not just changing an accent color; it governs your emotional relationship with your past:
-   - **Multi-Era Design Systems**: Relive moments inside an authentic **Windows 98 Desktop** with 3D bevels and wav chimes, an analog **Darkroom Amber**, a retro **Chrome Cyber Y2K**, or an ultra-clean **iOS Modern** interface.
-   - **Full UI Agency**: Granular control over video auto-motion, typography, 2x2 halftone dither patterns, spatial density, audio feedback, and window layouts.
-
-3. **Total Data Sovereignty**:
-   Your memories belong to you, not to a platform's corporate server. Stored locally with open SQLite/Postgres schemas, standard media files, and human-readable Markdown `.md` sidecars.
+- **Data Ownership:** Store your history locally in open SQLite or PostgreSQL databases with standard media files and Markdown `.md` sidecars.
+- **Context Preservation:** Capture the full context around each memory—music references, coordinates, tagged users, viewer counts, and personal journal notes.
+- **Distraction-Free:** No algorithmic feeds, notifications, or sponsored content. A quiet space for personal reflection.
+- **Offline Access:** Mobile companion PWA with IndexedDB caching to keep your archive accessible without an internet connection.
 
 ---
 
 ## Key Features
 
-- 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories, Carousels, and Video Posts as distinct archival classification problems.
-- 📱 **Pocket MemWault Companion (PWA):** Authentic Windows Phone 8.1 / Lumia panoramic pivot interface (`/pocket`) with live tiles, 20 Metro accent themes, 100% offline IndexedDB cache, and bidirectional sync.
-- 🔒 **Zero-Trust Ephemeral QR Pairing:** 5-minute single-use ticket burning upon first scan, permanent scoped companion tokens, and zero credential exposure.
-- ⚡ **ActiveSync Live Handshake & Scan Detection:** Real-time pairing handshake that automatically detects mobile scans, transitions instantly, and manages connected companion devices.
-- 🌐 **Encrypted Cloudflare Remote Tunnels:** Built-in zero-config HTTPS tunneling (`trycloudflare.com`) allowing mobile companion access and syncing over 4G/5G cellular data from anywhere.
-- 📱 **Mobile QR Upload Portal:** Stream uncompressed full-resolution RAW photos, 4K videos, and custom wallpapers directly from your smartphone to your PC desktop vault via local Wi-Fi.
-- 🖼️ **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
-- 📊 **Archived Engagement Metrics:** Preserve Story viewer counts and like counts captured at archival time alongside media and metadata.
-- 📝 **Sidecar Markdown Journaling & Memory Picker:** Clean journal feed showing active entries with a visual "+ New Entry" memory picker modal to easily attach notes to any moment.
-- 🎒 **Portable Metadata & EXIF:** Option to embed archival context directly into media files so memories remain meaningful even outside MemWault.
-- 📅 **Continuous Semantic Zoom Timeline:** Transition smoothly between **Years**, **Months**, and **Days** views using Framer Motion spring-based animations.
-- 🗺️ **Spatial Story Map:** Explore your memories geographically on an interactive Leaflet map featuring spatial clustering and bounding-box search.
-- 🎨 **Custom Highlight Albums:** Group your local stories into custom albums with dynamic 4-image grid covers, video thumbnails, and local cover uploads.
-- 🎵 **iTunes Music Integration:** Embedded mini-player streaming 30-second external audio preview references for songs attached to your stories.
+- **Media Ingestion & Segregation:** Organizes ephemeral Stories, multi-slide Carousels, and Feed Posts into distinct archival categories.
+- **Pocket Companion PWA (`/pocket`):** Mobile companion interface with panoramic pivot navigation, live tiles, 20 theme accents, and full offline caching via IndexedDB and CacheStorage.
+- **Device Pairing & Remote Sync:** Pair mobile devices via single-use QR codes that burn upon scan. Connect over local Wi-Fi or encrypted Cloudflare tunnels to sync over cellular data without port forwarding.
+- **Direct Mobile Upload Portal:** Stream uncompressed photos, videos, and custom wallpapers directly from your phone to your vault over local Wi-Fi.
+- **Sidecar Markdown Journaling:** Write Markdown notes attached to any memory, saved as human-readable `.md` files alongside media files on disk.
+- **Continuous Zoom Timeline:** Smoothly transition between Years, Months, and Days views using spring-physics animations.
+- **Spatial Map View:** Browse memories geographically on an interactive Leaflet map with spatial clustering and location search.
+- **Highlight Albums:** Curate stories into custom albums with dynamic 4-image grid covers and video preview playlists.
+- **Master Media Replacement:** Swap compressed web copies with original camera master files while preserving all metadata.
+- **Multi-Era Visual Themes:** Browse your archive in the interface of your choice—Modern, Classic Windows 98, Y2K Brushed Chrome, or Aqua.
+- **Audio & Music References:** Embedded mini-player with external preview streaming for tracks tagged in your stories.
+- **EXIF & Metadata Embedding:** Option to embed archival context directly into media files using ExifTool.
 
 ---
 
-## Engineering Highlights
+## Architecture
 
-- ⚡ **Asynchronous FastAPI Backend:** SQLAlchemy 2.0 ORM with async connection pooling (`aiosqlite` / `asyncpg`).
-- 🔄 **Distributed Ingestion Pipeline:** Redis + Celery worker queue for periodic background polling.
-- 💾 **Hybrid Media Abstraction:** Local filesystem storage with `.md` sidecars or S3-compatible object storage (MinIO / AWS S3).
-- 🔑 **Separated Authentication Domains:** JWT-based MemWault application authentication and locally persisted Instagram browser sessions.
-- 📱 **Persistent UI Navigation:** React Router 7 outlet composition preserves page state across route transitions.
-
----
-
-## What MemWault Preserves
-
-MemWault treats a Story as a **structured memory object** rather than a simple media file:
-
-```text
-Single Archived Memory Object
-├── 📷 Original Media Asset (Original .jpg photo or .mp4 video)
-├── ⏱️ Story Timestamp      (UTC creation timestamp)
-├── 💬 Caption & Text Content (Raw caption & text sticker content)
-├── 🎨 Composition Manifest  (Visual layout state, sticker positioning & layers)
-├── 🎵 Music Track         (Song title, artist name, and optional external 30s preview reference)
-├── 📍 Geolocation         (Named location venue & GPS coordinates)
-├── 🏷️ User Mentions       (Tagged usernames)
-├── 📈 Engagement Metrics  (Viewer Count & Story Like Count)
-├── 📓 Sidecar Journal     (Human-authored Markdown .md file)
-└── 🖼️ Highlight Metadata  (Album memberships & cover attributes)
-```
-
----
-
-## Themes & Visual Tour
-
-MemWault is designed around the idea that an archive should be explored spatially and temporally—not simply browsed as a folder of files. To complement this, we've built a **Multi-Era Design Architecture** allowing you to explore your memories in the aesthetic of your choice.
-
-Rather than cluttering this document with dozens of screenshots, we have dedicated showcase pages for each of our handcrafted UI themes. **Click on a theme below to view its complete visual tour:**
-
-- 📱 [**iOS HIG (Modern) Theme**](docs/themes/iOS_HIG.md) - The default, highly polished modern interface built around Apple's Human Interface Guidelines.
-- 🪟 [**Windows 98 Theme**](docs/themes/Win98.md) - A bit-for-bit recreation of the classic 1998 Microsoft Windows desktop environment, complete with active desktop gadgets and authentic property sheets.
-- 💿 [**Y2K Theme**](docs/themes/Y2K.md) - Inspired by the turn of the millennium, featuring brushed metal textures and the optimistic tech-bubble aesthetic.
-- 💧 [**Aqua Theme**](docs/themes/Aqua.md) - Inspired by early macOS X, featuring glossy buttons and pinstriped backgrounds.
-
-*(All new features—including the new Post Tab, Mobile QR Uploads, and RAW replacement functionality—are highlighted in these dedicated showcases!)*
-
----
-
-## Changelog & Evolution
-
-### Version 3.2 — Lumia Pivot Architecture, Zero-Trust ActiveSync & Remote Cloudflare Tunnels
-- **Pocket MemWault Companion (PWA):** Authentic Windows Phone 8.1 / Lumia panoramic pivot interface (`/pocket`) featuring fluid horizontal swiping across Start, Memories, Highlights, Feed, Journal, Music, and Settings.
-- **Zero-Trust Ephemeral QR Pairing:** 5-minute single-use ticket burning upon first scan, permanent scoped companion tokens, and zero credential exposure.
-- **ActiveSync Live Scan Detection & Handshake:** Real-time polling detects mobile QR scan instantly, transitions the desktop UI with audio confirmation, and manages connected companion devices.
-- **Zero-Config Remote Cloudflare Tunnels:** Integrated HTTPS quick tunnels (`trycloudflare.com`) allow remote companion syncing across 4G/5G mobile data from anywhere without router port forwarding.
-- **Single-Port Production Serving & 100% Offline PWA:** FastAPI unified backend directly serves pre-compiled, optimized assets with SPA routing and background Service Worker precaching.
-- **Uncluttered Journal App & Memory Picker Grid:** Clean journal sidebar displaying only active memory journals, with an interactive "+ New Entry" visual memory picker modal.
-- **Multi-Route Outbound LAN IP Resolver:** Multi-target connection fallback guaranteeing accurate Wi-Fi IP address resolution for all mobile device connections.
-- **Authentic Windows 98 Icon Library:** 18 handcrafted pixel-perfect SVG reproductions of authentic 16-color/256-color Windows 98 shortcuts (`MemWault.exe`, `FeedViewer.exe`, `Memories.exe`, `Journal.exe`, `StoryReels.exe`, `Collections.exe`, `WorldAtlas.exe`, `Cabinet.exe`, `Setup.exe`, `Display.exe`, `RecycleBin.exe`).
-- **Desktop Icon Backdrop Boxes:** Dynamic toggle in Display Properties allowing 3D beveled silver backdrop boxes around desktop icons for high contrast and readability over any custom wallpaper.
-- **Interactive MemWault Assistant (Clippy):** Nostalgic animated assistant in the bottom-right corner with search Q&A knowledge base, step-by-step guidance, collision avoidance, and direct navigation links.
-- **Authentic Windows 98 Property Sheet Engine:** Continuous 3D tab strip, black legends, and compact vertical rhythm.
-- **Halftone Dithered Segmented Controls:** System-wide Windows 98 3D sunken containers with authentic 2x2 halftone dither pattern and 1px pressed offset.
-- **Windows 98 Notepad / DevStudio Syntax Code Viewer:** Built-in retro syntax-highlighted JSON viewer with line numbering and 1998 Microsoft Visual Studio color palette.
-- **Categorized Dashboard & Widget Architecture:** Segregated Stories/Memories and Feed Posts/Carousels into clean, distinct groupboxes and desktop gadgets.
-- **Official 1998 WAV Sound Suite:** Bundled bit-for-bit authentic 1998 WAV audio samples (Brian Eno startup sound, shutdown chord, navigation clicks) with zero boot delay.
-- **Authentic Shutdown Modal:** 3D outset Windows 98 dialog with "It's now safe to turn off your computer" screen.
-- **Multi-Service Music Integration:** Dynamic branded audio player integration supporting Spotify, Apple Music, YouTube Music, and Amazon Music.
-
-### Version 3.1 — Mobile QR Wallpaper Portal & Performance Engine
-- **Dynamic Mobile QR Wallpaper Portal:** Generate responsive QR codes for direct mobile-to-desktop photo upload with live camera previews.
-- **60 FPS Hardware-Accelerated Desktop Widgets:** Pure matrix transforms for smooth, lag-free widget dragging across high-DPI displays.
-
-### Version 3.0 — Era Design Engine & Active Desktop Paradigm
-- **Windows 98 Desktop Paradigm:** Fully interactive Windows 98 desktop environment complete with Start Menu, Taskbar, Draggable Windows, CRT Monitor Preview, and authentic double-bevel borders.
-- **Multi-Era Design Architecture:** Comprehensive support for modern iOS HIG, Tactile Skeuomorphism, Y2K Brushed Chrome, and Windows 98.
-
-### Version 2.6 — Feed Posts, Carousels & RAW Master Archival
-- **Instagram Feed Posts & Carousels:** Complete ingestion pipeline for multi-slide carousels, video posts, and full-resolution uncompressed master media.
-- **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
-
-### Version 2.5 — Architecture, Data Model & Documentation Update
-- **Memory Object Model (MOM):** Standardized domain entity modeling for Stories, modeling them as rich multi-context memory objects.
-- **Sub-Documentation Infrastructure (`/docs`):** Introduced dedicated in-depth documentation for system architecture, authentication flows, database models, S3/local storage, Instagram ingestion pipelines, REST APIs, and Docker deployments.
-- **Code & Tech Stack Synchronization:** Synchronized documentation with codebase reality (React 19, React Router 7, `MEMWAULT_` environment variable prefix, Python 3.10+).
-- **Containerized Infrastructure & Authentication:** Documented Docker Compose multi-container deployment (Postgres, Redis, MinIO, FastAPI, Celery) and local application authentication flow.
-
-### Version 2.4 — Engagement, Privacy & UI
-- **Archived Engagement Metrics:** Added permanent tracking for `viewer_count` and `like_count` in database schemas, scrapers, and metadata pipelines.
-- **Account Safety Architecture:** Documented the decision to avoid scraping individual viewer lists to reduce account restriction risks.
-- **EXIF/XMP Context Embedding:** Embedded captions, music, locations, and engagement directly into media metadata.
-- **Unified Spring-Based Controls:** Standardized segmented controls and filter toggles across Timeline, Story Detail, Highlights, and Settings using Framer Motion.
-- **Native Desktop Integration:** Windows Explorer and interactive Playwright browser sessions launch directly in native desktop windows when running on host OS.
-
-### Version 2.3 — Sidecar Journal & Dynamic Highlights
-- **Dynamic Highlight Grid:** Covers dynamically render as 4-Image Grids, 3-Image layouts, or vertical dual-views.
-- **Contextual Sidecar Journaling:** Attach rich Markdown notes to any story, written as `.md` files directly next to your media files on disk.
-
-### Version 2.2 — Archives & Search Update
-- **Robust Archives (Trash):** Soft-delete and restore individual or bulk-selected stories.
-- **Full-Text Backend Search:** Full-text SQL search engine across historical stories.
-
-### Version 2.1 — Highlights & Albums
-- **Highlights & Albums Integration:** Curate downloaded stories into custom Highlight Albums locally.
-- **Media Sync & Pre-Signed URLs:** Dynamic S3 pre-signed URLs for decoupled storage environments.
-
-### Version 2.0 — Timeline, Maps & Navigation
-- **Smooth Page Transitions & FastScrollbar:** Drag through years of memories in milliseconds.
-- **Interactive Spatial Map:** Initial release of spatial geographic marker clustering.
-
----
-
-# 🛠️ Developer Documentation
-
-## Architecture & System Flow
-
-MemWault uses a React 19 PWA frontend backed by FastAPI, with PostgreSQL/SQLite persistence, configurable local/S3 media storage, and background processing through Celery/Redis.
+MemWault pairs a React 19 PWA frontend with a FastAPI backend, supporting local filesystem storage or S3-compatible object storage.
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -442,7 +285,13 @@ MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 
 Some features have been deliberately removed or avoided to preserve archival authenticity, reduce account risk, or prevent unnecessary software complexity.
 
-📖 **See [`removed_features.md`](removed_features.md) for full design rationale regarding removed timeline date filters and custom music player overlays.**
+📖 **See [`removed_features.md`](removed_features.md) for design rationale regarding removed features.**
+
+---
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release notes and version history.
 
 ---
 

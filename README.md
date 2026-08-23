@@ -95,7 +95,10 @@ MemWault is built upon a radically different philosophy: **A user-owned, distrac
 ## Key Features
 
 - 🔄 **Smart Media Segregation:** Automatically distinguishes between actual personal Stories, Carousels, and Video Posts as distinct archival classification problems.
-- 📱 **Pocket PC Mobile Companion (PWA):** Authentic Windows Mobile 2003 companion app with Today screen, offline storage cache, bidirectional Wi-Fi sync, and standalone PWA installation.
+- 📱 **Pocket MemWault Companion (PWA):** Authentic Windows Phone 8.1 / Lumia panoramic pivot interface (`/pocket`) with live tiles, 20 Metro accent themes, 100% offline IndexedDB cache, and bidirectional sync.
+- 🔒 **Zero-Trust Ephemeral QR Pairing:** 5-minute single-use ticket burning upon first scan, permanent scoped companion tokens, and zero credential exposure.
+- ⚡ **ActiveSync Live Handshake & Scan Detection:** Real-time pairing handshake that automatically detects mobile scans, transitions instantly, and manages connected companion devices.
+- 🌐 **Encrypted Cloudflare Remote Tunnels:** Built-in zero-config HTTPS tunneling (`trycloudflare.com`) allowing mobile companion access and syncing over 4G/5G cellular data from anywhere.
 - 📱 **Mobile QR Upload Portal:** Stream uncompressed full-resolution RAW photos, 4K videos, and custom wallpapers directly from your smartphone to your PC desktop vault via local Wi-Fi.
 - 🖼️ **RAW Master Versioning:** Swap between compressed Instagram CDN copies and uncompressed RAW camera originals seamlessly.
 - 📊 **Archived Engagement Metrics:** Preserve Story viewer counts and like counts captured at archival time alongside media and metadata.
@@ -155,10 +158,13 @@ Rather than cluttering this document with dozens of screenshots, we have dedicat
 
 ## Changelog & Evolution
 
-### Version 3.2 — Windows 98 Design System Perfection & Pocket PC Companion PWA
-- **Pocket PC Mobile Companion App (PWA):** Authentic Windows Mobile 2003 companion app (`/pocket`) with Today screen, offline storage cache, bidirectional Wi-Fi sync, and standalone PWA installation.
+### Version 3.2 — Lumia Pivot Architecture, Zero-Trust ActiveSync & Remote Cloudflare Tunnels
+- **Pocket MemWault Companion (PWA):** Authentic Windows Phone 8.1 / Lumia panoramic pivot interface (`/pocket`) featuring fluid horizontal swiping across Start, Memories, Highlights, Feed, Journal, Music, and Settings.
+- **Zero-Trust Ephemeral QR Pairing:** 5-minute single-use ticket burning upon first scan, permanent scoped companion tokens, and zero credential exposure.
+- **ActiveSync Live Scan Detection & Handshake:** Real-time polling detects mobile QR scan instantly, transitions the desktop UI with audio confirmation, and manages connected companion devices.
+- **Zero-Config Remote Cloudflare Tunnels:** Integrated HTTPS quick tunnels (`trycloudflare.com`) allow remote companion syncing across 4G/5G mobile data from anywhere without router port forwarding.
+- **Single-Port Production Serving & 100% Offline PWA:** FastAPI unified backend directly serves pre-compiled, optimized assets with SPA routing and background Service Worker precaching.
 - **Uncluttered Journal App & Memory Picker Grid:** Clean journal sidebar displaying only active memory journals, with an interactive "+ New Entry" visual memory picker modal.
-- **Desktop "Connect Phone" ActiveSync Wizard:** Instant pairing modal with dynamic local Wi-Fi QR code and standalone installation instructions.
 - **Multi-Route Outbound LAN IP Resolver:** Multi-target connection fallback guaranteeing accurate Wi-Fi IP address resolution for all mobile device connections.
 - **Authentic Windows 98 Icon Library:** 18 handcrafted pixel-perfect SVG reproductions of authentic 16-color/256-color Windows 98 shortcuts (`MemWault.exe`, `FeedViewer.exe`, `Memories.exe`, `Journal.exe`, `StoryReels.exe`, `Collections.exe`, `WorldAtlas.exe`, `Cabinet.exe`, `Setup.exe`, `Display.exe`, `RecycleBin.exe`).
 - **Desktop Icon Backdrop Boxes:** Dynamic toggle in Display Properties allowing 3D beveled silver backdrop boxes around desktop icons for high contrast and readability over any custom wallpaper.

@@ -5,6 +5,7 @@ All endpoints for the PWA frontend to consume.
 
 import logging
 import os
+import json
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -480,10 +481,9 @@ async def list_stories(
     if date_to:
         query = query.where(Story.taken_at <= datetime.fromisoformat(date_to))
     if is_reel is True:
-        from sqlalchemy import or_
-        query = query.where(or_(Story.is_reel == True, Story.media_type == 2))
+        query = query.where(Story.is_reel == True)
     elif is_reel is False:
-        query = query.where(Story.is_reel == False, Story.media_type != 2)
+        query = query.where(Story.is_reel == False)
     if is_memory is not None:
         query = query.where(Story.is_memory == is_memory)
     if is_trashed is not None:
@@ -1944,7 +1944,9 @@ async def create_general_qr_upload_session(
     await db.refresh(session)
 
     lan_ip = get_local_lan_ip()
-    qr_url = f"http://{lan_ip}:5173/upload-link/{token}"
+    status_info = tunnel_manager.get_status()
+    base_url = status_info.get("url") if (status_info.get("status") == "active" and status_info.get("url")) else f"http://{lan_ip}:5173"
+    qr_url = f"{base_url}/upload-link/{token}"
 
     return {
         "id": session.id,
@@ -1989,7 +1991,9 @@ async def create_post_qr_upload_session(
     await db.refresh(session)
 
     lan_ip = get_local_lan_ip()
-    qr_url = f"http://{lan_ip}:5173/upload-link/{token}"
+    status_info = tunnel_manager.get_status()
+    base_url = status_info.get("url") if (status_info.get("status") == "active" and status_info.get("url")) else f"http://{lan_ip}:5173"
+    qr_url = f"{base_url}/upload-link/{token}"
 
     return {
         "id": session.id,
@@ -2246,5 +2250,245 @@ async def shutdown_system():
         "status": "shutting_down",
         "message": "MemWault is powering off all background services and terminal windows."
     }
+
+
+# ── Remote Mobile Tunnel Endpoints ───────────────────────
+from app.tunnel_manager import tunnel_manager
+from starlette.concurrency import run_in_threadpool
+
+@router.post("/remote-tunnel/start")
+async def start_remote_tunnel(
+    port: int = Query(8000, ge=1000, le=65535),
+    user: User = Depends(get_current_user)
+):
+    """Start Cloudflare remote tunnel for mobile data connection."""
+    try:
+        res = await run_in_threadpool(tunnel_manager.start_tunnel, target_port=port)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/remote-tunnel/stop")
+async def stop_remote_tunnel(user: User = Depends(get_current_user)):
+    """Stop Cloudflare remote tunnel."""
+    return tunnel_manager.stop_tunnel()
+
+@router.get("/remote-tunnel/status")
+async def get_remote_tunnel_status(user: User = Depends(get_current_user)):
+    """Get Cloudflare remote tunnel status."""
+    return tunnel_manager.get_status()
+
+
+# ── Zero-Trust Ephemeral QR Pairing System ────────────────
+import secrets
+import threading
+from datetime import timedelta
+from app.api.auth import create_companion_token
+
+# In-memory thread-safe pairing tickets store
+_pairing_tickets = {}
+_tickets_lock = threading.Lock()
+
+def _get_paired_devices_file() -> Path:
+    p = Path(__file__).resolve().parent.parent.parent / "data" / "paired_devices.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _load_paired_devices() -> list:
+    p = _get_paired_devices_file()
+    if p.exists():
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def _save_paired_device(user_id, username: str, device_name: str):
+    devices = _load_paired_devices()
+    now_str = datetime.now(timezone.utc).isoformat()
+    device_id = f"dev_{secrets.token_hex(6)}"
+    
+    existing = next((d for d in devices if d.get("device_name") == device_name and d.get("user_id") == str(user_id)), None)
+    if existing:
+        existing["last_sync"] = now_str
+        existing["status"] = "active"
+    else:
+        devices.insert(0, {
+            "id": device_id,
+            "user_id": str(user_id),
+            "username": username,
+            "device_name": device_name or "Mobile Companion",
+            "paired_at": now_str,
+            "last_sync": now_str,
+            "status": "active"
+        })
+    p = _get_paired_devices_file()
+    try:
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(devices, f, indent=2)
+    except Exception:
+        pass
+
+def _cleanup_expired_tickets():
+    now = datetime.now(timezone.utc)
+    expired = []
+    for k, v in _pairing_tickets.items():
+        if v.get("redeemed"):
+            if v.get("redeemed_until") and v["redeemed_until"] < now:
+                expired.append(k)
+        elif v.get("expires_at") and v["expires_at"] < now:
+            expired.append(k)
+    for k in expired:
+        _pairing_tickets.pop(k, None)
+
+@router.post("/pair/generate-ticket")
+async def generate_pairing_ticket(
+    mode: str = Query("remote", regex="^(wifi|remote)$"),
+    user: User = Depends(get_current_user)
+):
+    """
+    Generate a 5-minute single-use ephemeral QR ticket for linking a mobile device.
+    Zero-Trust: Burns immediately upon first scan.
+    """
+    with _tickets_lock:
+        _cleanup_expired_tickets()
+        ticket = f"pair_{secrets.token_urlsafe(24)}"
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+        
+        _pairing_tickets[ticket] = {
+            "user_id": user.id,
+            "username": user.username,
+            "expires_at": expires_at,
+            "redeemed": False,
+            "device_name": None,
+            "redeemed_at": None,
+            "redeemed_until": None,
+        }
+
+    lan_ip = get_local_lan_ip()
+    port = 8000
+    
+    if mode == "remote":
+        status_info = tunnel_manager.get_status()
+        base_url = status_info.get("url") if (status_info.get("status") == "active" and status_info.get("url")) else f"http://{lan_ip}:{port}"
+    else:
+        base_url = f"http://{lan_ip}:{port}"
+        
+    qr_url = f"{base_url}/pocket?pair_ticket={ticket}"
+    
+    return {
+        "ticket": ticket,
+        "qr_url": qr_url,
+        "expires_at": expires_at.isoformat(),
+        "expires_in_seconds": 300,
+        "mode": mode,
+    }
+
+@router.get("/pair/ticket-status")
+async def get_pairing_ticket_status(
+    ticket: str = Query(..., min_length=8),
+    user: User = Depends(get_current_user)
+):
+    """
+    Check if a pairing ticket has been scanned and redeemed by a mobile device.
+    Allows the desktop UI to auto-detect connection and transition instantly.
+    """
+    with _tickets_lock:
+        _cleanup_expired_tickets()
+        ticket_data = _pairing_tickets.get(ticket)
+        if not ticket_data:
+            return {"status": "expired_or_unknown", "redeemed": False}
+        
+        if ticket_data.get("redeemed"):
+            return {
+                "status": "redeemed",
+                "redeemed": True,
+                "device_name": ticket_data.get("device_name") or "Smartphone Companion",
+                "redeemed_at": ticket_data.get("redeemed_at"),
+            }
+        
+        return {"status": "pending", "redeemed": False}
+
+@router.post("/pair/redeem-ticket")
+async def redeem_pairing_ticket(
+    ticket: str = Query(..., min_length=8),
+    device_name: Optional[str] = Query("Mobile Companion"),
+):
+    """
+    Redeem an ephemeral QR pairing ticket for a scoped mobile companion JWT.
+    BURNS the ticket immediately — single-use only!
+    """
+    with _tickets_lock:
+        _cleanup_expired_tickets()
+        ticket_data = _pairing_tickets.get(ticket)
+        
+        if not ticket_data:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid, expired, or already redeemed pairing ticket."
+            )
+            
+        if ticket_data.get("redeemed"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This pairing ticket has already been used."
+            )
+            
+        if ticket_data["expires_at"] < datetime.now(timezone.utc):
+            _pairing_tickets.pop(ticket, None)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This pairing ticket has expired (5 minute limit)."
+            )
+            
+        now = datetime.now(timezone.utc)
+        # Mark as redeemed and retain for 90 seconds so desktop polling detects it
+        ticket_data["redeemed"] = True
+        ticket_data["redeemed_at"] = now.isoformat()
+        ticket_data["redeemed_until"] = now + timedelta(seconds=90)
+        ticket_data["device_name"] = device_name or "Mobile Companion"
+        
+        user_id = ticket_data["user_id"]
+        username = ticket_data["username"]
+
+    # Persist device to paired registry
+    _save_paired_device(user_id=user_id, username=username, device_name=device_name or "Mobile Companion")
+
+    # Issue long-lived companion device token
+    companion_token = create_companion_token(user_id=user_id, username=username, device_name=device_name)
+    
+    return {
+        "status": "paired_successfully",
+        "token": companion_token,
+        "username": username,
+        "device_name": device_name,
+        "message": "Device linked securely with MemWault Vault."
+    }
+
+@router.get("/pair/connected-devices")
+async def get_connected_devices(user: User = Depends(get_current_user)):
+    """Get list of all paired mobile devices."""
+    devices = _load_paired_devices()
+    user_devices = [d for d in devices if d.get("user_id") == str(user.id)]
+    return {"devices": user_devices}
+
+@router.delete("/pair/connected-devices/{device_id}")
+async def delete_connected_device(
+    device_id: str,
+    user: User = Depends(get_current_user)
+):
+    """Revoke/remove a paired mobile device."""
+    devices = _load_paired_devices()
+    updated = [d for d in devices if not (d.get("id") == device_id and d.get("user_id") == str(user.id))]
+    p = _get_paired_devices_file()
+    try:
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(updated, f, indent=2)
+    except Exception:
+        pass
+    return {"status": "removed", "device_id": device_id}
+
+
 
 

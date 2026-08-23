@@ -43,6 +43,24 @@ def create_access_token(user_id: uuid.UUID, username: str) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_companion_token(user_id: uuid.UUID, username: str, device_name: str = "Mobile Companion") -> str:
+    """
+    Create a long-lived scoped JWT access token for a paired mobile companion device.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(days=365)
+
+    payload = {
+        "sub": str(user_id),
+        "username": username,
+        "role": "companion",
+        "device": device_name,
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
 def decode_access_token(token: str) -> dict | None:
     """
     Decode and verify a JWT access token.

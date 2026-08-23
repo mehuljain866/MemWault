@@ -6,8 +6,6 @@ import { registerSW } from 'virtual:pwa-register'
 
 registerSW({
   immediate: true,
-  onNeedRefresh() {},
-  onOfflineReady() {},
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(

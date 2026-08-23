@@ -9,7 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: 'module',
       },
       includeAssets: [
         'favicon.ico',
@@ -19,8 +20,8 @@ export default defineConfig({
         'pwa-512x512.png',
       ],
       manifest: {
-        id: '/',
-        name: 'MemWault',
+        id: '/pocket',
+        name: 'MemWault Pocket',
         short_name: 'MemWault',
         description: 'Your personal memory archive',
         theme_color: '#0050EF',
@@ -28,7 +29,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
-        start_url: '/',
+        start_url: '/pocket',
         launch_handler: {
           client_mode: 'navigate-existing',
         },
@@ -70,11 +71,22 @@ export default defineConfig({
         },
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-cache',
+              networkTimeoutSeconds: 3,
+            }
+          },
           {
             urlPattern: /^https?:\/\/.*\/api\/v1\/.*/i,
             handler: 'NetworkFirst',
@@ -84,7 +96,7 @@ export default defineConfig({
                 maxEntries: 200,
                 maxAgeSeconds: 60 * 60 * 24,
               },
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 5,
             },
           },
           {
@@ -116,6 +128,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: true,
     watch: {
       ignored: ['**/dev-dist/**', '**/dist/**', '**/.git/**'],
     },

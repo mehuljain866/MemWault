@@ -17,9 +17,10 @@ import {
   Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu,
   ShieldCheck, CheckCircle2, XCircle, Image as ImageIcon, Users, Hash,
   Sliders, Download, Upload as UploadIcon, Monitor, Tv, Palette, Check, Power,
-  Layers, Clock, Database, Music as MusicIcon
+  Layers, Clock, Database, Music as MusicIcon, Smartphone
 } from 'lucide-react'
 import ShutdownModal from '../components/ShutdownModal'
+import ConnectPhoneModal from '../components/ConnectPhoneModal'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -34,6 +35,7 @@ export default function Settings() {
   const [error, setError] = useState('')
   const [playbackSettings, setPlaybackSettings] = useState(getSettings())
   const [shutdownModalOpen, setShutdownModalOpen] = useState(false)
+  const [connectPhoneModalOpen, setConnectPhoneModalOpen] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -972,6 +974,19 @@ export default function Settings() {
         )}
       </div>
 
+      {/* ── Pocket Companion & Mobile Devices ── */}
+      <div className="settings-section-header" style={{ paddingLeft: '8px', marginBottom: '8px', fontSize: '12px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+        Pocket Companion & Mobile Devices
+      </div>
+      <IosListGroup>
+        <IosListItem
+          icon={Smartphone} iconBg="#0050EF"
+          title="Connect Smartphone (Zero-Trust QR Pairing)"
+          value="Scan Once • Offline Vault"
+          onClick={() => setConnectPhoneModalOpen(true)}
+        />
+      </IosListGroup>
+
       {/* ── Maintenance & Power ────────────── */}
       <div className="settings-section-header" style={{ paddingLeft: '8px', marginBottom: '8px', fontSize: '12px', color: 'var(--ios-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
         Maintenance & Service Power
@@ -1012,6 +1027,11 @@ export default function Settings() {
       <ShutdownModal 
         isOpen={shutdownModalOpen}
         onClose={() => setShutdownModalOpen(false)}
+      />
+
+      <ConnectPhoneModal
+        isOpen={connectPhoneModalOpen}
+        onClose={() => setConnectPhoneModalOpen(false)}
       />
     </motion.div>
   )

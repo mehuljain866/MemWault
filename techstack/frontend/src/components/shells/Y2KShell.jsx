@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { triggerScrape, getDashboardStats } from '../../services/api';
-import { Radio, Sparkles, RefreshCw } from 'lucide-react';
+import { Radio, Sparkles, RefreshCw, Smartphone } from 'lucide-react';
+import ConnectPhoneModal from '../ConnectPhoneModal';
 
 export default function Y2KShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ total_stories: 0, total_feed_posts: 0 });
   const [syncing, setSyncing] = useState(false);
+  const [connectPhoneOpen, setConnectPhoneOpen] = useState(false);
 
   useEffect(() => {
     getDashboardStats().then(setStats).catch(() => {});
@@ -56,6 +58,17 @@ export default function Y2KShell({ children }) {
             </span>
           </div>
 
+          {/* Hardware Pocket Link Action */}
+          <button 
+            className="y2k-action-btn"
+            onClick={() => setConnectPhoneOpen(true)}
+            title="Pocket ActiveSync"
+            style={{ marginRight: '6px' }}
+          >
+            <Smartphone size={14} />
+            <span>POCKET_SYNC</span>
+          </button>
+
           {/* Hardware Sync Action */}
           <button 
             className="y2k-action-btn"
@@ -90,6 +103,11 @@ export default function Y2KShell({ children }) {
       <main className="y2k-viewport-canvas">
         {children}
       </main>
+
+      <ConnectPhoneModal
+        isOpen={connectPhoneOpen}
+        onClose={() => setConnectPhoneOpen(false)}
+      />
     </div>
   );
 }

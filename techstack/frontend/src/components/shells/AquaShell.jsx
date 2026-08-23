@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { triggerScrape } from '../../services/api';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Smartphone } from 'lucide-react';
+import ConnectPhoneModal from '../ConnectPhoneModal';
 
 const PAGE_NAMES = {
   '/': 'Dashboard',
@@ -19,6 +20,7 @@ export default function AquaShell({ children }) {
   const navigate = useNavigate();
   const [syncing, setSyncing] = useState(false);
   const [trafficHover, setTrafficHover] = useState(false);
+  const [connectPhoneOpen, setConnectPhoneOpen] = useState(false);
 
   const title = PAGE_NAMES[location.pathname] || 'MemWault';
 
@@ -58,6 +60,15 @@ export default function AquaShell({ children }) {
         {/* Top-Right Aqua Gel Action Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button 
+            className="aqua-gel-btn"
+            onClick={() => setConnectPhoneOpen(true)}
+            title="Connect Phone (ActiveSync)"
+            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <Smartphone size={12} />
+            <span>Connect Phone</span>
+          </button>
+          <button 
             className="aqua-gel-btn primary is-breathing"
             onClick={handleSync}
             disabled={syncing}
@@ -94,6 +105,11 @@ export default function AquaShell({ children }) {
       <main className="aqua-viewport">
         {children}
       </main>
+
+      <ConnectPhoneModal
+        isOpen={connectPhoneOpen}
+        onClose={() => setConnectPhoneOpen(false)}
+      />
     </div>
   );
 }

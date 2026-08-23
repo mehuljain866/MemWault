@@ -32,17 +32,34 @@ function LiveMovingWaveform({ isPlaying }) {
   )
 }
 
+function isVideoStory(story) {
+  if (!story) return false
+  if (story.media_type === 2) return true
+  if (Boolean(story.music) || Boolean(story.music_title)) return true
+  if (story.is_reel) return true
+  if (typeof story.s3_key_compressed === 'string' && (story.s3_key_compressed.toLowerCase().includes('.mp4') || story.s3_key_compressed.toLowerCase().includes('.mov'))) return true
+  if (typeof story.media_url === 'string') {
+    const u = story.media_url.toLowerCase()
+    if (u.includes('.mp4') || u.includes('.mov') || u.includes('video') || u.startsWith('data:video')) return true
+  }
+  if (typeof story.cdn_url === 'string') {
+    const u = story.cdn_url.toLowerCase()
+    if (u.includes('.mp4') || u.includes('.mov') || u.includes('video')) return true
+  }
+  return false
+}
+
 // ── Resilient Story Thumbnail Scrubber Item ──
 function StoryThumbnail({ story, isActive, onClick }) {
-  const isVid = story?.media_type === 2 || Boolean(story?.music) || story?.is_reel || (typeof story?.media_url === 'string' && (story.media_url.includes('.mp4') || story.media_url.includes('.mov') || story.media_url.includes('video')));
-  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : '');
-  const [src, setSrc] = useState(rawUrl);
-  const [hasError, setHasError] = useState(false);
+  const isVid = isVideoStory(story)
+  const rawUrl = story?.thumbnail_url || story?.cover_media_url || story?.display_url || story?.media_url || story?.raw_media_url || (Array.isArray(story?.preview_stories) ? story.preview_stories[0] : '') || (story?.s3_key_compressed ? `/api/v1/media/${story.s3_key_compressed}` : '')
+  const [src, setSrc] = useState(rawUrl)
+  const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
-    setSrc(rawUrl);
-    setHasError(false);
-  }, [rawUrl]);
+    setSrc(rawUrl)
+    setHasError(false)
+  }, [rawUrl])
 
   return (
     <motion.div 
@@ -122,15 +139,19 @@ export default function HighlightPlayerModal({
   const [showMusicWidget, setShowMusicWidget] = useState(false)
   const [contextDisplayMode, setContextDisplayMode] = useState('music')
   const videoRef = useRef(null)
+  const prevIsOpenRef = useRef(false)
   
-  // Reset state when modal opens or index changes
+  // Reset state ONLY when modal transitions from closed to open
   useEffect(() => {
-    if (isOpen && Array.isArray(stories) && stories.length > 0) {
+    if (isOpen && !prevIsOpenRef.current && Array.isArray(stories) && stories.length > 0) {
       const validIdx = initialIndex >= 0 && initialIndex < stories.length ? initialIndex : 0
       setCurrentIndex(validIdx)
+      setProgress(0)
+      setIsPaused(false)
       setShowMenu(false)
       setShowMusicWidget(false)
     }
+    prevIsOpenRef.current = isOpen
   }, [isOpen, initialIndex, stories])
 
   useEffect(() => {
@@ -175,7 +196,7 @@ export default function HighlightPlayerModal({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, currentIndex, stories, showMenu, showMusicWidget])
 
-  // Auto-advance for images (5 seconds)
+  // Auto-advance for images ONLY (5 seconds)
   useEffect(() => {
     if (!isOpen || isPaused || showMusicWidget || !stories || stories.length === 0) return
     
@@ -183,38 +204,43 @@ export default function HighlightPlayerModal({
     const currentStory = stories[validIdx]
     if (!currentStory) return
     
-    // If it's an image, advance progress artificially over 5s
-    const isVid = currentStory.media_type === 2 || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')));
-    if (!isVid) {
-      const duration = 5000 // 5 seconds
-      const interval = 50 // Update every 50ms
-      const increment = interval / duration
-      
-      const timer = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 1) {
-            clearInterval(timer)
-            handleNext()
-            return 1
-          }
-          return prev + increment
-        })
-      }, interval)
-      
-      return () => clearInterval(timer)
+    // If it's a video/reel/music story, NEVER run the 5-second image auto-advance timer
+    if (isVideoStory(currentStory)) {
+      return
     }
+
+    const duration = 5000 // 5 seconds
+    const interval = 50 // Update every 50ms
+    const increment = interval / duration
+    
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 1) {
+          clearInterval(timer)
+          handleNext()
+          return 1
+        }
+        return prev + increment
+      })
+    }, interval)
+    
+    return () => clearInterval(timer)
   }, [isOpen, currentIndex, isPaused, showMusicWidget, stories])
 
   // Handle video progress and end
   const handleTimeUpdate = () => {
     if (videoRef.current && !showMusicWidget) {
-      const p = videoRef.current.currentTime / videoRef.current.duration
-      setProgress(p || 0)
+      const duration = videoRef.current.duration
+      const currentTime = videoRef.current.currentTime
+      if (duration && !isNaN(duration) && duration > 0) {
+        const p = currentTime / duration
+        setProgress(Math.min(1, Math.max(0, p)))
+      }
     }
   }
 
   const handleVideoEnded = () => {
-    if (!showMusicWidget) {
+    if (!showMusicWidget && !isPaused) {
       handleNext()
     }
   }
@@ -272,8 +298,8 @@ export default function HighlightPlayerModal({
   const currentStory = stories[validIndex]
   if (!currentStory) return null
 
-  const isVideo = currentStory.media_type === 2 || (typeof currentStory.media_url === 'string' && (currentStory.media_url.includes('.mp4') || currentStory.media_url.includes('.mov')))
-  const mediaUrl = currentStory.media_url || currentStory.display_url || currentStory.cover_media_url || (currentStory.s3_key_compressed ? `/media/${currentStory.s3_key_compressed}` : null)
+  const isVideo = isVideoStory(currentStory)
+  const mediaUrl = currentStory.media_url || currentStory.display_url || currentStory.cover_media_url || (currentStory.s3_key_compressed ? `/api/v1/media/${currentStory.s3_key_compressed}` : null)
   const trackName = currentStory.music?.track_title || currentStory.music_title
   const artistName = currentStory.music?.artist_name || currentStory.music_artist
 
@@ -359,16 +385,16 @@ export default function HighlightPlayerModal({
 
             {/* Center Story Canvas */}
             <motion.div 
-              layout
               animate={{
-                scale: showMusicWidget ? 0.65 : 1,
-                y: showMusicWidget ? -30 : 0,
+                scale: showMusicWidget ? 0.72 : 1,
+                y: showMusicWidget ? -36 : 0,
+                opacity: 1,
               }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               onClick={handleCanvasClick}
               className="ios-story-card"
               style={{
-                height: showMusicWidget ? '70%' : '94%',
+                height: showMusicWidget ? '66%' : '94%',
                 maxHeight: '88vh',
                 aspectRatio: '9/16',
                 background: '#000000',
@@ -376,8 +402,8 @@ export default function HighlightPlayerModal({
                 overflow: 'hidden',
                 position: 'relative',
                 cursor: 'pointer',
-                boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow: showMusicWidget ? '0 24px 64px rgba(0,0,0,0.9)' : '0 16px 48px rgba(0,0,0,0.8)',
+                border: showMusicWidget ? '2px solid rgba(255,255,255,0.22)' : '1px solid rgba(255,255,255,0.12)',
                 flexShrink: 0,
                 WebkitTapHighlightColor: 'transparent',
                 outline: 'none',
@@ -444,31 +470,6 @@ export default function HighlightPlayerModal({
                 }}>
                   <Pause size={14} fill="#FFF" />
                   <span>PAUSED</span>
-                </div>
-              )}
-
-              {/* Tap to Resume Story Banner when Music Mode is active */}
-              {showMusicWidget && (
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundColor: 'rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 45,
-                }}>
-                  <div style={{
-                    backgroundColor: 'rgba(0,0,0,0.75)',
-                    padding: '6px 14px',
-                    borderRadius: '16px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#FFF',
-                    letterSpacing: '0.05em',
-                  }}>
-                    TAP TO ENLARGE STORY
-                  </div>
                 </div>
               )}
 
@@ -758,20 +759,21 @@ export default function HighlightPlayerModal({
             <AnimatePresence>
               {showMusicWidget && (
                 <motion.div 
-                  initial={{ y: 90, opacity: 0, scale: 0.94 }}
+                  initial={{ y: 80, opacity: 0, scale: 0.95 }}
                   animate={{ y: 0, opacity: 1, scale: 1 }}
-                  exit={{ y: 90, opacity: 0, scale: 0.94 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                  exit={{ y: 80, opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                   style={{
                     position: 'absolute',
-                    bottom: '12px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
+                    bottom: '16px',
+                    left: '12px',
+                    right: '12px',
+                    margin: '0 auto',
                     zIndex: 90,
-                    width: '92%',
+                    width: 'calc(100% - 24px)',
                     maxWidth: '380px',
-                    boxShadow: '0 16px 48px rgba(0,0,0,0.95)',
-                    borderRadius: '16px',
+                    boxShadow: '0 24px 64px rgba(0,0,0,0.95)',
+                    borderRadius: '18px',
                     overflow: 'hidden',
                   }}
                 >

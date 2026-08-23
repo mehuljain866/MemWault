@@ -6,10 +6,10 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 /**
- * Get the stored JWT token from localStorage.
+ * Get the stored JWT token from localStorage or sessionStorage.
  */
 function getToken() {
-  return localStorage.getItem('sv_token');
+  return localStorage.getItem('sv_token') || sessionStorage.getItem('sv_token');
 }
 
 /**
@@ -34,50 +34,70 @@ export function isAuthenticated() {
 }
 
 /**
- * Core fetch wrapper with auth headers and error handling.
+ * Core fetch wrapper with auth headers, timeout, and error handling.
  */
-async function apiFetch(endpoint, options = {}) {
-  const token = getToken();
-  const headers = { ...options.headers };
-  
-  if (!('Content-Type' in headers)) {
-    headers['Content-Type'] = 'application/json';
-  } else if (headers['Content-Type'] === null) {
-    delete headers['Content-Type'];
-  }
+export async function apiFetch(endpoint, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (response.status === 401) {
-    clearToken();
-    // Only redirect to /login if we're not already on public/guest routes
-    const path = window.location.pathname;
-    if (!path.startsWith('/login') && !path.startsWith('/pocket') && !path.startsWith('/upload-link') && !path.startsWith('/mobile-paint')) {
-      window.location.href = '/login';
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort());
     }
-    const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
-    throw new Error(error.detail || 'Invalid credentials');
   }
 
+  try {
+    const token = getToken();
+    const headers = { ...options.headers };
+    
+    if (!('Content-Type' in headers)) {
+      headers['Content-Type'] = 'application/json';
+    } else if (headers['Content-Type'] === null) {
+      delete headers['Content-Type'];
+    }
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Network error' }));
-    throw new Error(error.detail || `HTTP ${response.status}`);
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (response.status === 401) {
+      clearToken();
+      // Only redirect to /login if we're not already on public/guest routes
+      const path = window.location.pathname;
+      if (!path.startsWith('/login') && !path.startsWith('/pocket') && !path.startsWith('/upload-link') && !path.startsWith('/mobile-paint')) {
+        window.location.href = '/login';
+      }
+      const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
+      throw new Error(error.detail || 'Invalid credentials');
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Network error' }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return null;
+    }
+
+    return response.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw err;
   }
-
-  // Handle 204 No Content
-  if (response.status === 204) {
-    return null;
-  }
-
-  return response.json();
 }
 
 
@@ -431,4 +451,53 @@ export async function shutdownSystem() {
     method: 'POST',
   })
 }
+
+export async function startRemoteTunnel(port = 8000) {
+  return apiFetch(`/remote-tunnel/start?port=${port}`, {
+    method: 'POST',
+  })
+}
+
+export async function stopRemoteTunnel() {
+  return apiFetch('/remote-tunnel/stop', {
+    method: 'POST',
+  })
+}
+
+export async function getRemoteTunnelStatus() {
+  return apiFetch('/remote-tunnel/status')
+}
+
+export async function generatePairingTicket(mode = 'remote') {
+  return apiFetch(`/pair/generate-ticket?mode=${mode}`, {
+    method: 'POST',
+  })
+}
+
+export async function getPairingTicketStatus(ticket) {
+  return apiFetch(`/pair/ticket-status?ticket=${encodeURIComponent(ticket)}`)
+}
+
+export async function redeemPairingTicket(ticket, deviceName = 'Mobile Companion') {
+  const res = await fetch(`${API_BASE}/pair/redeem-ticket?ticket=${encodeURIComponent(ticket)}&device_name=${encodeURIComponent(deviceName)}`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to redeem ticket' }))
+    throw new Error(err.detail || 'Invalid or expired pairing ticket')
+  }
+  return res.json()
+}
+
+export async function getConnectedDevices() {
+  return apiFetch('/pair/connected-devices')
+}
+
+export async function deleteConnectedDevice(deviceId) {
+  return apiFetch(`/pair/connected-devices/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+  })
+}
+
+
 

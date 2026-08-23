@@ -152,39 +152,46 @@ async function batchDownloadAndCache(urls, batchSize = 8, onProgress = () => {})
  * Downloads metadata and real media blobs to make MemWault 100% functional offline!
  */
 export async function syncPocketWithLaptop(onProgress = () => {}) {
+  let syncFailed = false;
+  let syncErrorMsg = null;
+
   try {
     // Step 1: Upload any phone-captured photos first
-    const pendingUploads = await getPendingMobileUploads();
-    if (pendingUploads.length > 0 && isAuthenticated()) {
-      onProgress({ 
-        step: `Uploading ${pendingUploads.length} phone photos to laptop vault...`, 
-        percent: 10, 
-        status: 'uploading' 
-      });
+    try {
+      const pendingUploads = await getPendingMobileUploads();
+      if (pendingUploads.length > 0 && isAuthenticated()) {
+        onProgress({ 
+          step: `Uploading ${pendingUploads.length} phone photos to laptop vault...`, 
+          percent: 10, 
+          status: 'uploading' 
+        });
 
-      for (let i = 0; i < pendingUploads.length; i++) {
-        const item = pendingUploads[i];
-        let fileBlob = item.fileBlob;
-        if (!fileBlob && item.dataUrl) {
-          fileBlob = dataURLtoBlob(item.dataUrl);
-        }
+        for (let i = 0; i < pendingUploads.length; i++) {
+          const item = pendingUploads[i];
+          let fileBlob = item.fileBlob;
+          if (!fileBlob && item.dataUrl) {
+            fileBlob = dataURLtoBlob(item.dataUrl);
+          }
 
-        if (fileBlob) {
-          try {
-            let sessionToken = item.token;
-            if (!sessionToken) {
-              const session = await createQRSession(item.postId || null);
-              sessionToken = session?.token;
+          if (fileBlob) {
+            try {
+              let sessionToken = item.token;
+              if (!sessionToken) {
+                const session = await createQRSession(item.postId || null);
+                sessionToken = session?.token;
+              }
+              if (sessionToken) {
+                await uploadToPortal(sessionToken, item.slideIndex || 0, fileBlob);
+                await removePendingUpload(item.id);
+              }
+            } catch (e) {
+              console.warn('Failed to upload pending item:', e);
             }
-            if (sessionToken) {
-              await uploadToPortal(sessionToken, item.slideIndex || 0, fileBlob);
-              await removePendingUpload(item.id);
-            }
-          } catch (e) {
-            console.warn('Failed to upload pending item:', e);
           }
         }
       }
+    } catch (e) {
+      console.warn('Pending uploads sync skipped:', e);
     }
 
     // Step 2: Fetch Stories from Laptop Backend
@@ -193,18 +200,31 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     let page = 1;
     let hasMoreStories = true;
 
-    while (hasMoreStories) {
-      const storyData = await getStories({ page, pageSize: 500 });
-      const batch = Array.isArray(storyData) ? storyData : (storyData?.stories || storyData?.items || []);
-      allStories.push(...batch);
-      if (storyData?.has_next && batch.length > 0) {
-        page++;
-      } else {
-        hasMoreStories = false;
+    try {
+      while (hasMoreStories) {
+        const storyData = await getStories({ page, pageSize: 500 });
+        const batch = Array.isArray(storyData) ? storyData : (storyData?.stories || storyData?.items || []);
+        allStories.push(...batch);
+        if (storyData?.has_next && batch.length > 0) {
+          page++;
+        } else {
+          hasMoreStories = false;
+        }
+      }
+
+      if (allStories.length > 0) {
+        await saveMemoriesOffline(allStories);
+      }
+    } catch (err) {
+      console.warn('Stories fetch failed or timed out, falling back to cached offline stories:', err);
+      syncFailed = true;
+      syncErrorMsg = err.message || 'Stories fetch failed';
+      const cached = await getOfflineMemories();
+      if (cached && cached.length > 0) {
+        allStories = cached;
       }
     }
 
-    await saveMemoriesOffline(allStories);
     onProgress({ 
       step: `Loaded ${allStories.length} stories`, 
       percent: 35, 
@@ -218,18 +238,31 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     let postPage = 1;
     let hasMorePosts = true;
 
-    while (hasMorePosts) {
-      const postData = await getPosts({ page: postPage, pageSize: 100 });
-      const batch = Array.isArray(postData) ? postData : (postData?.posts || postData?.items || []);
-      allPosts.push(...batch);
-      if (postData?.has_next && batch.length > 0) {
-        postPage++;
-      } else {
-        hasMorePosts = false;
+    try {
+      while (hasMorePosts) {
+        const postData = await getPosts({ page: postPage, pageSize: 100 });
+        const batch = Array.isArray(postData) ? postData : (postData?.posts || postData?.items || []);
+        allPosts.push(...batch);
+        if (postData?.has_next && batch.length > 0) {
+          postPage++;
+        } else {
+          hasMorePosts = false;
+        }
+      }
+
+      if (allPosts.length > 0) {
+        await savePostsOffline(allPosts);
+      }
+    } catch (err) {
+      console.warn('Feed posts fetch failed or timed out, falling back to cached offline posts:', err);
+      syncFailed = true;
+      syncErrorMsg = syncErrorMsg || err.message || 'Posts fetch failed';
+      const cached = await getOfflinePosts();
+      if (cached && cached.length > 0) {
+        allPosts = cached;
       }
     }
 
-    await savePostsOffline(allPosts);
     onProgress({ 
       step: `Loaded ${allPosts.length} posts`, 
       percent: 55, 
@@ -244,16 +277,56 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
     try {
       const hlData = await getHighlights();
       allHighlights = Array.isArray(hlData) ? hlData : (hlData?.highlights || hlData?.items || []);
-      await saveHighlightsOffline(allHighlights);
+      if (allHighlights.length > 0) {
+        await saveHighlightsOffline(allHighlights);
+      }
+    } catch (err) {
+      console.warn('Highlights fetch failed or timed out, falling back to cached offline highlights:', err);
+      syncFailed = true;
+      syncErrorMsg = syncErrorMsg || err.message || 'Highlights fetch failed';
+      const cached = await getOfflineHighlights();
+      if (cached && cached.length > 0) {
+        allHighlights = cached;
+      }
+    }
+
+    onProgress({ 
+      step: `Loaded ${allHighlights.length} highlights`, 
+      percent: 70, 
+      status: 'downloading',
+      stories: allStories,
+      posts: allPosts,
+      highlights: allHighlights 
+    });
+
+    // If sync failed during fetch stages and we are offline, finalize immediately with cached data
+    if (syncFailed) {
+      const stats = await getStorageStats();
+      const meta = await getPocketSyncMeta();
       onProgress({ 
-        step: `Loaded ${allHighlights.length} highlights`, 
-        percent: 70, 
-        status: 'downloading',
+        step: `Offline Vault: ${allStories.length} Memories & ${allPosts.length} Posts available`, 
+        percent: 100, 
+        status: 'offline',
+        syncFailed: true,
+        error: syncErrorMsg,
         stories: allStories,
         posts: allPosts,
-        highlights: allHighlights 
+        highlights: allHighlights,
+        meta,
+        stats
       });
-    } catch (e) {}
+
+      return { 
+        success: false, 
+        syncFailed: true,
+        error: syncErrorMsg, 
+        stories: allStories, 
+        posts: allPosts, 
+        highlights: allHighlights,
+        meta, 
+        stats 
+      };
+    }
 
     // Step 5: Multi-Tier Parallel Media Pre-caching
     // Priority 1: Cache 100% of thumbnails across stories, highlights, posts, and album covers
@@ -370,6 +443,7 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
       step: `Offline Vault: ${cachedStories.length} Memories & ${cachedPosts.length} Posts available`, 
       percent: 100, 
       status: 'offline',
+      syncFailed: true,
       error: err.message,
       stories: cachedStories,
       posts: cachedPosts,
@@ -380,6 +454,7 @@ export async function syncPocketWithLaptop(onProgress = () => {}) {
 
     return { 
       success: false, 
+      syncFailed: true,
       error: err.message, 
       stories: cachedStories, 
       posts: cachedPosts, 

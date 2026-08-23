@@ -21,14 +21,14 @@ import {
 } from '../services/pocketSync';
 import { 
   addPendingMobileUpload, getPendingMobileUploads, 
-  saveMemoriesOffline, savePostsOffline, openMobileDB,
+  saveMemoriesOffline, savePostsOffline, saveHighlightsOffline, openMobileDB,
   saveSyncMeta, getSyncMeta
 } from '../services/memwaultMobileDB';
 import { 
   updateStory, updatePost, setToken, isAuthenticated, 
-  getHighlights, getHighlightStories, getInstagramSession,
+  getHighlights, getHighlightStories, createHighlight, getInstagramSession,
   disconnectInstagram, renewInstagramSession, rescanMetadata,
-  getStoryViewers, updatePostMedia
+  getStoryViewers, updatePostMedia, redeemPairingTicket
 } from '../services/api';
 import MusicPlayer from '../components/MusicPlayer';
 import HighlightPlayerModal from '../components/HighlightPlayerModal';
@@ -176,19 +176,52 @@ function getMediaUrl(item, preferThumbnail = false) {
 
 /**
  * Hook to resolve image/video URLs to offline Blob URLs from IndexedDB/CacheStorage
+ * Tracks MIME type and video indicators so blob: URLs are correctly identified as video
  */
 function useOfflineMediaUrl(url, preferThumbnail = false) {
   const resolvedTarget = typeof url === 'object' ? resolveMedia(url, { preferThumbnail }) : url;
-  const [src, setSrc] = useState(resolvedTarget || '');
+  const isObjectVideo = typeof url === 'object' && (
+    url?.media_type === 2 || 
+    Boolean(url?.music) || 
+    Boolean(url?.music_title) || 
+    url?.is_reel || 
+    Boolean(typeof url?.s3_key_compressed === 'string' && (url.s3_key_compressed.toLowerCase().includes('.mp4') || url.s3_key_compressed.toLowerCase().includes('.mov')))
+  );
+  const isStringVideo = typeof resolvedTarget === 'string' && (
+    resolvedTarget.toLowerCase().includes('.mp4') || 
+    resolvedTarget.toLowerCase().includes('.mov') || 
+    resolvedTarget.toLowerCase().includes('video') ||
+    resolvedTarget.startsWith('data:video')
+  );
+
+  const [mediaState, setMediaState] = useState({
+    src: resolvedTarget || '',
+    blobType: '',
+    isVideo: Boolean(isObjectVideo || isStringVideo)
+  });
 
   useEffect(() => {
     if (!url) {
-      setSrc('');
+      setMediaState({ src: '', blobType: '', isVideo: false });
       return;
     }
     const rawUrl = typeof url === 'object' ? resolveMedia(url, { preferThumbnail }) : url;
+    const objVideo = typeof url === 'object' && (
+      url?.media_type === 2 || 
+      Boolean(url?.music) || 
+      Boolean(url?.music_title) || 
+      url?.is_reel || 
+      Boolean(typeof url?.s3_key_compressed === 'string' && (url.s3_key_compressed.toLowerCase().includes('.mp4') || url.s3_key_compressed.toLowerCase().includes('.mov')))
+    );
+    const strVideo = typeof rawUrl === 'string' && (
+      rawUrl.toLowerCase().includes('.mp4') || 
+      rawUrl.toLowerCase().includes('.mov') || 
+      rawUrl.toLowerCase().includes('video') ||
+      rawUrl.startsWith('data:video')
+    );
+
     if (!rawUrl) {
-      setSrc('');
+      setMediaState({ src: '', blobType: '', isVideo: Boolean(objVideo) });
       return;
     }
 
@@ -198,26 +231,41 @@ function useOfflineMediaUrl(url, preferThumbnail = false) {
     getCachedMediaBlob(rawUrl).then(blob => {
       if (blob && isMounted) {
         objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
+        const isBlobVideo = Boolean(blob.type && blob.type.startsWith('video'));
+        setMediaState({
+          src: objectUrl,
+          blobType: blob.type || '',
+          isVideo: Boolean(objVideo || strVideo || isBlobVideo)
+        });
       } else if (isMounted) {
-        setSrc(rawUrl);
+        setMediaState({
+          src: rawUrl,
+          blobType: '',
+          isVideo: Boolean(objVideo || strVideo)
+        });
       }
     }).catch(() => {
-      if (isMounted) setSrc(rawUrl);
+      if (isMounted) {
+        setMediaState({
+          src: rawUrl,
+          blobType: '',
+          isVideo: Boolean(objVideo || strVideo)
+        });
+      }
     });
 
     return () => {
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, preferThumbnail]);
+  }, [typeof url === 'object' ? (url?.id || url?.media_url || url?.display_url || url?.s3_key_compressed) : url, preferThumbnail]);
 
-  return src;
+  return mediaState;
 }
 
 /**
  * Desktop-Grade Offline-aware Media Element
- * Automatically detects whether media is an image or video (.mp4/.mov/media_type 2)
+ * Automatically detects whether media is an image or video (.mp4/.mov/media_type 2/blob video)
  * and renders video previews with smooth autoplay & muted looping exactly like desktop!
  * Includes automatic proxying fallback for CDN expiration and stable backend keys.
  */
@@ -235,9 +283,14 @@ function OfflineMedia({
   preferThumbnail = false,
   ...props 
 }) {
-  const resolvedUrl = useOfflineMediaUrl(src, preferThumbnail);
+  const { src: resolvedUrl, isVideo: detectedVideo, blobType } = useOfflineMediaUrl(src, preferThumbnail);
   const [hasError, setHasError] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+    setTriedProxy(false);
+  }, [resolvedUrl]);
 
   if (!resolvedUrl) {
     return (
@@ -247,18 +300,19 @@ function OfflineMedia({
     );
   }
 
-  const isVideo = !hasError && (
-    type === 'video' || 
-    (typeof src === 'object' && (src?.media_type === 2 || Boolean(src?.music) || src?.is_reel)) ||
+  const isVideo = type === 'video' || (type !== 'image' && (
+    detectedVideo || 
+    (blobType && blobType.startsWith('video')) ||
+    (typeof src === 'object' && (src?.media_type === 2 || Boolean(src?.music) || Boolean(src?.music_title) || src?.is_reel)) ||
     (typeof resolvedUrl === 'string' && (
-      resolvedUrl.includes('.mp4') || 
-      resolvedUrl.includes('.mov') || 
-      resolvedUrl.includes('video') ||
+      resolvedUrl.toLowerCase().includes('.mp4') || 
+      resolvedUrl.toLowerCase().includes('.mov') || 
+      resolvedUrl.toLowerCase().includes('video') ||
       resolvedUrl.startsWith('data:video')
     ))
-  );
+  ));
 
-  if (isVideo) {
+  if (isVideo && !hasError) {
     return (
       <video
         src={resolvedUrl}
@@ -269,6 +323,8 @@ function OfflineMedia({
         muted={muted}
         playsInline={playsInline}
         controls={controls}
+        controlsList="nofullscreen nodownload noremoteplayback"
+        disablePictureInPicture
         preload="metadata"
         onError={() => setHasError(true)}
         {...props}
@@ -276,7 +332,7 @@ function OfflineMedia({
     );
   }
 
-  const displaySrc = (hasError && !triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http'))
+  const displaySrc = (hasError && !triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http') && !resolvedUrl.startsWith('blob:'))
     ? `/api/v1/proxy/image?url=${encodeURIComponent(resolvedUrl)}`
     : resolvedUrl;
 
@@ -288,7 +344,7 @@ function OfflineMedia({
       className={className}
       loading="lazy"
       onError={(e) => {
-        if (!triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http')) {
+        if (!triedProxy && typeof resolvedUrl === 'string' && resolvedUrl.startsWith('http') && !resolvedUrl.startsWith('blob:')) {
           setTriedProxy(true);
           e.target.src = `/api/v1/proxy/image?url=${encodeURIComponent(resolvedUrl)}`;
         } else if (typeof src === 'object' && src?.s3_key_compressed) {
@@ -433,8 +489,8 @@ export default function PocketCompanion() {
   const [serverHost, setServerHost] = useState(() => localStorage.getItem('metro_server_host') || window.location.hostname || '192.168.29.50');
 
   // ── Navigation & Content States ───────────────────────────────────────────
-  const PIVOT_TABS = ['start', 'memories', 'highlights', 'feed', 'journal', 'settings'];
-  const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'settings'
+  const PIVOT_TABS = ['start', 'memories', 'highlights', 'feed', 'journal', 'music', 'settings'];
+  const [activePivot, setActivePivot] = useState('start'); // 'start' | 'memories' | 'highlights' | 'feed' | 'journal' | 'music' | 'settings'
   const [journalSubTab, setJournalSubTab] = useState('notes'); // 'notes' | 'places'
   const [stories, setStories] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -499,6 +555,28 @@ export default function PocketCompanion() {
   const highlightVideoRef = useRef(null);
   const touchStartTime = useRef(0);
   const touchStartX = useRef(0);
+
+  // ── Highlight Creator State ───────────────────────────────────────────────
+  const [newHighlightModalOpen, setNewHighlightModalOpen] = useState(false);
+  const [highlightTitleDraft, setHighlightTitleDraft] = useState('');
+  const [highlightSelectedIds, setHighlightSelectedIds] = useState([]);
+  const [highlightActiveTab, setHighlightActiveTab] = useState('memories'); // 'memories' | 'reels'
+  const [highlightSearchQuery, setHighlightSearchQuery] = useState('');
+  const [isCreatingHighlight, setIsCreatingHighlight] = useState(false);
+
+  // ── Connectivity & Standalone Offline State ───────────────────────────────
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // ── 30-Second iTunes Preview & Music Modal States ─────────────────────────
   const [musicModalTrack, setMusicModalTrack] = useState(null);
@@ -823,10 +901,26 @@ export default function PocketCompanion() {
   const [syncProgress, setSyncProgress] = useState({ step: 'Ready', percent: 0, status: 'idle' });
   const [syncLogs, setSyncLogs] = useState([]);
   const [lastSyncTime, setLastSyncTime] = useState(() => localStorage.getItem('metro_last_sync') || null);
+  const [syncError, setSyncError] = useState(null);
 
   const fileInputRef = useRef(null);
   const highlightTimerRef = useRef(null);
   const scrapbookRef = useRef(null);
+  const pivotHeaderRef = useRef(null);
+  const tabRefs = useRef({});
+
+  // ── Authentic Windows Phone 8.1 Pivot Header Auto-Scroll ──────────────────
+  useEffect(() => {
+    const tabElem = tabRefs.current[activePivot];
+    const container = pivotHeaderRef.current;
+    if (tabElem && container) {
+      const targetScrollLeft = tabElem.offsetLeft - 16;
+      container.scrollTo({
+        left: Math.max(0, targetScrollLeft),
+        behavior: 'smooth'
+      });
+    }
+  }, [activePivot]);
 
   const isDark = themeMode === 'dark';
   const bgColor = isDark ? '#000000' : '#FFFFFF';
@@ -973,8 +1067,42 @@ export default function PocketCompanion() {
   // ── 1. Pairing & Initial Offline Data Load ────────────────────────────────
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
+    const ticketParam = searchParams.get('pair_ticket') || searchParams.get('ticket');
     const tokenParam = searchParams.get('token') || searchParams.get('pair') || searchParams.get('auth');
-    if (tokenParam) {
+
+    if (ticketParam) {
+      const getDeviceName = () => {
+        const ua = navigator.userAgent || '';
+        let dev = 'Smartphone';
+        if (/iPhone/i.test(ua)) dev = 'iPhone';
+        else if (/iPad/i.test(ua)) dev = 'iPad';
+        else if (/Android/i.test(ua)) {
+          const match = ua.match(/;\s*([^;)]+)\s+Build/i);
+          dev = match ? match[1].trim() : 'Android Smartphone';
+        }
+        let browser = 'Mobile';
+        if (/CriOS|Chrome/i.test(ua)) browser = 'Chrome';
+        else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+        else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
+        return `${dev} (${browser})`;
+      };
+
+      redeemPairingTicket(ticketParam, getDeviceName())
+        .then(data => {
+          if (data && data.token) {
+            setToken(data.token);
+            localStorage.setItem('sv_token', data.token);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showToast('✓ Pocket Companion Paired Securely!');
+            handleRunSync();
+          }
+        })
+        .catch(err => {
+          console.error('Pairing ticket error:', err);
+          showToast('⚠️ Pairing Failed: ' + (err.message || 'Ticket expired'));
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    } else if (tokenParam) {
       setToken(tokenParam);
       localStorage.setItem('sv_token', tokenParam);
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -992,38 +1120,52 @@ export default function PocketCompanion() {
     }
 
     async function loadData() {
-      const cachedStories = await getOfflineMemories();
-      const cachedPosts = await getOfflinePosts();
-      const cachedHl = await getOfflineHighlights();
-      const st = await getStorageStats();
-      const pending = await getPendingMobileUploads();
-      const cachedSession = (await getSyncMeta('ig_session')) || (localStorage.getItem('cached_ig_session') ? JSON.parse(localStorage.getItem('cached_ig_session')) : null);
-      
-      setStories(cachedStories || []);
-      setPosts(cachedPosts || []);
-      setHighlights(cachedHl || []);
-      setStats(st);
-      setPendingUploads(pending || []);
-      if (cachedSession) setIgSession(cachedSession);
+      try {
+        const cachedStories = await getOfflineMemories();
+        const cachedPosts = await getOfflinePosts();
+        const cachedHl = await getOfflineHighlights();
+        const st = await getStorageStats();
+        const pending = await getPendingMobileUploads();
+        const cachedSession = (await getSyncMeta('ig_session')) || (localStorage.getItem('cached_ig_session') ? JSON.parse(localStorage.getItem('cached_ig_session')) : null);
+        
+        setStories(cachedStories || []);
+        setPosts(cachedPosts || []);
+        setHighlights(cachedHl || []);
+        setStats(st);
+        setPendingUploads(pending || []);
+        if (cachedSession) setIgSession(cachedSession);
 
-      if (isAuthenticated()) {
-        try {
-          const session = await getInstagramSession();
-          if (session) {
-            setIgSession(session);
-            await saveSyncMeta('ig_session', session);
-            localStorage.setItem('cached_ig_session', JSON.stringify(session));
+        if (isAuthenticated()) {
+          try {
+            const session = await getInstagramSession();
+            if (session) {
+              setIgSession(session);
+              await saveSyncMeta('ig_session', session);
+              localStorage.setItem('cached_ig_session', JSON.stringify(session));
+            }
+          } catch (e) {}
+
+          try {
+            const hl = await getHighlights();
+            if (Array.isArray(hl)) setHighlights(hl);
+          } catch (e) {}
+
+          if ((!cachedStories || cachedStories.length === 0) || autoSyncOnOpen) {
+            handleRunSync();
           }
-        } catch (e) {}
-
-        try {
-          const hl = await getHighlights();
-          if (Array.isArray(hl)) setHighlights(hl);
-        } catch (e) {}
-
-        if ((!cachedStories || cachedStories.length === 0) || autoSyncOnOpen) {
-          handleRunSync();
         }
+      } catch (err) {
+        console.warn('loadData failed, falling back to offline cache:', err);
+        const [cachedStories, cachedPosts, cachedHl] = await Promise.all([
+          getOfflineMemories(),
+          getOfflinePosts(),
+          getOfflineHighlights()
+        ]);
+        setStories(cachedStories || []);
+        setPosts(cachedPosts || []);
+        setHighlights(cachedHl || []);
+        setSyncError('timeout');
+        setSyncProgress({ percent: 100, status: 'offline' });
       }
     }
     loadData();
@@ -1120,47 +1262,6 @@ export default function PocketCompanion() {
     }
   };
 
-  useEffect(() => {
-    if (!activeHighlight || highlightStories.length === 0) return;
-    
-    const curStory = highlightStories[highlightStoryIndex];
-    if (!curStory) return;
-
-    // Reset progress when index changes
-    setHighlightProgress(0);
-
-    const isVideo = curStory.media_type === 2 || (typeof curStory.media_url === 'string' && (curStory.media_url.includes('.mp4') || curStory.media_url.includes('.mov')));
-    if (isVideo) {
-      if (highlightVideoRef.current) {
-        if (isHighlightPaused || !!musicModalTrack || isHoldingToPause) {
-          highlightVideoRef.current.pause();
-        } else {
-          highlightVideoRef.current.play().catch(() => {});
-        }
-      }
-      return; // Video progress is driven by onTimeUpdate & onEnded!
-    }
-
-    if (isHighlightPaused || !!musicModalTrack || isHoldingToPause) return;
-
-    const duration = 5000;
-    const interval = 50;
-    const increment = (interval / duration) * 100;
-
-    highlightTimerRef.current = setInterval(() => {
-      setHighlightProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(highlightTimerRef.current);
-          handleNextHighlightStory();
-          return 100;
-        }
-        return prev + increment;
-      });
-    }, interval);
-
-    return () => clearInterval(highlightTimerRef.current);
-  }, [activeHighlight, highlightStories, highlightStoryIndex, isHighlightPaused, musicModalTrack, isHoldingToPause]);
-
   const handleOpenHighlight = async (hl) => {
     if (!hl) return;
     triggerSound();
@@ -1192,13 +1293,67 @@ export default function PocketCompanion() {
       const list = Array.isArray(data) ? data : (data?.stories || data?.items || []);
       if (list.length > 0) {
         setHighlightStories(list);
-        setHighlightStoryIndex(0);
-        setHighlightProgress(0);
       }
     } catch (e) {
       // Keep initial list
     }
   };
+
+  // ── Highlight Creator Handlers ───────────────────────────────────────────
+  const handleToggleHighlightSelect = (storyId) => {
+    triggerSound();
+    setHighlightSelectedIds(prev =>
+      prev.includes(storyId) ? prev.filter(id => id !== storyId) : [...prev, storyId]
+    );
+  };
+
+  const handleCreateHighlightSubmit = async () => {
+    if (!highlightTitleDraft.trim()) {
+      showToast('Please enter a highlight title');
+      return;
+    }
+    if (highlightSelectedIds.length === 0) {
+      showToast('Please select at least 1 story');
+      return;
+    }
+
+    try {
+      setIsCreatingHighlight(true);
+      const newHl = await createHighlight(highlightTitleDraft.trim(), highlightSelectedIds);
+      const updated = [newHl, ...highlights.filter(h => h.id !== newHl?.id)];
+      setHighlights(updated);
+      await saveHighlightsOffline(updated);
+      setNewHighlightModalOpen(false);
+      setHighlightTitleDraft('');
+      setHighlightSelectedIds([]);
+      setHighlightSearchQuery('');
+      showToast(`Highlight "${highlightTitleDraft.trim()}" created!`);
+    } catch (err) {
+      console.error('Failed to create highlight:', err);
+      showToast('Failed to create highlight: ' + (err.message || 'Error'));
+    } finally {
+      setIsCreatingHighlight(false);
+    }
+  };
+
+  const highlightCandidateStories = useMemo(() => {
+    let pool = stories.filter(s => !s.is_trashed);
+    if (highlightActiveTab === 'reels') {
+      pool = pool.filter(s => s.is_reel);
+    } else {
+      pool = pool.filter(s => s.is_memory !== false && !s.is_reel);
+    }
+    if (highlightSearchQuery.trim()) {
+      const q = highlightSearchQuery.toLowerCase();
+      pool = pool.filter(s => 
+        (s.location_name && s.location_name.toLowerCase().includes(q)) ||
+        (s.caption_text && s.caption_text.toLowerCase().includes(q)) ||
+        (s.music?.track_title && s.music.track_title.toLowerCase().includes(q)) ||
+        (s.music?.artist_name && s.music.artist_name.toLowerCase().includes(q))
+      );
+    }
+    return pool;
+  }, [stories, highlightActiveTab, highlightSearchQuery]);
 
   // ── 5. iTunes 30-Second Music Preview Fetcher & Player ────────────────────
   const handleOpenMusicModal = async (trackTitle, artistName) => {
@@ -1442,6 +1597,7 @@ export default function PocketCompanion() {
   const handleRunSync = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
+    setSyncError(null);
     triggerSound();
     const timeStr = new Date().toLocaleTimeString();
     setSyncLogs(prev => [`[${timeStr}] Connecting to ActiveSync Vault...`, ...prev]);
@@ -1472,9 +1628,28 @@ export default function PocketCompanion() {
       const syncStamp = new Date().toLocaleString();
       setLastSyncTime(syncStamp);
       localStorage.setItem('metro_last_sync', syncStamp);
-      showToast(`✓ Synced ${res?.stories?.length || 0} Memories & ${res?.posts?.length || 0} Posts`);
+
+      if (res?.success === false || res?.syncFailed) {
+        setSyncError(res?.error || 'timeout');
+        setSyncProgress({ percent: 100, status: 'offline', step: 'Offline fallback active' });
+        showToast('⚠️ Sync Failed (Using Offline Vault)');
+      } else {
+        setSyncError(null);
+        showToast(`✓ Synced ${res?.stories?.length || 0} Memories & ${res?.posts?.length || 0} Posts`);
+      }
     } catch (err) {
+      console.warn('Sync failed with error, falling back to offline IndexedDB:', err);
       setSyncLogs(prev => [`[${new Date().toLocaleTimeString()}] Error: ${err.message}`, ...prev]);
+      setSyncError('timeout');
+      const [cachedStories, cachedPosts, cachedHl] = await Promise.all([
+        getOfflineMemories(),
+        getOfflinePosts(),
+        getOfflineHighlights()
+      ]);
+      if (cachedStories && cachedStories.length) setStories(cachedStories);
+      if (cachedPosts && cachedPosts.length) setPosts(cachedPosts);
+      if (cachedHl && cachedHl.length) setHighlights(cachedHl);
+      setSyncProgress({ percent: 100, status: 'offline', step: 'Offline fallback active' });
       showToast('⚠️ Sync Failed (Using Offline Vault)');
     } finally {
       setIsSyncing(false);
@@ -2209,6 +2384,302 @@ export default function PocketCompanion() {
         highlightTitle={activeHighlight?.title || 'Highlight'}
       />
 
+      {/* ── CREATE NEW STORY HIGHLIGHT MODAL (METRO / LUMIA UI) ─────── */}
+      {newHighlightModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.88)',
+          zIndex: 100000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '12px',
+        }}>
+          <div style={{
+            backgroundColor: surfaceColor,
+            borderLeft: `4px solid ${accent}`,
+            padding: '16px',
+            maxWidth: '520px',
+            width: '100%',
+            color: textColor,
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            overflowY: 'auto',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '18px', fontWeight: 300, color: accent }}>+ create story highlight</div>
+              <X 
+                size={18} 
+                style={{ cursor: 'pointer' }} 
+                onClick={() => setNewHighlightModalOpen(false)} 
+              />
+            </div>
+
+            {/* Title Input */}
+            <div>
+              <div style={{ fontSize: '11px', color: subTextColor, marginBottom: '4px', fontWeight: 600 }}>
+                HIGHLIGHT TITLE
+              </div>
+              <input
+                type="text"
+                value={highlightTitleDraft}
+                onChange={(e) => setHighlightTitleDraft(e.target.value)}
+                placeholder="e.g. Summer 2026, Tokyo Nights, Roadtrip..."
+                style={{
+                  width: '100%',
+                  backgroundColor: cardColor,
+                  color: textColor,
+                  border: `1px solid ${borderColor}`,
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Type Selector (Memories vs Reels) */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => { triggerSound(); setHighlightActiveTab('memories'); }}
+                style={{
+                  flex: 1,
+                  backgroundColor: highlightActiveTab === 'memories' ? accent : cardColor,
+                  color: highlightActiveTab === 'memories' ? '#FFF' : textColor,
+                  border: 'none',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <ImageIcon size={14} />
+                <span>Memories ({stories.filter(s => !s.is_reel && !s.is_trashed).length})</span>
+              </button>
+              <button
+                onClick={() => { triggerSound(); setHighlightActiveTab('reels'); }}
+                style={{
+                  flex: 1,
+                  backgroundColor: highlightActiveTab === 'reels' ? accent : cardColor,
+                  color: highlightActiveTab === 'reels' ? '#FFF' : textColor,
+                  border: 'none',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Film size={14} />
+                <span>Reels ({stories.filter(s => s.is_reel && !s.is_trashed).length})</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: subTextColor }} />
+              <input
+                type="text"
+                value={highlightSearchQuery}
+                onChange={(e) => setHighlightSearchQuery(e.target.value)}
+                placeholder="Search stories by location, music, caption..."
+                style={{
+                  width: '100%',
+                  backgroundColor: cardColor,
+                  color: textColor,
+                  border: `1px solid ${borderColor}`,
+                  padding: '6px 10px 6px 28px',
+                  fontSize: '11px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Story Picker Grid */}
+            <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
+              SELECT STORIES ({highlightSelectedIds.length} SELECTED)
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '6px',
+              maxHeight: '38vh',
+              overflowY: 'auto',
+              backgroundColor: '#000',
+              padding: '6px',
+              border: `1px solid ${borderColor}`,
+            }}>
+              {highlightCandidateStories.length === 0 ? (
+                <div style={{ gridColumn: 'span 3', padding: '24px 8px', textAlign: 'center', color: subTextColor, fontSize: '11px' }}>
+                  No matching stories found in vault.
+                </div>
+              ) : (
+                highlightCandidateStories.map(s => {
+                  const isSelected = highlightSelectedIds.includes(s.id);
+                  const isCF = s.is_close_friends || s.audience === 'close_friends';
+                  const isVid = s.media_type === 2 || Boolean(s.music) || Boolean(s.music_title) || s.is_reel;
+
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => handleToggleHighlightSelect(s.id)}
+                      style={{
+                        aspectRatio: '9/16',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                        backgroundColor: '#111',
+                        border: isSelected ? '2.5px solid #00D26A' : '1px solid #333',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <OfflineMedia
+                        src={s}
+                        type={isVid ? 'video' : 'image'}
+                        preferThumbnail
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        alt="Candidate"
+                      />
+
+                      {/* Selection Checkmark Badge */}
+                      {isSelected && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          backgroundColor: '#00D26A',
+                          color: '#FFF',
+                          borderRadius: '50%',
+                          width: '18px',
+                          height: '18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                          zIndex: 4,
+                        }}>
+                          <Check size={12} strokeWidth={3} />
+                        </div>
+                      )}
+
+                      {/* Close Friends Badge */}
+                      {isCF && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '4px',
+                          left: '4px',
+                          backgroundColor: '#00D26A',
+                          color: '#FFF',
+                          fontSize: '7px',
+                          fontWeight: 800,
+                          padding: '1px 3px',
+                          borderRadius: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          zIndex: 3,
+                        }}>
+                          <Star size={6} fill="#FFF" color="#FFF" />
+                          <span>CF</span>
+                        </div>
+                      )}
+
+                      {/* Video / Music Icon */}
+                      {isVid && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '18px',
+                          left: '4px',
+                          backgroundColor: 'rgba(0,0,0,0.6)',
+                          padding: '1px 3px',
+                          borderRadius: '2px',
+                          fontSize: '7px',
+                          color: '#FFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          zIndex: 3,
+                        }}>
+                          {s.music ? '♫' : <Film size={8} />}
+                        </div>
+                      )}
+
+                      {/* Bottom Info Label */}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                        padding: '3px 4px',
+                        fontSize: '8px',
+                        color: '#FFF',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        zIndex: 2,
+                      }}>
+                        {s.location_name || (s.taken_at ? new Date(s.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Memory')}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <div style={{ fontSize: '11px', color: subTextColor }}>
+                {highlightSelectedIds.length} {highlightSelectedIds.length === 1 ? 'story' : 'stories'} chosen
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setNewHighlightModalOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${borderColor}`,
+                    color: textColor,
+                    padding: '6px 14px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  cancel
+                </button>
+                <button
+                  onClick={handleCreateHighlightSubmit}
+                  disabled={isCreatingHighlight || highlightSelectedIds.length === 0}
+                  style={{
+                    backgroundColor: highlightSelectedIds.length > 0 ? accent : cardColor,
+                    border: 'none',
+                    color: highlightSelectedIds.length > 0 ? '#FFFFFF' : subTextColor,
+                    padding: '6px 16px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: highlightSelectedIds.length > 0 ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {isCreatingHighlight ? 'creating...' : 'create highlight'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── CREATE NEW JOURNAL ENTRY & SCRAPBOOK MODAL ─────── */}
       {newJournalModalOpen && (
         <div style={{
@@ -2512,36 +2983,44 @@ export default function PocketCompanion() {
           MEMWAULT
         </div>
 
-        {/* Horizontal Pivot Headers with Metro Typography */}
-        <div style={{
-          display: 'flex',
-          gap: '22px',
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-          whiteSpace: 'nowrap',
-          paddingBottom: '4px',
-          alignItems: 'baseline',
-        }}>
+        {/* Horizontal Pivot Headers with Windows Phone 8.1 Parallax Auto-Scroll */}
+        <div 
+          ref={pivotHeaderRef}
+          style={{
+            display: 'flex',
+            gap: '24px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            whiteSpace: 'nowrap',
+            paddingBottom: '4px',
+            alignItems: 'baseline',
+            scrollBehavior: 'smooth',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           {pivotList.map(tab => (
             <button
               key={tab.id}
-              onClick={() => { triggerSound(); setActivePivot(tab.id); setSelectedStory(null); setSelectedPostIndex(null); }}
+              ref={el => { tabRefs.current[tab.id] = el; }}
+              onClick={() => navigateToPivot(tab.id)}
               style={{
                 background: 'none',
                 border: 'none',
                 padding: 0,
                 color: textColor,
-                fontFamily: '"Segoe UI Light", "Segoe UI", sans-serif',
-                fontSize: '34px',
-                fontWeight: 200,
+                fontFamily: '"Segoe UI Light", "Segoe UI", "Helvetica Neue", sans-serif',
+                fontSize: '36px',
+                fontWeight: activePivot === tab.id ? 300 : 200,
                 lineHeight: 1.1,
                 cursor: 'pointer',
-                opacity: activePivot === tab.id ? 1 : 0.3,
-                transition: 'opacity 0.2s ease, transform 0.2s ease',
+                opacity: activePivot === tab.id ? 1 : 0.35,
+                transition: 'opacity 0.25s ease, transform 0.25s ease',
                 transform: activePivot === tab.id ? 'scale(1)' : 'scale(0.96)',
                 WebkitTapHighlightColor: 'transparent',
                 outline: 'none',
                 userSelect: 'none',
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -2626,6 +3105,25 @@ export default function PocketCompanion() {
                     <Sliders size={12} />
                     <span>{customizeTilesMode ? 'Done ✓' : 'Customize Tiles'}</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Status & Offline Standalone Indicator Banner */}
+              <div style={{
+                backgroundColor: isOnline ? 'rgba(0, 138, 0, 0.12)' : 'rgba(0, 80, 239, 0.12)',
+                borderLeft: `4px solid ${isOnline ? '#008A00' : '#0050EF'}`,
+                padding: '7px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: isOnline ? '#00D26A' : '#0050EF' }} />
+                  <span style={{ fontWeight: 600 }}>{isOnline ? 'CONNECTED' : 'OFFLINE STANDALONE VAULT'}</span>
+                </div>
+                <div style={{ opacity: 0.8, fontSize: '10px' }}>
+                  {stories.length} {stories.length === 1 ? 'memory' : 'memories'} stored on phone
                 </div>
               </div>
 
@@ -2857,10 +3355,22 @@ export default function PocketCompanion() {
                                         style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
                                       >
                                         <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden' }}>
-                                          <OfflineMedia src={getMediaUrl(s)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell" />
+                                          <OfflineMedia 
+                                            src={s} 
+                                            type={s?.media_type === 2 || Boolean(s?.music) || Boolean(s?.music_title) || s?.is_reel ? 'video' : 'image'} 
+                                            preferThumbnail 
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                            alt="Cell" 
+                                          />
                                         </div>
                                         <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                                          <OfflineMedia src={getMediaUrl(sNext)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cell Back" />
+                                          <OfflineMedia 
+                                            src={sNext} 
+                                            type={sNext?.media_type === 2 || Boolean(sNext?.music) || Boolean(sNext?.music_title) || sNext?.is_reel ? 'video' : 'image'} 
+                                            preferThumbnail 
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                            alt="Cell Back" 
+                                          />
                                         </div>
                                       </motion.div>
                                     </div>
@@ -3748,18 +4258,26 @@ export default function PocketCompanion() {
                 onTouchEnd={handleMemoryTouchEnd}
                 style={{
                   width: '100%',
+                  maxWidth: '320px',
+                  aspectRatio: '9/16',
+                  maxHeight: '46vh',
+                  margin: '0 auto',
                   backgroundColor: '#000000',
                   position: 'relative',
                   border: `1px solid ${accent}`,
+                  borderRadius: '10px',
                   overflow: 'hidden',
                   touchAction: 'pan-y',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.7)',
                 }}
               >
                 <OfflineMedia
                   src={getMediaUrl(selectedStory)}
                   type={selectedStory.media_type === 2 ? 'video' : 'image'}
-                  style={{ width: '100%', maxHeight: '55vh', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   controls={selectedStory.media_type === 2}
+                  controlsList="nofullscreen nodownload noremoteplayback"
+                  disablePictureInPicture
                   autoPlay={selectedStory.media_type === 2}
                   playsInline
                   alt="Detail"
@@ -4217,78 +4735,152 @@ export default function PocketCompanion() {
              ══════════════════════════════════════════════════════ */}
           {activePivot === 'highlights' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
-                {highlights.length} STORY HIGHLIGHTS IN VAULT
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>
+                  {highlights.length} STORY HIGHLIGHTS IN VAULT
+                </div>
+                <button
+                  onClick={() => {
+                    triggerSound();
+                    setHighlightTitleDraft('');
+                    setHighlightSelectedIds([]);
+                    setHighlightSearchQuery('');
+                    setHighlightActiveTab('memories');
+                    setNewHighlightModalOpen(true);
+                  }}
+                  style={{
+                    backgroundColor: accent,
+                    border: 'none',
+                    color: '#FFFFFF',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Plus size={12} strokeWidth={2.5} />
+                  <span>new highlight</span>
+                </button>
               </div>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '12px',
-              }}>
-                {highlights.map(hl => {
-                  const previewStories = hl.preview_stories || (hl.stories ? hl.stories.map(s => s.media_url).filter(Boolean) : []);
-                  const singleCover = hl.cover_media_url || (previewStories[0]) || (stories[0]?.media_url);
-                  const isMulti = previewStories.length >= 2;
+              {highlights.length === 0 ? (
+                <div style={{
+                  backgroundColor: surfaceColor,
+                  borderLeft: `4px solid ${accent}`,
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}>
+                  <Sparkles size={32} color={accent} />
+                  <div style={{ fontSize: '15px', fontWeight: 600 }}>No Highlights Yet</div>
+                  <div style={{ fontSize: '12px', color: subTextColor, maxWidth: '280px' }}>
+                    Create custom highlight reels with your favorite stories, music, and travel memories.
+                  </div>
+                  <button
+                    onClick={() => {
+                      triggerSound();
+                      setHighlightTitleDraft('');
+                      setHighlightSelectedIds([]);
+                      setHighlightSearchQuery('');
+                      setHighlightActiveTab('memories');
+                      setNewHighlightModalOpen(true);
+                    }}
+                    style={{
+                      backgroundColor: accent,
+                      border: 'none',
+                      color: '#FFFFFF',
+                      padding: '8px 16px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      marginTop: '4px',
+                    }}
+                  >
+                    + create first highlight
+                  </button>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                }}>
+                  {highlights.map(hl => {
+                    const previewStories = hl.preview_stories || (hl.stories ? hl.stories.map(s => s.media_url).filter(Boolean) : []);
+                    const singleCover = hl.cover_media_url || (previewStories[0]) || (stories[0]?.media_url);
+                    const isMulti = previewStories.length >= 2;
 
-                  return (
-                    <motion.div
-                      key={hl.id}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => handleOpenHighlight(hl)}
-                      style={{
-                        aspectRatio: '1/1',
-                        backgroundColor: '#1C1C1C',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        border: `1px solid ${borderColor}`,
-                      }}
-                    >
-                      {/* Cover Background */}
-                      {isMulti ? (
-                        <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '2px', opacity: 0.65 }}>
-                          {previewStories.slice(0, 4).map((u, pIdx) => (
-                            <div key={pIdx} style={{ position: 'relative', overflow: 'hidden' }}>
-                              <OfflineMedia src={u} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="hl-cell" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : singleCover ? (
-                        <OfflineMedia
-                          src={singleCover}
-                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
-                          alt="Highlight Cover"
-                        />
-                      ) : null}
+                    return (
+                      <motion.div
+                        key={hl.id}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => handleOpenHighlight(hl)}
+                        style={{
+                          aspectRatio: '1/1',
+                          backgroundColor: '#1C1C1C',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          border: `1px solid ${borderColor}`,
+                        }}
+                      >
+                        {/* Cover Background */}
+                        {isMulti ? (
+                          <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '2px', opacity: 0.65 }}>
+                            {previewStories.slice(0, 4).map((u, pIdx) => (
+                              <div key={pIdx} style={{ position: 'relative', overflow: 'hidden' }}>
+                                <OfflineMedia 
+                                  src={u} 
+                                  preferThumbnail 
+                                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
+                                  alt="hl-cell" 
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : singleCover ? (
+                          <OfflineMedia
+                            src={singleCover}
+                            preferThumbnail
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
+                            alt="Highlight Cover"
+                          />
+                        ) : null}
 
-                      {/* Top Bar with Accent Badge */}
-                      <div style={{ zIndex: 2, padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div style={{ backgroundColor: accent, color: '#FFF', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                          HIGHLIGHT
+                        {/* Top Bar with Accent Badge */}
+                        <div style={{ zIndex: 2, padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ backgroundColor: accent, color: '#FFF', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                            HIGHLIGHT
+                          </div>
+                          <Sparkles size={16} color="#FFF" />
                         </div>
-                        <Sparkles size={16} color="#FFF" />
-                      </div>
 
-                      {/* Bottom Info Gradient */}
-                      <div style={{
-                        zIndex: 2,
-                        padding: '12px',
-                        background: 'linear-gradient(transparent, rgba(0,0,0,0.92))',
-                      }}>
-                        <div style={{ fontSize: '15px', fontWeight: 600 }}>{hl.title}</div>
-                        <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>
-                          {previewStories.length > 0 ? `${previewStories.length} stories • Tap to play` : 'Tap to play stories'}
+                        {/* Bottom Info Gradient */}
+                        <div style={{
+                          zIndex: 2,
+                          padding: '12px',
+                          background: 'linear-gradient(transparent, rgba(0,0,0,0.92))',
+                        }}>
+                          <div style={{ fontSize: '15px', fontWeight: 600 }}>{hl.title}</div>
+                          <div style={{ fontSize: '10px', opacity: 0.85, marginTop: '2px' }}>
+                            {previewStories.length > 0 ? `${previewStories.length} stories • Tap to play` : 'Tap to play stories'}
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -5694,6 +6286,38 @@ export default function PocketCompanion() {
                   >
                     <RefreshCw size={16} className={isSyncing ? 'spin-anim' : ''} />
                     <span>{isSyncing ? 'ActiveSync in Progress...' : 'ActiveSync with Laptop Now'}</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      triggerSound();
+                      if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(k => caches.delete(k)));
+                      }
+                      if (navigator.serviceWorker) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        await Promise.all(regs.map(r => r.unregister()));
+                      }
+                      window.location.reload();
+                    }}
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: textColor,
+                      border: `1px solid ${borderColor}`,
+                      padding: '10px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      marginTop: '4px',
+                    }}
+                  >
+                    <RefreshCw size={14} />
+                    <span>Reload Latest App Version (Clear PWA Cache)</span>
                   </button>
 
                   {/* Sync Logs Terminal */}

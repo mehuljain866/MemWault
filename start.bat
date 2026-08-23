@@ -39,7 +39,7 @@ if not exist "%~dp0techstack\frontend\node_modules" (
 
 echo.
 echo [2/3] Starting Backend API on http://localhost:8000 ...
-start "MemWault Backend API" /D "%~dp0techstack\backend" cmd /k "title MemWault Backend API && call venv\Scripts\activate && python -m uvicorn app.main:app --reload --port 8000"
+start "MemWault Backend API" /D "%~dp0techstack\backend" cmd /k "title MemWault Backend API && call venv\Scripts\activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 echo.
 echo [3/3] Starting Frontend UI on http://localhost:5173 ...

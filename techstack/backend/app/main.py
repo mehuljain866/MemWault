@@ -97,3 +97,38 @@ async def health_check():
         "app": settings.app_name,
         "version": settings.app_version,
     }
+
+
+# ── Frontend Dist & Static File Serving (SPA + Direct Asset Mounting) ──
+from starlette.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+from fastapi import HTTPException
+
+DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if DIST_DIR.exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/manifest.webmanifest")
+    async def manifest():
+        return FileResponse(str(DIST_DIR / "manifest.webmanifest"))
+
+    @app.get("/sw.js")
+    async def sw():
+        return FileResponse(str(DIST_DIR / "sw.js"))
+
+    @app.get("/")
+    async def index_root():
+        return FileResponse(str(DIST_DIR / "index.html"))
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        target_file = DIST_DIR / full_path
+        if target_file.is_file():
+            return FileResponse(str(target_file))
+        return FileResponse(str(DIST_DIR / "index.html"))
+

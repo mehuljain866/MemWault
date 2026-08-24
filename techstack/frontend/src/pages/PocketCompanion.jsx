@@ -323,8 +323,7 @@ function OfflineMedia({
         muted={muted}
         playsInline={playsInline}
         controls={controls}
-        controlsList="nofullscreen nodownload noremoteplayback"
-        disablePictureInPicture
+        controlsList={props.controlsList !== undefined ? props.controlsList : "nodownload noremoteplayback"}
         preload="metadata"
         onError={() => setHasError(true)}
         {...props}
@@ -518,6 +517,8 @@ export default function PocketCompanion() {
 
   // ── Selection & Filter States ─────────────────────────────────────────────
   const [selectedStory, setSelectedStory] = useState(null);
+  const [isInspectorExpanded, setIsInspectorExpanded] = useState(false);
+  const [isStoryFullscreen, setIsStoryFullscreen] = useState(false);
   const [storyDetailTab, setStoryDetailTab] = useState('info'); // 'info' | 'journal' | 'music' | 'viewers' | 'data'
   const [storyViewersList, setStoryViewersList] = useState([]);
   const [loadingViewers, setLoadingViewers] = useState(false);
@@ -2384,6 +2385,125 @@ export default function PocketCompanion() {
         highlightTitle={activeHighlight?.title || 'Highlight'}
       />
 
+      {/* ── FULLSCREEN STORY MEMORY MODAL (IMMERSIVE EDGE-TO-EDGE) ── */}
+      {isStoryFullscreen && selectedStory && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: '#000000',
+            zIndex: 10000010,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            touchAction: 'pan-y',
+          }}
+          onTouchStart={handleMemoryTouchStart}
+          onTouchEnd={handleMemoryTouchEnd}
+        >
+          {/* Top Bar with Story Info and Close Button */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: '16px 18px',
+            background: 'linear-gradient(rgba(0,0,0,0.85) 0%, transparent 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 30,
+            color: '#ffffff',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.02em' }}>
+                {selectedStory.location_name || 'Archived Story Memory'}
+              </div>
+              <div style={{ fontSize: '11px', opacity: 0.75, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : ''}</span>
+                {stories.length > 1 && (
+                  <span>• {stories.findIndex(s => s.id === selectedStory.id) + 1} / {stories.length}</span>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                triggerSound();
+                setIsStoryFullscreen(false);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#ffffff',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Uncropped 9:16 Video / Photo Viewport */}
+          <div
+            style={{
+              width: '100vw',
+              height: '100vh',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
+            <OfflineMedia
+              src={getMediaUrl(selectedStory)}
+              type={selectedStory.media_type === 2 ? 'video' : 'image'}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+              controls={selectedStory.media_type === 2}
+              autoPlay={selectedStory.media_type === 2}
+              playsInline
+              alt="Fullscreen Story"
+            />
+
+            {/* Left Tap Zone (Previous Story) */}
+            <div
+              onClick={handlePrevMemoryStory}
+              style={{
+                position: 'absolute',
+                top: '70px',
+                left: 0,
+                width: '30%',
+                bottom: '70px',
+                zIndex: 20,
+                cursor: 'pointer',
+              }}
+            />
+
+            {/* Right Tap Zone (Next Story) */}
+            <div
+              onClick={handleNextMemoryStory}
+              style={{
+                position: 'absolute',
+                top: '70px',
+                right: 0,
+                width: '30%',
+                bottom: '70px',
+                zIndex: 20,
+                cursor: 'pointer',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+
       {/* ── CREATE NEW STORY HIGHLIGHT MODAL (METRO / LUMIA UI) ─────── */}
       {newHighlightModalOpen && (
         <div style={{
@@ -4208,10 +4328,11 @@ export default function PocketCompanion() {
 
           {/* ── MEMORY DETAIL VIEW (LUMIA INSPECTOR) ───────────── */}
           {activePivot === 'memories' && selectedStory && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+              {/* ── Top Header Navigation ── */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
-                  onClick={() => { triggerSound(); setSelectedStory(null); }}
+                  onClick={() => { triggerSound(); setSelectedStory(null); setIsInspectorExpanded(false); }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -4252,481 +4373,598 @@ export default function PocketCompanion() {
                 )}
               </div>
 
-              {/* Fullscreen Media Canvas with Touch Swipe Gestures */}
-              <div 
+              {/* ── Scalable 9:16 Vertical Story Canvas (Uncropped) ── */}
+              <motion.div 
+                layout
+                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                 onTouchStart={handleMemoryTouchStart}
                 onTouchEnd={handleMemoryTouchEnd}
                 style={{
                   width: '100%',
-                  maxWidth: '320px',
+                  maxWidth: isInspectorExpanded ? '180px' : '360px',
                   aspectRatio: '9/16',
-                  maxHeight: '46vh',
+                  maxHeight: isInspectorExpanded ? '24vh' : '62vh',
                   margin: '0 auto',
                   backgroundColor: '#000000',
                   position: 'relative',
-                  border: `1px solid ${accent}`,
-                  borderRadius: '10px',
+                  border: `1px solid ${isInspectorExpanded ? borderColor : accent}`,
+                  borderRadius: '12px',
                   overflow: 'hidden',
                   touchAction: 'pan-y',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.7)',
+                  boxShadow: isInspectorExpanded ? '0 4px 16px rgba(0,0,0,0.6)' : '0 12px 32px rgba(0,0,0,0.85)',
+                  cursor: isInspectorExpanded ? 'pointer' : 'default',
+                  flexShrink: 0,
+                }}
+                onClick={() => {
+                  if (isInspectorExpanded) {
+                    triggerSound();
+                    setIsInspectorExpanded(false);
+                  }
                 }}
               >
                 <OfflineMedia
                   src={getMediaUrl(selectedStory)}
                   type={selectedStory.media_type === 2 ? 'video' : 'image'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  controls={selectedStory.media_type === 2}
-                  controlsList="nofullscreen nodownload noremoteplayback"
-                  disablePictureInPicture
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#000000' }}
+                  controls={selectedStory.media_type === 2 && !isInspectorExpanded}
                   autoPlay={selectedStory.media_type === 2}
                   playsInline
-                  alt="Detail"
+                  alt="Story Memory"
                 />
-              </div>
 
-              {/* Contextual Pivot Strip below Media Canvas */}
+                {/* On-Canvas Dedicated Fullscreen Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerSound();
+                    setIsStoryFullscreen(true);
+                  }}
+                  title="View Fullscreen"
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    zIndex: 20,
+                  }}
+                >
+                  <Maximize2 size={15} />
+                </button>
+
+                {/* Mini Player Tap-to-Expand Hint Badge */}
+                {isInspectorExpanded && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                    color: '#ffffff',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    padding: '4px',
+                    letterSpacing: '0.04em',
+                    pointerEvents: 'none',
+                  }}>
+                    TAP TO EXPAND STORY ▲
+                  </div>
+                )}
+              </motion.div>
+
+              {/* ── Contextual Bottom Bar & Tabs Strip ── */}
               <div style={{
                 display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 borderBottom: `2px solid ${borderColor}`,
-                gap: '12px',
+                gap: '6px',
                 overflowX: 'auto',
                 scrollbarWidth: 'none',
-                paddingBottom: '2px',
+                padding: '4px 0',
+                marginTop: '2px',
               }}>
-                {[
-                  { id: 'info', label: 'INFO' },
-                  { id: 'journal', label: 'JOURNAL' },
-                  { id: 'music', label: 'MUSIC' },
-                  { id: 'viewers', label: `VIEWERS (${storyViewersList.length || selectedStory.viewers_count || 0})` },
-                  { id: 'data', label: 'DATA' },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => { triggerSound(); setStoryDetailTab(tab.id); }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      borderBottom: storyDetailTab === tab.id ? `3px solid ${accent}` : '3px solid transparent',
-                      color: storyDetailTab === tab.id ? (isDark ? '#FFFFFF' : '#000000') : subTextColor,
-                      padding: '6px 4px',
-                      fontSize: '12px',
-                      fontWeight: storyDetailTab === tab.id ? '700' : '400',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
+                  {[
+                    { id: 'info', label: 'INFO' },
+                    { id: 'journal', label: 'JOURNAL' },
+                    { id: 'music', label: 'MUSIC' },
+                    { id: 'viewers', label: `VIEWERS (${storyViewersList.length || selectedStory.viewers_count || 0})` },
+                    { id: 'data', label: 'DATA' },
+                  ].map(tab => {
+                    const isActive = isInspectorExpanded && storyDetailTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          triggerSound();
+                          if (isInspectorExpanded && storyDetailTab === tab.id) {
+                            setIsInspectorExpanded(false);
+                          } else {
+                            setStoryDetailTab(tab.id);
+                            setIsInspectorExpanded(true);
+                          }
+                        }}
+                        style={{
+                          background: isActive ? accent : 'none',
+                          border: 'none',
+                          borderBottom: !isActive && storyDetailTab === tab.id ? `2px solid ${accent}` : 'none',
+                          color: isActive ? '#FFFFFF' : (isDark ? '#FFFFFF' : '#000000'),
+                          padding: '6px 10px',
+                          fontSize: '11px',
+                          fontWeight: isActive ? '700' : (storyDetailTab === tab.id ? '700' : '400'),
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          letterSpacing: '0.5px',
+                          borderRadius: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => {
+                    triggerSound();
+                    setIsInspectorExpanded(prev => !prev);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: `1px solid ${borderColor}`,
+                    color: subTextColor,
+                    padding: '4px 8px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <span>{isInspectorExpanded ? 'CLOSE ▼' : 'DETAILS ▲'}</span>
+                </button>
               </div>
 
-              {/* ── TAB 1: INFO ── */}
-              {storyDetailTab === 'info' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {/* Location & Map */}
-                  <div style={{ backgroundColor: surfaceColor, padding: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '18px', fontWeight: 300 }}>
-                          {selectedStory.location_name || 'Archived Story Memory'}
+              {/* ── Animated Bottom Sheet Inspector Drawer ── */}
+              <AnimatePresence>
+                {isInspectorExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 25, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: 15, height: 0 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      overflowY: 'auto',
+                      maxHeight: '48vh',
+                      paddingBottom: '16px',
+                    }}
+                  >
+                    {/* ── TAB 1: INFO ── */}
+                    {storyDetailTab === 'info' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {/* Location & Map */}
+                        <div style={{ backgroundColor: surfaceColor, padding: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <div style={{ fontSize: '18px', fontWeight: 300 }}>
+                                {selectedStory.location_name || 'Archived Story Memory'}
+                              </div>
+                              <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Calendar size={11} />
+                                <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : 'Undated Memory'}</span>
+                                {(selectedStory.is_close_friends || selectedStory.audience === 'close_friends') && (
+                                  <span style={{
+                                    backgroundColor: '#00D26A',
+                                    color: '#FFFFFF',
+                                    padding: '2px 6px',
+                                    borderRadius: '2px',
+                                    fontSize: '9px',
+                                    fontWeight: 800,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    letterSpacing: '0.04em'
+                                  }}>
+                                    <Star size={9} fill="#FFFFFF" color="#FFFFFF" />
+                                    <span>CLOSE FRIENDS</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {selectedStory.location_name && (
+                              <a
+                                href={`https://maps.google.com/?q=${encodeURIComponent(selectedStory.location_name)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ backgroundColor: accent, color: '#FFF', padding: '4px 8px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <MapPin size={10} /> Map ↗
+                              </a>
+                            )}
+                          </div>
+
+                          {selectedStory.caption_text && (
+                            <div style={{ fontSize: '12px', marginTop: '8px', lineHeight: 1.4, borderTop: `1px solid ${borderColor}`, paddingTop: '6px' }}>
+                              {selectedStory.caption_text}
+                            </div>
+                          )}
                         </div>
-                        <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Calendar size={11} />
-                          <span>{selectedStory.taken_at ? new Date(selectedStory.taken_at).toLocaleString() : 'Undated Memory'}</span>
-                          {(selectedStory.is_close_friends || selectedStory.audience === 'close_friends') && (
-                            <span style={{
-                              backgroundColor: '#00D26A',
-                              color: '#FFFFFF',
-                              padding: '2px 6px',
-                              borderRadius: '2px',
-                              fontSize: '9px',
-                              fontWeight: 800,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              letterSpacing: '0.04em'
-                            }}>
-                              <Star size={9} fill="#FFFFFF" color="#FFFFFF" />
-                              <span>CLOSE FRIENDS</span>
-                            </span>
+
+                        {/* 3-Tier Archival Metadata */}
+                        <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+                          <div style={{ fontWeight: 700, color: accent, letterSpacing: '0.5px' }}>ARCHIVE & METADATA</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
+                            <span style={{ color: subTextColor }}>Media Type:</span>
+                            <span style={{ fontWeight: 600 }}>{selectedStory.media_type === 2 ? 'Video (MP4 / H.264)' : 'Photograph (JPEG / High Quality)'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
+                            <span style={{ color: subTextColor }}>Resolution:</span>
+                            <span>{selectedStory.media_type === 2 ? '1080 × 1920 (9:16 Vertical Story)' : '1080 × 1920 HD'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
+                            <span style={{ color: subTextColor }}>Archive Integrity:</span>
+                            <span style={{ color: '#008A00', fontWeight: 'bold' }}>✓ Verified Local IndexedDB Blob</span>
+                          </div>
+                          {selectedStory.story_id && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: subTextColor }}>Story ID:</span>
+                              <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{selectedStory.story_id}</span>
+                            </div>
                           )}
                         </div>
                       </div>
-
-                      {selectedStory.location_name && (
-                        <a
-                          href={`https://maps.google.com/?q=${encodeURIComponent(selectedStory.location_name)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ backgroundColor: accent, color: '#FFF', padding: '4px 8px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          <MapPin size={10} /> Map ↗
-                        </a>
-                      )}
-                    </div>
-
-                    {selectedStory.caption_text && (
-                      <div style={{ fontSize: '12px', marginTop: '8px', lineHeight: 1.4, borderTop: `1px solid ${borderColor}`, paddingTop: '6px' }}>
-                        {selectedStory.caption_text}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 3-Tier Archival Metadata */}
-                  <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
-                    <div style={{ fontWeight: 700, color: accent, letterSpacing: '0.5px' }}>ARCHIVE & METADATA</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
-                      <span style={{ color: subTextColor }}>Media Type:</span>
-                      <span style={{ fontWeight: 600 }}>{selectedStory.media_type === 2 ? 'Video (MP4 / H.264)' : 'Photograph (JPEG / High Quality)'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
-                      <span style={{ color: subTextColor }}>Resolution:</span>
-                      <span>{selectedStory.media_type === 2 ? '1080 × 1920 (9:16 Vertical Story)' : '1080 × 1920 HD'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}`, paddingBottom: '4px' }}>
-                      <span style={{ color: subTextColor }}>Archive Integrity:</span>
-                      <span style={{ color: '#008A00', fontWeight: 'bold' }}>✓ Verified Local IndexedDB Blob</span>
-                    </div>
-                    {selectedStory.story_id && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: subTextColor }}>Story ID:</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{selectedStory.story_id}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── TAB 2: JOURNAL & SCRAPBOOK ── */}
-              {storyDetailTab === 'journal' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{
-                    backgroundColor: surfaceColor,
-                    borderLeft: '4px solid #008A00',
-                    padding: '12px',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#008A00' }}>
-                        📓 JOURNAL NOTE & MEMORIES
-                      </div>
-                      {editingItemId !== selectedStory.id && (
-                        <button
-                          onClick={() => {
-                            setEditingItemId(selectedStory.id);
-                            setJournalDraft(selectedStory.journal_note || '');
-                          }}
-                          style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}
-                        >
-                          edit note
-                        </button>
-                      )}
-                    </div>
-
-                    {editingItemId === selectedStory.id ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <textarea
-                          value={journalDraft}
-                          onChange={(e) => setJournalDraft(e.target.value)}
-                          placeholder="Write your thoughts about this memory..."
-                          style={{
-                            width: '100%',
-                            minHeight: '80px',
-                            backgroundColor: cardColor,
-                            color: textColor,
-                            border: `1px solid ${accent}`,
-                            padding: '8px',
-                            fontSize: '12px',
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                          <button
-                            onClick={() => setEditingItemId(null)}
-                            style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '4px 12px', fontSize: '11px', cursor: 'pointer' }}
-                          >
-                            cancel
-                          </button>
-                          <button
-                            onClick={() => handleSaveInlineJournal(selectedStory.id, false)}
-                            disabled={isSavingJournal}
-                            style={{ backgroundColor: accent, border: 'none', color: '#FFF', padding: '4px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            {isSavingJournal ? 'saving...' : 'save note'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '12px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                        {selectedStory.journal_note || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No journal entry written yet. Tap edit note to record your thoughts.</span>}
-                      </div>
                     )}
 
-                    {/* Attached Stickers */}
-                    {placedStickers.length > 0 && (
-                      <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {placedStickers.map(stk => (
-                          <div
-                            key={stk.id}
-                            style={{
-                              backgroundColor: stk.bg,
-                              color: stk.darkText ? '#000' : '#FFF',
-                              padding: '3px 8px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span>{stk.icon}</span>
-                            <span>{stk.label}</span>
+                    {/* ── TAB 2: JOURNAL & SCRAPBOOK ── */}
+                    {storyDetailTab === 'journal' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{
+                          backgroundColor: surfaceColor,
+                          borderLeft: '4px solid #008A00',
+                          padding: '12px',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#008A00' }}>
+                              📓 JOURNAL NOTE & MEMORIES
+                            </div>
+                            {editingItemId !== selectedStory.id && (
+                              <button
+                                onClick={() => {
+                                  setEditingItemId(selectedStory.id);
+                                  setJournalDraft(selectedStory.journal_note || '');
+                                }}
+                                style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}
+                              >
+                                edit note
+                              </button>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
 
-                    {/* Attached Doodle if present */}
-                    {(() => {
-                      let doodles = [];
-                      try {
-                        doodles = JSON.parse(localStorage.getItem(`memwault_doodles_${selectedStory.id}`) || '[]');
-                      } catch (e) {}
-                      if (!doodles || doodles.length === 0) return null;
-                      return (
-                        <div style={{ marginTop: '10px', backgroundColor: cardColor, padding: '8px', border: `1px solid ${borderColor}` }}>
-                          <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#AA00FF', marginBottom: '6px' }}>
-                            ATTACHED DOODLE 🎨
-                          </div>
-                          <img src={doodles[0].url} alt="Doodle" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', backgroundColor: '#FFFFFF', borderRadius: '2px', display: 'block' }} />
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Sticker Tray */}
-                  <div style={{ backgroundColor: surfaceColor, padding: '10px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: subTextColor, marginBottom: '6px', letterSpacing: '0.05em' }}>
-                      STICKER STAMPS (TAP TO ATTACH):
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {CUSTOM_STICKER_SETS.map(sticker => {
-                        const isSelected = placedStickers.some(s => s.id === sticker.id);
-                        return (
-                          <button
-                            key={sticker.id}
-                            onClick={() => {
-                              triggerSound();
-                              if (isSelected) {
-                                setPlacedStickers(prev => prev.filter(s => s.id !== sticker.id));
-                              } else {
-                                setPlacedStickers(prev => [...prev, sticker]);
-                              }
-                            }}
-                            style={{
-                              backgroundColor: isSelected ? sticker.bg : cardColor,
-                              color: isSelected ? (sticker.darkText ? '#000' : '#FFF') : textColor,
-                              border: `1px solid ${isSelected ? sticker.bg : borderColor}`,
-                              padding: '4px 8px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <span>{sticker.icon}</span>
-                            <span>{sticker.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Actions: Paint Doodle & Camera Snapshot */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button
-                      onClick={() => setPaintModalOpen(true)}
-                      style={{
-                        backgroundColor: '#AA00FF',
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Brush size={14} />
-                      <span>Draw Doodle 🎨</span>
-                    </button>
-                    <button
-                      onClick={handleStartCamera}
-                      style={{
-                        backgroundColor: accent,
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Camera size={14} />
-                      <span>Attach Photo 📷</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ── TAB 3: MUSIC ── */}
-              {storyDetailTab === 'music' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {(selectedStory.music?.track_title || selectedStory.music_title) ? (
-                    <div>
-                      <MusicPlayer 
-                        music={selectedStory.music || {
-                          track_title: selectedStory.music_title,
-                          artist_name: selectedStory.music_artist || 'Artist'
-                        }} 
-                        showTurntable={playbackSettings.showTurntable !== false}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
-                      <Music size={28} style={{ opacity: 0.4, margin: '0 auto 8px' }} />
-                      <div>No soundtrack attached to this story.</div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── TAB 4: VIEWERS ── */}
-              {storyDetailTab === 'viewers' && (
-                <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700 }}>
-                      STORY VIEWERS ({storyViewersList.length || selectedStory.viewers_count || 0})
-                    </div>
-                  </div>
-
-                  {storyViewersList.length > 5 && (
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        placeholder="search viewers..."
-                        value={viewerSearch}
-                        onChange={(e) => setViewerSearch(e.target.value)}
-                        style={{
-                          width: '100%',
-                          backgroundColor: cardColor,
-                          border: `1px solid ${borderColor}`,
-                          color: textColor,
-                          padding: '6px 8px 6px 28px',
-                          fontSize: '11px',
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                      <Search size={13} color={subTextColor} style={{ position: 'absolute', left: '8px', top: '8px' }} />
-                    </div>
-                  )}
-
-                  {storyViewersList.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
-                      {storyViewersList.filter(v => !viewerSearch || (v.username || v.user_name || v.full_name || '').toLowerCase().includes(viewerSearch.toLowerCase())).map((viewer, vIdx) => {
-                        const vPic = viewer.profile_pic_url || viewer.profile_picture || viewer.profile_image_url;
-                        const username = viewer.username || viewer.user_name || '';
-                        return (
-                          <a
-                            key={vIdx}
-                            href={username ? `https://www.instagram.com/${encodeURIComponent(username)}/` : 'https://www.instagram.com/'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 4px',
-                              borderBottom: `1px solid ${borderColor}`,
-                              textDecoration: 'none',
-                              color: 'inherit',
-                              cursor: 'pointer',
-                              borderRadius: '4px',
-                              transition: 'background-color 0.15s ease',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {vPic ? (
-                                  <img
-                                    src={`/api/v1/proxy/image?url=${encodeURIComponent(vPic)}`}
-                                    alt={username}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    onError={(e) => { e.target.src = vPic; }}
-                                  />
-                                ) : (
-                                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{(username || 'U')[0].toUpperCase()}</span>
-                                )}
+                          {editingItemId === selectedStory.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <textarea
+                                value={journalDraft}
+                                onChange={(e) => setJournalDraft(e.target.value)}
+                                placeholder="Write your thoughts about this memory..."
+                                style={{
+                                  width: '100%',
+                                  minHeight: '80px',
+                                  backgroundColor: cardColor,
+                                  color: textColor,
+                                  border: `1px solid ${accent}`,
+                                  padding: '8px',
+                                  fontSize: '12px',
+                                  fontFamily: 'inherit',
+                                  outline: 'none',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                                <button
+                                  onClick={() => setEditingItemId(null)}
+                                  style={{ background: 'none', border: `1px solid ${borderColor}`, color: textColor, padding: '4px 12px', fontSize: '11px', cursor: 'pointer' }}
+                                >
+                                  cancel
+                                </button>
+                                <button
+                                  onClick={() => handleSaveInlineJournal(selectedStory.id, false)}
+                                  disabled={isSavingJournal}
+                                  style={{ backgroundColor: accent, border: 'none', color: '#FFF', padding: '4px 14px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                  {isSavingJournal ? 'saving...' : 'save note'}
+                                </button>
                               </div>
-                              <div>
-                                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span>{username || 'Viewer'}</span>
-                                  <ExternalLink size={11} color={accent} />
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                              {selectedStory.journal_note || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No journal entry written yet. Tap edit note to record your thoughts.</span>}
+                            </div>
+                          )}
+
+                          {/* Attached Stickers */}
+                          {placedStickers.length > 0 && (
+                            <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {placedStickers.map(stk => (
+                                <div
+                                  key={stk.id}
+                                  style={{
+                                    backgroundColor: stk.bg,
+                                    color: stk.darkText ? '#000' : '#FFF',
+                                    padding: '3px 8px',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <span>{stk.icon}</span>
+                                  <span>{stk.label}</span>
                                 </div>
-                                {viewer.full_name && (
-                                  <div style={{ fontSize: '11px', color: subTextColor }}>{viewer.full_name}</div>
-                                )}
-                              </div>
+                              ))}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {viewer.is_verified && (
-                                <span style={{ fontSize: '10px', color: '#1DA1F2', fontWeight: 'bold' }}>✓ Verified</span>
-                              )}
-                              <span style={{ fontSize: '11px', color: accent, fontWeight: 600 }}>Profile ↗</span>
-                            </div>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '11px', color: subTextColor, padding: '12px 0', textAlign: 'center' }}>
-                      {loadingViewers ? 'Loading viewer data...' : 'No external viewers recorded in archive.'}
-                    </div>
-                  )}
-                </div>
-              )}
+                          )}
 
-              {/* ── TAB 5: DATA / MANIFEST ── */}
-              {storyDetailTab === 'data' && (
-                <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: accent }}>RAW JSON ARCHIVAL MANIFEST</div>
-                  <pre style={{
-                    backgroundColor: cardColor,
-                    color: textColor,
-                    padding: '8px',
-                    fontSize: '10px',
-                    fontFamily: 'Consolas, Monaco, monospace',
-                    overflowX: 'auto',
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    border: `1px solid ${borderColor}`,
-                  }}>
-                    {JSON.stringify(selectedStory, null, 2)}
-                  </pre>
-                </div>
-              )}
+                          {/* Attached Doodle if present */}
+                          {(() => {
+                            let doodles = [];
+                            try {
+                              doodles = JSON.parse(localStorage.getItem(`memwault_doodles_${selectedStory.id}`) || '[]');
+                            } catch (e) {}
+                            if (!doodles || doodles.length === 0) return null;
+                            return (
+                              <div style={{ marginTop: '10px', backgroundColor: cardColor, padding: '8px', border: `1px solid ${borderColor}` }}>
+                                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#AA00FF', marginBottom: '6px' }}>
+                                  ATTACHED DOODLE 🎨
+                                </div>
+                                <img src={doodles[0].url} alt="Doodle" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', backgroundColor: '#FFFFFF', borderRadius: '2px', display: 'block' }} />
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Sticker Tray */}
+                        <div style={{ backgroundColor: surfaceColor, padding: '10px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: subTextColor, marginBottom: '6px', letterSpacing: '0.05em' }}>
+                            STICKER STAMPS (TAP TO ATTACH):
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {CUSTOM_STICKER_SETS.map(sticker => {
+                              const isSelected = placedStickers.some(s => s.id === sticker.id);
+                              return (
+                                <button
+                                  key={sticker.id}
+                                  onClick={() => {
+                                    triggerSound();
+                                    if (isSelected) {
+                                      setPlacedStickers(prev => prev.filter(s => s.id !== sticker.id));
+                                    } else {
+                                      setPlacedStickers(prev => [...prev, sticker]);
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: isSelected ? sticker.bg : cardColor,
+                                    color: isSelected ? (sticker.darkText ? '#000' : '#FFF') : textColor,
+                                    border: `1px solid ${isSelected ? sticker.bg : borderColor}`,
+                                    padding: '4px 8px',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <span>{sticker.icon}</span>
+                                  <span>{sticker.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Actions: Paint Doodle & Camera Snapshot */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <button
+                            onClick={() => setPaintModalOpen(true)}
+                            style={{
+                              backgroundColor: '#AA00FF',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Brush size={14} />
+                            <span>Draw Doodle 🎨</span>
+                          </button>
+                          <button
+                            onClick={handleStartCamera}
+                            style={{
+                              backgroundColor: accent,
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Camera size={14} />
+                            <span>Attach Photo 📷</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── TAB 3: MUSIC ── */}
+                    {storyDetailTab === 'music' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {(selectedStory.music?.track_title || selectedStory.music_title) ? (
+                          <div>
+                            <MusicPlayer 
+                              music={selectedStory.music || {
+                                track_title: selectedStory.music_title,
+                                artist_name: selectedStory.music_artist || 'Artist'
+                              }} 
+                              showTurntable={playbackSettings.showTurntable !== false}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ backgroundColor: surfaceColor, padding: '24px', textAlign: 'center', color: subTextColor, fontSize: '12px' }}>
+                            <Music size={28} style={{ opacity: 0.4, margin: '0 auto 8px' }} />
+                            <div>No soundtrack attached to this story.</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── TAB 4: VIEWERS ── */}
+                    {storyDetailTab === 'viewers' && (
+                      <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700 }}>
+                            STORY VIEWERS ({storyViewersList.length || selectedStory.viewers_count || 0})
+                          </div>
+                        </div>
+
+                        {storyViewersList.length > 5 && (
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              placeholder="search viewers..."
+                              value={viewerSearch}
+                              onChange={(e) => setViewerSearch(e.target.value)}
+                              style={{
+                                width: '100%',
+                                backgroundColor: cardColor,
+                                border: `1px solid ${borderColor}`,
+                                color: textColor,
+                                padding: '6px 8px 6px 28px',
+                                fontSize: '11px',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                              }}
+                            />
+                            <Search size={13} color={subTextColor} style={{ position: 'absolute', left: '8px', top: '8px' }} />
+                          </div>
+                        )}
+
+                        {storyViewersList.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
+                            {storyViewersList.filter(v => !viewerSearch || (v.username || v.user_name || v.full_name || '').toLowerCase().includes(viewerSearch.toLowerCase())).map((viewer, vIdx) => {
+                              const vPic = viewer.profile_pic_url || viewer.profile_picture || viewer.profile_image_url;
+                              const username = viewer.username || viewer.user_name || '';
+                              return (
+                                <a
+                                  key={vIdx}
+                                  href={username ? `https://www.instagram.com/${encodeURIComponent(username)}/` : 'https://www.instagram.com/'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 4px',
+                                    borderBottom: `1px solid ${borderColor}`,
+                                    textDecoration: 'none',
+                                    color: 'inherit',
+                                    cursor: 'pointer',
+                                    borderRadius: '4px',
+                                    transition: 'background-color 0.15s ease',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden', backgroundColor: accent, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                      {vPic ? (
+                                        <img
+                                          src={`/api/v1/proxy/image?url=${encodeURIComponent(vPic)}`}
+                                          alt={username}
+                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                          onError={(e) => { e.target.src = vPic; }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{(username || 'U')[0].toUpperCase()}</span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span>{username || 'Viewer'}</span>
+                                        <ExternalLink size={11} color={accent} />
+                                      </div>
+                                      {viewer.full_name && (
+                                        <div style={{ fontSize: '11px', color: subTextColor }}>{viewer.full_name}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {viewer.is_verified && (
+                                      <span style={{ fontSize: '10px', color: '#1DA1F2', fontWeight: 'bold' }}>✓ Verified</span>
+                                    )}
+                                    <span style={{ fontSize: '11px', color: accent, fontWeight: 600 }}>Profile ↗</span>
+                                  </div>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: subTextColor, padding: '12px 0', textAlign: 'center' }}>
+                            {loadingViewers ? 'Loading viewer data...' : 'No external viewers recorded in archive.'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── TAB 5: DATA / MANIFEST ── */}
+                    {storyDetailTab === 'data' && (
+                      <div style={{ backgroundColor: surfaceColor, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: accent }}>RAW JSON ARCHIVAL MANIFEST</div>
+                        <pre style={{
+                          backgroundColor: cardColor,
+                          color: textColor,
+                          padding: '8px',
+                          fontSize: '10px',
+                          fontFamily: 'Consolas, Monaco, monospace',
+                          overflowX: 'auto',
+                          maxHeight: '220px',
+                          overflowY: 'auto',
+                          border: `1px solid ${borderColor}`,
+                        }}>
+                          {JSON.stringify(selectedStory, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 

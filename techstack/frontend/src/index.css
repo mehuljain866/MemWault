@@ -2649,7 +2649,58 @@ ul { list-style: none; }
 
 [data-theme-id='win98'] textarea,
 [data-theme-id='win98'] input[type="text"] {
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
+  color: #000000;
   caret-color: #000000 !important;
 }
+
+/* ── Universal Greyed-Out Placeholder Styling ── */
+::placeholder,
+::-webkit-input-placeholder,
+::-moz-placeholder,
+:-ms-input-placeholder {
+  color: var(--ios-text-muted, #8e8e93) !important;
+  -webkit-text-fill-color: var(--ios-text-muted, #8e8e93) !important;
+  opacity: 0.55 !important;
+  font-weight: 400 !important;
+}
+
+[data-theme='dark'] ::placeholder,
+[data-theme='dark'] ::-webkit-input-placeholder,
+[data-theme='dark'] ::-moz-placeholder,
+[data-theme='dark'] textarea::placeholder,
+[data-theme='dark'] input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.4) !important;
+  opacity: 1 !important;
+}
+
+[data-theme-id='win98'] ::placeholder,
+[data-theme-id='win98'] ::-webkit-input-placeholder,
+[data-theme-id='win98'] ::-moz-placeholder,
+[data-theme-id='win98'] textarea::placeholder,
+[data-theme-id='win98'] input::placeholder,
+[data-theme='light'] ::placeholder,
+[data-theme='light'] ::-webkit-input-placeholder,
+[data-theme='light'] ::-moz-placeholder,
+[data-theme='light'] textarea::placeholder,
+[data-theme='light'] input::placeholder {
+  color: #767676 !important;
+  -webkit-text-fill-color: #767676 !important;
+  opacity: 1 !important;
+  font-style: normal !important;
+}
+
+.w-md-editor textarea::placeholder,
+.w-md-editor ::placeholder {
+  color: var(--ios-text-muted, #8e8e93) !important;
+  -webkit-text-fill-color: var(--ios-text-muted, #8e8e93) !important;
+  opacity: 0.55 !important;
+}
+
+[data-theme-id='win98'] .w-md-editor textarea::placeholder,
+[data-theme='light'] .w-md-editor textarea::placeholder {
+  color: #767676 !important;
+  -webkit-text-fill-color: #767676 !important;
+  opacity: 1 !important;
+}
+

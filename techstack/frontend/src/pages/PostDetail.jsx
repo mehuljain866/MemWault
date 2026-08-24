@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  ArrowLeft, Heart, MessageCircle, Music, MapPin, 
+  ChevronLeft, ChevronRight, Heart, MessageCircle, Music, MapPin, 
   Smartphone, Upload, Sparkles, Layers, ExternalLink, 
-  Save, Edit3, Check, Disc, RefreshCw, Trash2, Bookmark
+  Save, Edit3, Check, Disc, RefreshCw, Trash2, Bookmark,
+  Calendar, FileType, Code, Info, Images, Film, FileText, Camera
 } from 'lucide-react'
+import MDEditor from '@uiw/react-md-editor'
 import CarouselPlayer from '../components/CarouselPlayer'
 import QRUploadModal from '../components/QRUploadModal'
-import { getPost, updatePost, replacePostMediaRaw, updatePostMedia } from '../services/api'
+import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
+import { getPost, updatePost, replacePostMediaRaw, updatePostMedia, getPosts } from '../services/api'
+import { getSettings } from '../services/settings'
 
 export default function PostDetail() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const settings = getSettings()
+  const isWin98 = settings.themeId === 'win98'
 
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -20,6 +27,10 @@ export default function PostDetail() {
   const [journalNote, setJournalNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
+  const [activeTab, setActiveTab] = useState('metadata') // 'metadata' | 'master' | 'journal' | 'json'
+
+  // Adjacent post navigation
+  const [adjacent, setAdjacent] = useState({ prev_id: null, next_id: null })
 
   const fileInputRef = useRef(null)
 
@@ -29,6 +40,19 @@ export default function PostDetail() {
       const data = await getPost(postId)
       setPost(data)
       setJournalNote(data.journal_note || '')
+
+      // Load all posts in background to find prev/next
+      getPosts().then(res => {
+        const list = res.posts || []
+        const currentIndex = list.findIndex(p => String(p.id) === String(postId))
+        if (currentIndex !== -1) {
+          setAdjacent({
+            prev_id: currentIndex > 0 ? list[currentIndex - 1].id : null,
+            next_id: currentIndex < list.length - 1 ? list[currentIndex + 1].id : null,
+          })
+        }
+      }).catch(() => {})
+
     } catch (err) {
       console.error('Failed to load post', err)
     } finally {
@@ -40,9 +64,26 @@ export default function PostDetail() {
     loadPostDetail()
   }, [postId])
 
+  // Keyboard navigation for adjacent posts
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (activeTab === 'journal') return
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return
+
+      if (e.key === 'ArrowLeft' && adjacent.prev_id) {
+        navigate(`/posts/${adjacent.prev_id}`, { replace: true })
+      } else if (e.key === 'ArrowRight' && adjacent.next_id) {
+        navigate(`/posts/${adjacent.next_id}`, { replace: true })
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [adjacent, navigate, activeTab])
+
   const handleVersionToggle = async (mediaId, newVersion) => {
     try {
       await updatePostMedia(postId, mediaId, { default_version: newVersion })
+      await loadPostDetail()
     } catch (err) {
       console.error('Failed to update version preference', err)
     }
@@ -80,80 +121,403 @@ export default function PostDetail() {
 
   if (loading && !post) {
     return (
-      <div style={{ height: '100vh', backgroundColor: 'var(--ios-bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--ios-text-secondary)' }}>
         <RefreshCw size={32} className="spin-anim" color="var(--ios-accent)" />
+        <div style={{ fontSize: '15px', fontWeight: 600 }}>Loading Feed Post...</div>
       </div>
     )
   }
 
   if (!post) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--ios-text-primary)' }}>
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--ios-text-primary)' }}>
         <h3>Post not found</h3>
-        <Link to="/posts" style={{ color: 'var(--ios-accent)' }}>Back to Feed</Link>
+        <button className="ios-btn" onClick={() => navigate('/posts')} style={{ marginTop: '16px' }}>
+          Back to Feed
+        </button>
       </div>
     )
   }
 
-  const currentMedia = post.media_items[activeSlideIndex] || post.media_items[0]
+  const currentMedia = post.media_items?.[activeSlideIndex] || post.media_items?.[0]
+  const isVideo = currentMedia?.media_type === 2 || post.media_type === 2
+  const isCarousel = (post.media_items && post.media_items.length > 1) || post.media_type === 8
+
+  const tabs = [
+    { id: 'metadata', label: 'Overview', icon: Info },
+    { id: 'master', label: 'Dual Master / RAW', icon: Sparkles },
+    { id: 'journal', label: 'Journal Note', icon: FileText },
+    { id: 'json', label: 'Raw JSON', icon: Code },
+  ]
+
+  const InfoRow = ({ icon: Icon, label, value, children }) => (
+    <div 
+      style={{ 
+        display: 'flex', 
+        alignItems: 'flex-start', 
+        padding: isWin98 ? '8px 0' : '12px 0', 
+        borderBottom: '1px solid var(--ios-border)',
+        gap: '12px'
+      }}
+    >
+      <div style={isWin98 ? {
+        color: '#000080',
+        background: '#c0c0c0',
+        border: '1px solid #000000',
+        boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080',
+        padding: '5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: '2px'
+      } : {
+        color: 'var(--ios-accent)',
+        background: 'rgba(10, 132, 255, 0.1)',
+        padding: '7px',
+        borderRadius: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: '2px'
+      }}>
+        <Icon size={16} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: isWin98 ? '#444444' : 'var(--ios-text-secondary)', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '2px' }}>{label}</div>
+        <div style={{ fontSize: isWin98 ? '12px' : '14px', color: 'var(--ios-text-primary)', fontWeight: 600, wordBreak: 'break-word' }}>{value}</div>
+        {children && <div style={{ marginTop: '6px' }}>{children}</div>}
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: 'var(--ios-bg-app)',
-      color: 'var(--ios-text-primary)',
-      padding: '20px 24px 80px 24px',
-    }}>
-      <div style={{ marginBottom: '16px' }}>
-        <button
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25 }}
+      style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        minHeight: '100%',
+        color: 'var(--ios-text-primary)',
+        padding: '12px 16px 60px 16px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* ── Top Bar with Navigation ────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '16px',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}>
+        <motion.button
+          whileHover={{ scale: 1.03, x: -2 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => navigate('/posts')}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: 'transparent', color: 'var(--ios-accent, #007aff)',
-            border: 'none', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          className="segment-btn"
+          style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '6px', 
+            fontSize: '14px', fontWeight: 600, cursor: 'pointer', 
+            padding: '6px 14px', borderRadius: '8px',
+            color: 'var(--ios-accent)'
           }}
         >
-          <ArrowLeft size={18} />
-          <span>Back to Feed</span>
-        </button>
+          <ChevronLeft size={18} /> Back to Feed
+        </motion.button>
+
+        {/* Adjacent Post Navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => adjacent.prev_id && navigate(`/posts/${adjacent.prev_id}`, { replace: true })}
+            disabled={!adjacent.prev_id}
+            className="segment-btn"
+            title="Previous Post (ArrowLeft)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              padding: '6px 12px', borderRadius: '8px',
+              opacity: adjacent.prev_id ? 1 : 0.4,
+              cursor: adjacent.prev_id ? 'pointer' : 'default',
+              fontSize: '13px', fontWeight: 600,
+            }}
+          >
+            <ChevronLeft size={16} /> Prev Post
+          </button>
+          <button
+            onClick={() => adjacent.next_id && navigate(`/posts/${adjacent.next_id}`, { replace: true })}
+            disabled={!adjacent.next_id}
+            className="segment-btn"
+            title="Next Post (ArrowRight)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              padding: '6px 12px', borderRadius: '8px',
+              opacity: adjacent.next_id ? 1 : 0.4,
+              cursor: adjacent.next_id ? 'pointer' : 'default',
+              fontSize: '13px', fontWeight: 600,
+            }}
+          >
+            Next Post <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
+      {/* ── Main Two-Column Layout ─────────────────────────────── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
         gap: '24px',
         alignItems: 'start',
       }}>
-        <div style={{
-          width: '100%', height: '600px',
-          backgroundColor: '#111', borderRadius: '24px',
-          overflow: 'hidden', border: '1px solid var(--ios-border, rgba(255,255,255,0.1))',
-        }}>
-          <CarouselPlayer
-            post={post}
-            activeIndex={activeSlideIndex}
-            onIndexChange={(s) => setActiveSlideIndex(s)}
-            onVersionToggle={handleVersionToggle}
-          />
+        
+        {/* ── Left Column: Media Player Frame ──────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {isWin98 ? (
+            /* Windows 98 Window Frame */
+            <div style={{
+              backgroundColor: '#c0c0c0',
+              border: '1px solid #000000',
+              boxShadow: 'inset 1px 1px #ffffff, inset -1px -1px #808080, 3px 3px 12px rgba(0,0,0,0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxSizing: 'border-box',
+              fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif',
+            }}>
+              {/* Titlebar */}
+              <div style={{
+                background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+                userSelect: 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                  {isVideo ? <Film size={12} color="#ffffff" /> : <Images size={12} color="#ffffff" />}
+                  <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    {isVideo ? `PostPlayer.exe - [POST_${post.id}.MP4]` : `PostViewer.exe - [POST_${post.id}.JPG]`}
+                  </span>
+                </div>
+                <div className="win98-title-controls" style={{ display: 'flex', gap: '2px' }}>
+                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>_</button>
+                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>□</button>
+                  <button className="win98-title-btn is-close" style={{ fontSize: '10px', color: '#000' }}>✕</button>
+                </div>
+              </div>
+
+              {/* Menu Bar */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                padding: '2px 6px',
+                backgroundColor: '#c0c0c0',
+                borderBottom: '1px solid #808080',
+                boxShadow: '0 1px 0 #ffffff',
+                fontSize: '11px',
+                color: '#000000',
+                userSelect: 'none',
+              }}>
+                <span><u>F</u>ile</span>
+                <span><u>E</u>dit</span>
+                <span><u>V</u>iew</span>
+                <span><u>S</u>lides</span>
+                <span><u>H</u>elp</span>
+              </div>
+
+              {/* Sunken Viewport */}
+              <div style={{
+                backgroundColor: '#000000',
+                margin: '2px',
+                border: '1px solid #000000',
+                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+                position: 'relative',
+                overflow: 'hidden',
+                minHeight: '520px',
+              }}>
+                <CarouselPlayer
+                  post={post}
+                  activeIndex={activeSlideIndex}
+                  onIndexChange={(s) => setActiveSlideIndex(s)}
+                  onVersionToggle={handleVersionToggle}
+                />
+              </div>
+
+              {/* Status Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '2px 4px',
+                backgroundColor: '#c0c0c0',
+                fontSize: '11px',
+                color: '#000000',
+                gap: '4px',
+              }}>
+                <div style={{
+                  flex: 1,
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                  padding: '1px 6px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontSize: '10px',
+                }}>
+                  {isCarousel ? `Slide ${activeSlideIndex + 1} of ${post.media_items?.length || 1}` : (isVideo ? '▶ Video Post' : '🖼️ Single Photo')}
+                </div>
+                <div style={{
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #ffffff',
+                  padding: '1px 6px',
+                  fontWeight: 'bold',
+                  fontFamily: 'monospace',
+                  fontSize: '10px',
+                }}>
+                  {currentMedia?.raw_width && currentMedia?.raw_height ? `${currentMedia.raw_width}x${currentMedia.raw_height}` : '1080x1350'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Modern Application Window Frame */
+            <div style={{
+              borderRadius: '24px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
+              border: '1px solid var(--ios-border)',
+              backgroundColor: '#000',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              {/* Traffic Light Header */}
+              <div style={{
+                padding: '10px 16px',
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid var(--ios-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--ios-text-secondary)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56' }}></span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e' }}></span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f' }}></span>
+                  </div>
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: 'var(--ios-text-primary)' }}>
+                    {isCarousel ? `Carousel (${activeSlideIndex + 1}/${post.media_items?.length || 1})` : (isVideo ? 'Video Post' : 'Photo Post')}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                  {currentMedia?.has_raw_master ? '✨ RAW MASTER' : 'INSTAGRAM 1080P'}
+                </div>
+              </div>
+
+              {/* Viewport */}
+              <div style={{ minHeight: '520px', backgroundColor: '#111', position: 'relative' }}>
+                <CarouselPlayer
+                  post={post}
+                  activeIndex={activeSlideIndex}
+                  onIndexChange={(s) => setActiveSlideIndex(s)}
+                  onVersionToggle={handleVersionToggle}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Slide Filmstrip (for carousels) ─────────────────── */}
+          {post.media_items && post.media_items.length > 1 && (
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              padding: '8px 4px',
+              borderRadius: isWin98 ? '0' : '16px',
+              backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+              border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+              boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+            }}>
+              {post.media_items.map((slide, idx) => {
+                const isActive = activeSlideIndex === idx
+                const thumbUrl = slide.has_raw_master && slide.raw_media_url
+                  ? slide.raw_media_url
+                  : (slide.instagram_media_url || `/api/v1/proxy/image?url=${encodeURIComponent(slide.instagram_cdn_url || '')}`)
+
+                return (
+                  <motion.div
+                    key={slide.id || idx}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveSlideIndex(idx)}
+                    style={{
+                      position: 'relative',
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: isWin98 ? '0' : '10px',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      cursor: 'pointer',
+                      border: isActive ? '2px solid var(--ios-accent)' : (isWin98 ? '1px solid #000' : '1px solid var(--ios-border)'),
+                      boxShadow: isActive ? '0 0 10px rgba(10,132,255,0.4)' : 'none',
+                      opacity: isActive ? 1 : 0.65,
+                    }}
+                  >
+                    <img
+                      src={thumbUrl}
+                      alt={`Slide ${idx + 1}`}
+                      referrerPolicy="no-referrer"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{
+                      position: 'absolute', bottom: '2px', right: '2px',
+                      backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff',
+                      fontSize: '9px', fontWeight: 800, padding: '1px 3px', borderRadius: '4px',
+                    }}>
+                      {idx + 1}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
+        {/* ── Right Column: Tabbed Inspector ────────────────────── */}
         <div style={{
-          backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
-          borderRadius: '24px',
-          padding: '24px',
-          border: '1px solid var(--ios-border, rgba(255,255,255,0.08))',
-          display: 'flex', flexDirection: 'column', gap: '20px',
+          backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+          borderRadius: isWin98 ? '0' : '24px',
+          padding: isWin98 ? '12px' : '24px',
+          border: isWin98 ? '1px solid #000000' : '1px solid var(--ios-border)',
+          boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080, 2px 2px 10px rgba(0,0,0,0.3)' : 'var(--ios-shadow-md)',
+          fontFamily: isWin98 ? '"MS Sans Serif", Tahoma, Arial, sans-serif' : 'inherit',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
         }}>
+
+          {/* Top Post Header & Shortcode Link */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: isWin98 ? '2px groove #ffffff' : '1px solid var(--ios-border)',
+            paddingBottom: '12px'
           }}>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
+              <div style={{ fontSize: isWin98 ? '11px' : '12px', color: 'var(--ios-text-secondary)' }}>
                 {new Date(post.taken_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
-              <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>
-                Instagram Post
+              <div style={{ fontSize: isWin98 ? '14px' : '18px', fontWeight: 800, marginTop: '2px' }}>
+                {isCarousel ? 'Multi-Slide Carousel' : (isVideo ? 'Video Post' : 'Feed Post')}
               </div>
             </div>
 
@@ -164,257 +528,371 @@ export default function PostDetail() {
                 rel="noreferrer"
                 style={{
                   display: 'flex', alignItems: 'center', gap: '4px',
-                  color: 'var(--ios-accent, #007aff)', fontSize: '13px', fontWeight: 600,
+                  color: 'var(--ios-accent)', fontSize: '13px', fontWeight: 600,
                   textDecoration: 'none'
                 }}
               >
-                <span>Open on IG</span>
+                <span>View on IG</span>
                 <ExternalLink size={14} />
               </a>
             )}
           </div>
 
-          {post.audio_title && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)', padding: '8px 12px', borderRadius: '12px',
-              fontSize: '13px', color: 'var(--ios-text-primary)',
-            }}>
-              <Music size={14} color="var(--ios-accent, #007aff)" />
-              <span style={{ fontWeight: 600 }}>{post.audio_title}</span>
-              {post.audio_artist && <span style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>• {post.audio_artist}</span>}
-            </div>
-          )}
-
-          {post.location_name && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              fontSize: '13px', color: 'var(--ios-text-secondary, #8e8e93)'
-            }}>
-              <MapPin size={14} />
-              <span>{post.location_name}</span>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px', fontWeight: 600 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ff2b55' }}>
-              <Heart size={16} fill="#ff2b55" />
-              <span>{post.like_count || 0} likes</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ios-text-secondary, #8e8e93)' }}>
-              <MessageCircle size={16} />
-              <span>{post.comment_count || 0} comments</span>
-            </div>
+          {/* Tab Strip */}
+          <div className="segmented-container segment-group" style={{
+            display: 'flex',
+            backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-border)',
+            borderRadius: isWin98 ? '0' : '16px',
+            padding: isWin98 ? '0' : '3px',
+            borderBottom: isWin98 ? '1px solid #808080' : 'none',
+            gap: '2px',
+            overflowX: 'auto',
+          }}>
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id
+              const TabIcon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`segment-btn ${isActive ? 'active' : ''}`}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: isWin98 ? '6px 10px' : '8px 12px',
+                    border: isWin98 ? '1px solid #000' : 'none',
+                    borderBottom: isWin98 && isActive ? 'none' : undefined,
+                    backgroundColor: isWin98 ? (isActive ? '#c0c0c0' : '#a0a0a0') : 'transparent',
+                    color: isActive ? 'var(--ios-text-primary)' : 'var(--ios-text-secondary)',
+                    borderRadius: isWin98 ? '3px 3px 0 0' : '12px',
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isActive && !isWin98 && (
+                    <motion.span
+                      layoutId="post-tab-pill"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: '12px',
+                        background: 'var(--ios-bg-card)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                        zIndex: -1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                    />
+                  )}
+                  <TabIcon size={14} />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
           </div>
 
-          {post.caption_text && (
-            <div style={{
-              background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)', padding: '16px', borderRadius: '16px',
-              fontSize: '13px', lineHeight: 1.5, whiteSpace: 'pre-wrap', color: 'var(--ios-text-primary)',
-            }}>
-              {post.caption_text}
-            </div>
+          {/* ── Tab 1: Overview & Captions ──────────────────────── */}
+          {activeTab === 'metadata' && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              {/* Engagement metrics */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px',
+              }}>
+                <div style={{
+                  padding: '12px',
+                  borderRadius: isWin98 ? '0' : '14px',
+                  backgroundColor: isWin98 ? '#dfdfdf' : 'var(--ios-border)',
+                  border: isWin98 ? '1px solid #808080' : 'none',
+                  boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <Heart size={18} color="#ff2b55" fill="#ff2b55" />
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', fontWeight: 700 }}>LIKES</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800 }}>{post.like_count || 0}</div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '12px',
+                  borderRadius: isWin98 ? '0' : '14px',
+                  backgroundColor: isWin98 ? '#dfdfdf' : 'var(--ios-border)',
+                  border: isWin98 ? '1px solid #808080' : 'none',
+                  boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <MessageCircle size={18} color="var(--ios-accent)" />
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', fontWeight: 700 }}>COMMENTS</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800 }}>{post.comment_count || 0}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Music badge */}
+              {post.audio_title && (
+                <InfoRow icon={Music} label="Soundtrack / Audio" value={post.audio_title}>
+                  {post.audio_artist && <span style={{ color: 'var(--ios-text-secondary)' }}>Artist: {post.audio_artist}</span>}
+                </InfoRow>
+              )}
+
+              {/* Location */}
+              {post.location_name && (
+                <InfoRow icon={MapPin} label="Location Venue" value={post.location_name}>
+                  {post.location_lat && post.location_lng && (
+                    <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                      GPS: {post.location_lat.toFixed(4)}, {post.location_lng.toFixed(4)}
+                    </span>
+                  )}
+                </InfoRow>
+              )}
+
+              {/* Timestamp */}
+              <InfoRow icon={Calendar} label="Archival Timestamp" value={new Date(post.taken_at).toLocaleString()}>
+                <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                  UTC: {post.taken_at}
+                </span>
+              </InfoRow>
+
+              {/* Caption */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                marginTop: '4px'
+              }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ios-text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                  Caption & Narrative
+                </div>
+                <div style={{
+                  padding: '14px',
+                  borderRadius: isWin98 ? '0' : '14px',
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-border)',
+                  color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                  border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #ffffff' : 'none',
+                  fontSize: '13px',
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                }}>
+                  {post.caption_text || 'No caption text on this post.'}
+                </div>
+              </div>
+            </motion.div>
           )}
 
-          <div style={{
-            background: 'var(--ios-bg-card)',
-            border: '1px solid var(--ios-border)',
-            borderRadius: '16px', padding: '16px',
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: '12px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={16} color="var(--ios-accent)" />
-                <span style={{ fontSize: '14px', fontWeight: 700 }}>Lossless Master Media</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => setIsQRModalOpen(true)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'var(--ios-accent, #007aff)', color: '#fff',
-                    border: 'none', padding: '6px 12px', borderRadius: '10px',
-                    fontSize: '12px', fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  <Smartphone size={14} />
-                  <span>Upload from Phone</span>
-                </button>
+          {/* ── Tab 2: Dual Master & RAW ─────────────────────────── */}
+          {activeTab === 'master' && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              {/* Master Media Actions */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px',
+                borderRadius: isWin98 ? '0' : '14px',
+                backgroundColor: isWin98 ? '#dfdfdf' : 'rgba(10, 132, 255, 0.08)',
+                border: isWin98 ? '1px solid #808080' : '1px solid rgba(10, 132, 255, 0.2)',
+                boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} color="#ffd700" />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800 }}>RAW Master Replacement</div>
+                    <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>Slide {activeSlideIndex + 1}</div>
+                  </div>
+                </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => setIsQRModalOpen(true)}
+                    className="segment-btn"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      background: 'var(--ios-accent)', color: '#fff',
+                      border: 'none', padding: '6px 12px', borderRadius: isWin98 ? '0' : '8px',
+                      fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Smartphone size={14} />
+                    <span>Upload from Phone</span>
+                  </button>
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="segment-btn"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      background: isWin98 ? '#c0c0c0' : 'var(--ios-border)',
+                      color: 'var(--ios-text-primary)',
+                      border: isWin98 ? '1px solid #000' : 'none',
+                      padding: '6px 12px', borderRadius: isWin98 ? '0' : '8px',
+                      fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Upload size={14} />
+                    <span>Pick File</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    style={{ display: 'none' }}
+                    onChange={handleDesktopFileUpload}
+                  />
+                </div>
+              </div>
+
+              {/* Dual-Version Comparison Cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: currentMedia?.has_raw_master ? '1fr 1fr' : '1fr',
+                gap: '12px',
+              }}>
+                {/* Instagram Version */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: isWin98 ? '0' : '14px',
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-border)',
+                  color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #ffffff' : 'none',
+                  fontSize: '12px',
+                  display: 'flex', flexDirection: 'column', gap: '8px',
+                }}>
+                  <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Layers size={14} color="var(--ios-accent)" />
+                    <span>Instagram Representation</span>
+                  </div>
+                  <div style={{ color: isWin98 ? '#333' : 'var(--ios-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div><strong>Resolution:</strong> 1080 × {Math.round(1080 / (post.aspect_ratio || 1))}</div>
+                    <div><strong>Encoding:</strong> JPEG / AVC (Web Compressed)</div>
+                    <div><strong>Source:</strong> Instagram Ingested CDN</div>
+                  </div>
+                </div>
+
+                {/* Master Version */}
+                {currentMedia?.has_raw_master ? (
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: isWin98 ? '0' : '14px',
+                    backgroundColor: isWin98 ? '#fffbe6' : 'rgba(255, 215, 0, 0.08)',
+                    color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                    border: isWin98 ? '1px solid #d4af37' : '1px solid rgba(255, 215, 0, 0.3)',
+                    boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+                    fontSize: '12px',
+                    display: 'flex', flexDirection: 'column', gap: '8px',
+                  }}>
+                    <div style={{ fontWeight: 800, color: '#d4af37', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Sparkles size={14} color="#d4af37" />
+                      <span>Original Master File</span>
+                    </div>
+                    <div style={{ color: isWin98 ? '#333' : 'var(--ios-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {currentMedia.raw_width && (
+                        <div><strong>Resolution:</strong> {currentMedia.raw_width} × {currentMedia.raw_height} ({Math.round((currentMedia.raw_width * currentMedia.raw_height) / 1000000)} MP)</div>
+                      )}
+                      {currentMedia.raw_file_size && (
+                        <div><strong>File Size:</strong> {(currentMedia.raw_file_size / (1024 * 1024)).toFixed(1)} MB</div>
+                      )}
+                      {(currentMedia.crop_data?.camera_make || currentMedia.crop_data?.camera_model) && (
+                        <div><strong>Camera:</strong> {[currentMedia.crop_data.camera_make, currentMedia.crop_data.camera_model].filter(Boolean).join(' ')}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: isWin98 ? '0' : '14px',
+                    backgroundColor: isWin98 ? '#dfdfdf' : 'var(--ios-border)',
+                    textAlign: 'center',
+                    color: 'var(--ios-text-secondary)',
+                    fontSize: '12px',
+                  }}>
+                    No RAW master uploaded for this slide yet. Use the upload buttons above to attach your original camera file.
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Tab 3: Sidecar Markdown Journal ─────────────────── */}
+          {activeTab === 'journal' && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ios-text-secondary)' }}>
+                  ON-DISK SIDECAR JOURNAL (.MD)
+                </div>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={saveJournal}
+                  disabled={savingNote}
+                  className="segment-btn"
                   style={{
                     display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'var(--ios-border)', color: 'var(--ios-text-primary)',
-                    border: 'none', padding: '6px 12px', borderRadius: '10px',
-                    fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                    background: noteSaved ? '#34c759' : 'var(--ios-accent)',
+                    color: '#fff',
+                    border: 'none', padding: '6px 14px', borderRadius: isWin98 ? '0' : '8px',
+                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  <Upload size={14} />
-                  <span>Pick File</span>
+                  {noteSaved ? <Check size={14} /> : <Save size={14} />}
+                  <span>{noteSaved ? 'Saved' : (savingNote ? 'Saving...' : 'Save Note')}</span>
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  style={{ display: 'none' }}
-                  onChange={handleDesktopFileUpload}
+              </div>
+
+              <div data-color-mode={isWin98 ? 'light' : 'dark'} style={{ borderRadius: isWin98 ? '0' : '12px', overflow: 'hidden' }}>
+                <MDEditor
+                  value={journalNote}
+                  onChange={(val) => setJournalNote(val || '')}
+                  preview="edit"
+                  height={260}
                 />
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {post.media_items?.map((slide, idx) => (
-                <div
-                  key={slide.id}
-                  onClick={() => setActiveSlideIndex(idx)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', borderRadius: '12px',
-                    background: activeSlideIndex === idx ? 'var(--ios-border)' : 'transparent',
-                    border: `1px solid ${activeSlideIndex === idx ? 'var(--ios-accent)' : 'var(--ios-border)'}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                      Slide {idx + 1}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--ios-text-primary)' }}>
-                      {slide.has_raw_master ? (slide.raw_file_name || 'UNCOMPRESSED MASTER') : 'Instagram 1080p version'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {slide.is_live_photo && (
-                      <div style={{
-                        background: 'rgba(0, 122, 255, 0.2)', color: 'var(--ios-accent, #007aff)',
-                        padding: '2px 6px', borderRadius: '6px', fontSize: '10px', fontWeight: 700,
-                      }}>
-                        LIVE
-                      </div>
-                    )}
-                    {slide.has_raw_master ? (
-                      <div style={{
-                        background: 'rgba(255, 215, 0, 0.2)', color: '#ffd700',
-                        padding: '2px 6px', borderRadius: '6px', fontSize: '10px', fontWeight: 800,
-                      }}>
-                        RAW
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: 'var(--ios-text-secondary, #8e8e93)' }}>Compressed</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* ── Tab 4: Raw JSON Inspector ───────────────────────── */}
+          {activeTab === 'json' && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ maxHeight: '340px', overflowY: 'auto' }}
+            >
+              <SyntaxJsonViewer data={post} title={`POST_${post.id}.JSON`} />
+            </motion.div>
+          )}
 
-          {/* Dual Metadata Inspector (Original vs Instagram) */}
-          <div style={{
-            background: 'var(--ios-bg-card)',
-            borderRadius: '16px', padding: '16px',
-            border: '1px solid var(--ios-border)',
-          }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-text-secondary, #8e8e93)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Dual-Version Metadata
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: currentMedia?.has_raw_master ? '1fr 1fr' : '1fr', gap: '16px' }}>
-              {/* Instagram Side */}
-              <div style={{
-                background: 'var(--ios-border)', padding: '12px', borderRadius: '12px',
-                border: '1px solid var(--ios-border)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
-              }}>
-                <div style={{ fontWeight: 700, color: 'var(--ios-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Layers size={14} color="var(--ios-accent, #007aff)" />
-                  <span>Instagram Processed</span>
-                </div>
-                <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                  <div><strong>Uploaded:</strong> {new Date(post.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
-                  <div><strong>Quality:</strong> 1080 × {Math.round(1080 / (post.aspect_ratio || 1))} (Web compressed)</div>
-                  <div><strong>Stats:</strong> {post.like_count || 0} likes • {post.comment_count || 0} comments</div>
-                </div>
-              </div>
-
-              {/* Original Master Side */}
-              {currentMedia?.has_raw_master && (
-                <div style={{
-                  background: 'rgba(255, 215, 0, 0.08)', padding: '12px', borderRadius: '12px',
-                  border: '1px solid rgba(255, 215, 0, 0.3)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px'
-                }}>
-                  <div style={{ fontWeight: 700, color: '#d4af37', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Sparkles size={14} color="#d4af37" />
-                    <span>Original Master File</span>
-                  </div>
-                  <div style={{ color: 'var(--ios-text-secondary, #8e8e93)' }}>
-                    <div><strong>Shot / Taken:</strong> {currentMedia.crop_data?.taken_at ? String(currentMedia.crop_data.taken_at) : new Date(post.taken_at).toLocaleDateString()}</div>
-                    {(currentMedia.crop_data?.camera_make || currentMedia.crop_data?.camera_model) && (
-                      <div><strong>Camera:</strong> {[currentMedia.crop_data.camera_make, currentMedia.crop_data.camera_model].filter(Boolean).join(' ')}</div>
-                    )}
-                    {currentMedia.raw_width && (
-                      <div><strong>Resolution:</strong> {currentMedia.raw_width} × {currentMedia.raw_height} ({Math.round((currentMedia.raw_width * currentMedia.raw_height) / 1000000)} MP)</div>
-                    )}
-                    {currentMedia.raw_file_size && (
-                      <div><strong>File Size:</strong> {(currentMedia.raw_file_size / (1024 * 1024)).toFixed(1)} MB</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{
-            background: 'var(--ios-bg-card)',
-            borderRadius: '16px', padding: '16px',
-            border: '1px solid var(--ios-border)',
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: '10px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Edit3 size={16} color="var(--ios-accent, #007aff)" />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>Meaning-Making Journal</span>
-              </div>
-              <button
-                onClick={saveJournal}
-                disabled={savingNote}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  background: noteSaved ? '#34c759' : 'var(--ios-accent, #007aff)', color: '#fff',
-                  border: 'none', padding: '6px 12px', borderRadius: '10px',
-                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                  transition: 'background 0.2s',
-                }}
-              >
-                {noteSaved ? <Check size={14} /> : <Save size={14} />}
-                <span>{noteSaved ? 'Saved' : (savingNote ? 'Saving...' : 'Save')}</span>
-              </button>
-            </div>
-            <textarea
-              value={journalNote}
-              onChange={(e) => setJournalNote(e.target.value)}
-              placeholder="Reflect on this memory... where were you, how did you feel, what made this moment special?"
-              rows={4}
-              style={{
-                width: '100%', background: 'transparent',
-                border: 'none', outline: 'none',
-                color: 'var(--ios-text-primary)', fontSize: '13px', lineHeight: 1.5,
-                resize: 'vertical',
-              }}
-            />
-          </div>
         </div>
       </div>
 
+      {/* QR Upload Modal */}
       <QRUploadModal
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
         postId={postId}
         onUploadSuccess={loadPostDetail}
       />
-    </div>
+    </motion.div>
   )
 }

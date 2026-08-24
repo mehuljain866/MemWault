@@ -452,8 +452,8 @@ export async function shutdownSystem() {
   })
 }
 
-export async function startRemoteTunnel(port = 8000) {
-  return apiFetch(`/remote-tunnel/start?port=${port}`, {
+export async function startRemoteTunnel(port = 8000, force = false) {
+  return apiFetch(`/remote-tunnel/start?port=${port}&force=${force}`, {
     method: 'POST',
   })
 }

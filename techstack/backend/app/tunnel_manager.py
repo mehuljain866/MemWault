@@ -49,15 +49,30 @@ class TunnelManager:
             
         return None
 
-    def start_tunnel(self, target_port: int = 8000, timeout: float = 20.0) -> Dict[str, Any]:
+    def start_tunnel(self, target_port: int = 8000, timeout: float = 20.0, force_restart: bool = False) -> Dict[str, Any]:
         with self.lock:
-            if self.is_running and self.tunnel_url:
+            if not force_restart and self.is_running and self.tunnel_url and self.process and self.process.poll() is None:
                 return {
                     "status": "active",
                     "url": self.tunnel_url,
                     "target_port": target_port,
                     "started_at": self.started_at
                 }
+
+            # Stop and terminate any lingering previous process
+            if self.process:
+                try:
+                    self.process.terminate()
+                    self.process.wait(timeout=2)
+                except Exception:
+                    try:
+                        self.process.kill()
+                    except Exception:
+                        pass
+                self.process = None
+
+            self.is_running = False
+            self.tunnel_url = None
 
             binary_path = self._find_cloudflared()
             if not binary_path:

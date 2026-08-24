@@ -2259,11 +2259,12 @@ from starlette.concurrency import run_in_threadpool
 @router.post("/remote-tunnel/start")
 async def start_remote_tunnel(
     port: int = Query(8000, ge=1000, le=65535),
+    force: bool = Query(False),
     user: User = Depends(get_current_user)
 ):
     """Start Cloudflare remote tunnel for mobile data connection."""
     try:
-        res = await run_in_threadpool(tunnel_manager.start_tunnel, target_port=port)
+        res = await run_in_threadpool(tunnel_manager.start_tunnel, target_port=port, force_restart=force)
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

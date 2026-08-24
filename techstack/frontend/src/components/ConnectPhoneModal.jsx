@@ -28,10 +28,23 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
   const [tunnelError, setTunnelError] = useState('')
 
   // Generate fresh single-use pairing ticket
-  const fetchFreshTicket = async (mode = connectMode) => {
+  const fetchFreshTicket = async (mode = connectMode, forceRestart = false) => {
     try {
       setLoadingTicket(true)
       setIsPairedSuccess(false)
+      if (mode === 'remote') {
+        try {
+          setIsStartingTunnel(true)
+          const res = await startRemoteTunnel(8000, forceRestart)
+          if (res && res.url) {
+            setTunnelStatus('active')
+          }
+        } catch (e) {
+          console.warn('Tunnel start notice:', e)
+        } finally {
+          setIsStartingTunnel(false)
+        }
+      }
       const data = await generatePairingTicket(mode)
       if (data && data.qr_url) {
         setPairingUrl(data.qr_url)
@@ -483,7 +496,7 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
                       )}
 
                       <button
-                        onClick={() => { playWin98Click(); fetchFreshTicket(connectMode); }}
+                        onClick={() => { playWin98Click(); fetchFreshTicket(connectMode, true); }}
                         className="win98-standard-btn"
                         style={{
                           padding: '3px 8px',

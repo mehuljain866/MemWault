@@ -176,7 +176,15 @@ export async function getOfflineMemories() {
     const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result || []);
+      request.onsuccess = () => {
+        const stories = request.result || [];
+        stories.sort((a, b) => {
+          const timeA = a.taken_at ? new Date(a.taken_at).getTime() : 0;
+          const timeB = b.taken_at ? new Date(b.taken_at).getTime() : 0;
+          return timeB - timeA;
+        });
+        resolve(stories);
+      };
       request.onerror = () => reject(request.error);
     });
   } catch (err) {
@@ -209,7 +217,7 @@ export async function savePostsOffline(posts) {
 }
 
 /**
- * Get all offline feed posts
+ * Get all offline feed posts sorted newest first
  */
 export async function getOfflinePosts() {
   try {
@@ -219,7 +227,18 @@ export async function getOfflinePosts() {
     const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result || []);
+      request.onsuccess = () => {
+        const posts = request.result || [];
+        posts.sort((a, b) => {
+          if (Boolean(a.is_pinned) !== Boolean(b.is_pinned)) {
+            return b.is_pinned ? 1 : -1;
+          }
+          const timeA = a.taken_at ? new Date(a.taken_at).getTime() : 0;
+          const timeB = b.taken_at ? new Date(b.taken_at).getTime() : 0;
+          return timeB - timeA;
+        });
+        resolve(posts);
+      };
       request.onerror = () => reject(request.error);
     });
   } catch (err) {

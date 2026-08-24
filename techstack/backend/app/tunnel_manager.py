@@ -158,6 +158,18 @@ class TunnelManager:
             logger.info("Cloudflare tunnel stopped.")
             return {"status": "stopped"}
 
+    def _is_pid_alive(self, pid: Optional[int]) -> bool:
+        if not pid:
+            return False
+        try:
+            import os
+            os.kill(pid, 0)
+            return True
+        except (OSError, SystemError, ProcessLookupError):
+            return False
+        except Exception:
+            return False
+
     def get_status(self) -> Dict[str, Any]:
         with self.lock:
             if self.process and self.process.poll() is not None:
@@ -170,13 +182,20 @@ class TunnelManager:
                     try:
                         with open(state_file, "r") as f:
                             data = json.load(f)
-                            if data.get("url"):
+                            pid = data.get("pid")
+                            if pid and self._is_pid_alive(pid) and data.get("url"):
                                 return {
                                     "status": "active",
                                     "url": data["url"],
                                     "started_at": data.get("started_at"),
                                     "available": True
                                 }
+                            else:
+                                # Stale state file from dead process - remove it
+                                try:
+                                    state_file.unlink()
+                                except Exception:
+                                    pass
                     except Exception:
                         pass
 

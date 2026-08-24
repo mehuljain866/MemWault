@@ -12,7 +12,7 @@ import {
   User as UserIcon, CheckCircle2, AlertCircle, Smile,
   Maximize2, Disc, Sliders, Palette, Brush, Eraser,
   RotateCcw, Compass, CheckSquare, Square, Tag,
-  Move, Paperclip, Info
+  Move, Paperclip, Info, Video
 } from 'lucide-react';
 import { 
   getOfflineMemories, getOfflinePosts, getOfflineHighlights, 
@@ -531,6 +531,7 @@ export default function PocketCompanion() {
   const [postSlideIndex, setPostSlideIndex] = useState(0);
   const [postDetailTab, setPostDetailTab] = useState('info'); // 'info' | 'journal' | 'music' | 'data'
   const [postVersionMap, setPostVersionMap] = useState({}); // { [mediaId]: 'raw' | 'instagram' }
+  const [soundtrackPickerModal, setSoundtrackPickerModal] = useState(null); // { track_title, artist_name, cover_art, stories: [], posts: [] }
 
   // ── Custom Desktop Parity Stickers for Scrapbook ──────────────────────────
   const CUSTOM_STICKER_SETS = [
@@ -980,6 +981,33 @@ export default function PocketCompanion() {
       window.history.pushState({ view: 'highlight', id: hl.id }, '');
     } catch (e) {}
     handleOpenHighlight(hl);
+  };
+
+  const jumpToMemoryStory = (story) => {
+    if (!story) return;
+    triggerSound();
+    setSoundtrackPickerModal(null);
+    setActivePivot('memories');
+    setSelectedStory(story);
+    setIsInspectorExpanded(false);
+    setStoryDetailTab('info');
+    try {
+      window.history.pushState({ view: 'story', id: story.id }, '');
+    } catch (e) {}
+  };
+
+  const jumpToFeedPost = (post) => {
+    if (!post) return;
+    triggerSound();
+    setSoundtrackPickerModal(null);
+    const pIdx = posts.findIndex(p => p.id === post.id);
+    setActivePivot('feed');
+    setSelectedPostIndex(pIdx >= 0 ? pIdx : 0);
+    setPostSlideIndex(0);
+    setPostDetailTab('info');
+    try {
+      window.history.pushState({ view: 'post', index: pIdx >= 0 ? pIdx : 0 }, '');
+    } catch (e) {}
   };
 
   const navigateBack = () => {
@@ -1906,26 +1934,36 @@ export default function PocketCompanion() {
   const [activeSoundtrackTrack, setActiveSoundtrackTrack] = useState(null);
 
   const allVaultSoundtracks = useMemo(() => {
-    const list = [];
-    const seen = new Set();
+    const map = new Map();
 
     stories.forEach(s => {
       const track = s.music?.track_title || s.music_title;
       const artist = s.music?.artist_name || s.music_artist;
       if (track) {
-        const key = `${track}_${artist || ''}`.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          const coverArt = s.thumbnail_url || s.cover_media_url || s.display_url || s.media_url || s.raw_media_url || (Array.isArray(s.preview_stories) ? s.preview_stories[0] : null) || (s.s3_key_compressed ? `/media/${s.s3_key_compressed}` : null);
-          list.push({
+        const key = `${track.trim()}___${(artist || '').trim()}`.toLowerCase();
+        const coverArt = s.thumbnail_url || s.cover_media_url || s.display_url || s.media_url || s.raw_media_url || (Array.isArray(s.preview_stories) ? s.preview_stories[0] : null) || (s.s3_key_compressed ? `/media/${s.s3_key_compressed}` : null);
+        
+        if (!map.has(key)) {
+          map.set(key, {
             track_title: track,
             artist_name: artist || 'Instagram Audio',
             audio_url: s.music?.audio_url || null,
             cover_art: coverArt,
-            storyId: s.id,
+            stories: [s],
+            posts: [],
             date: s.taken_at,
-            type: 'story'
           });
+        } else {
+          const item = map.get(key);
+          if (!item.stories.some(existing => existing.id === s.id)) {
+            item.stories.push(s);
+          }
+          if (!item.audio_url && s.music?.audio_url) {
+            item.audio_url = s.music.audio_url;
+          }
+          if (!item.cover_art && coverArt) {
+            item.cover_art = coverArt;
+          }
         }
       }
     });
@@ -1934,24 +1972,42 @@ export default function PocketCompanion() {
       const track = p.music?.track_title || p.music_title;
       const artist = p.music?.artist_name || p.music_artist;
       if (track) {
-        const key = `${track}_${artist || ''}`.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          const coverArt = p.thumbnail_url || p.display_url || p.media_url || p.media_items?.[0]?.display_url || (Array.isArray(p.preview_stories) ? p.preview_stories[0] : null) || (p.s3_key_compressed ? `/media/${p.s3_key_compressed}` : null);
-          list.push({
+        const key = `${track.trim()}___${(artist || '').trim()}`.toLowerCase();
+        const coverArt = p.thumbnail_url || p.display_url || p.media_url || p.media_items?.[0]?.display_url || (Array.isArray(p.preview_stories) ? p.preview_stories[0] : null) || (p.s3_key_compressed ? `/media/${p.s3_key_compressed}` : null);
+        
+        if (!map.has(key)) {
+          map.set(key, {
             track_title: track,
             artist_name: artist || 'Instagram Audio',
             audio_url: p.music?.audio_url || null,
             cover_art: coverArt,
-            postId: p.id,
+            stories: [],
+            posts: [p],
             date: p.taken_at || p.timestamp,
-            type: 'post'
           });
+        } else {
+          const item = map.get(key);
+          if (!item.posts.some(existing => existing.id === p.id)) {
+            item.posts.push(p);
+          }
+          if (!item.audio_url && p.music?.audio_url) {
+            item.audio_url = p.music.audio_url;
+          }
+          if (!item.cover_art && coverArt) {
+            item.cover_art = coverArt;
+          }
         }
       }
     });
 
-    return list;
+    return Array.from(map.values()).sort((a, b) => {
+      const countA = (a.stories?.length || 0) + (a.posts?.length || 0);
+      const countB = (b.stories?.length || 0) + (b.posts?.length || 0);
+      if (countB !== countA) return countB - countA;
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [stories, posts]);
 
   const filteredSoundtracks = useMemo(() => {
@@ -2502,6 +2558,236 @@ export default function PocketCompanion() {
           </div>
         </div>
       )}
+
+
+      {/* ── SOUNDTRACK MEMORIES PICKER MODAL (METRO / LUMIA UI) ─────── */}
+      <AnimatePresence>
+        {soundtrackPickerModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 100000,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+            }}
+            onClick={() => {
+              triggerSound();
+              setSoundtrackPickerModal(null);
+            }}
+          >
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              style={{
+                backgroundColor: surfaceColor,
+                borderTop: `4px solid ${accent}`,
+                width: '100%',
+                maxWidth: '560px',
+                maxHeight: '85vh',
+                color: textColor,
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.7)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: '14px 16px',
+                borderBottom: `1px solid ${borderColor}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: cardColor,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                  <SoundtrackArtwork
+                    src={soundtrackPickerModal.cover_art}
+                    title={soundtrackPickerModal.track_title}
+                    artist={soundtrackPickerModal.artist_name}
+                    size={44}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {soundtrackPickerModal.track_title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: accent, fontWeight: 600 }}>
+                      {(soundtrackPickerModal.stories?.length || 0) + (soundtrackPickerModal.posts?.length || 0)} MEMORIES USING THIS SOUNDTRACK
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    triggerSound();
+                    setSoundtrackPickerModal(null);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: subTextColor,
+                    padding: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              {/* Memory Cards Scroll Container */}
+              <div style={{
+                padding: '16px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                WebkitOverflowScrolling: 'touch',
+              }}>
+                {/* Stories Section */}
+                {soundtrackPickerModal.stories && soundtrackPickerModal.stories.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: accent, letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Film size={13} />
+                      <span>Story Memories ({soundtrackPickerModal.stories.length})</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                      {soundtrackPickerModal.stories.map((story) => {
+                        const mediaUrl = getMediaUrl(story);
+                        const isVideo = story.media_type === 2 || story.is_video || (story.media_url && story.media_url.endsWith('.mp4'));
+                        const dateStr = story.taken_at ? new Date(story.taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Archive';
+
+                        return (
+                          <motion.div
+                            key={story.id}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => jumpToMemoryStory(story)}
+                            style={{
+                              backgroundColor: cardColor,
+                              border: `1px solid ${borderColor}`,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div style={{ position: 'relative', aspectRatio: '9/16', backgroundColor: '#000' }}>
+                              <OfflineMedia
+                                src={mediaUrl}
+                                alt="Story Memory"
+                                isVideo={isVideo}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              {isVideo && (
+                                <div style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: '4px', padding: '2px 5px', fontSize: '9px', color: '#FFF', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <Video size={10} />
+                                  <span>VIDEO</span>
+                                </div>
+                              )}
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                padding: '16px 8px 6px 8px',
+                                background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                                color: '#FFF',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                              }}>
+                                <div>{dateStr}</div>
+                                {story.location_name && (
+                                  <div style={{ fontSize: '9px', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    📍 {story.location_name}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: surfaceColor, borderTop: `1px solid ${borderColor}` }}>
+                              <span style={{ fontSize: '10px', color: accent, fontWeight: 700 }}>VIEW STORY</span>
+                              <ExternalLink size={11} color={accent} />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Posts Section */}
+                {soundtrackPickerModal.posts && soundtrackPickerModal.posts.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: accent, letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ImageIcon size={13} />
+                      <span>Feed Posts ({soundtrackPickerModal.posts.length})</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                      {soundtrackPickerModal.posts.map((post) => {
+                        const mediaUrl = getMediaUrl(post);
+                        const isVideo = post.media_type === 2;
+                        const isCarousel = post.media_items && post.media_items.length > 1;
+                        const dateStr = (post.taken_at || post.timestamp) ? new Date(post.taken_at || post.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Archive';
+
+                        return (
+                          <motion.div
+                            key={post.id}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => jumpToFeedPost(post)}
+                            style={{
+                              backgroundColor: cardColor,
+                              border: `1px solid ${borderColor}`,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div style={{ position: 'relative', aspectRatio: '1/1', backgroundColor: '#000' }}>
+                              <OfflineMedia
+                                src={mediaUrl}
+                                alt="Feed Post"
+                                isVideo={isVideo}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              {isCarousel && (
+                                <div style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: '4px', padding: '2px 5px', fontSize: '9px', color: '#FFF' }}>
+                                  CAROUSEL
+                                </div>
+                              )}
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                padding: '16px 8px 6px 8px',
+                                background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                                color: '#FFF',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                              }}>
+                                <div>{dateStr}</div>
+                              </div>
+                            </div>
+                            <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: surfaceColor, borderTop: `1px solid ${borderColor}` }}>
+                              <span style={{ fontSize: '10px', color: accent, fontWeight: 700 }}>VIEW POST</span>
+                              <ExternalLink size={11} color={accent} />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
 
       {/* ── CREATE NEW STORY HIGHLIGHT MODAL (METRO / LUMIA UI) ─────── */}
@@ -6093,42 +6379,55 @@ export default function PocketCompanion() {
                               {item.track_title}
                             </div>
                             <div style={{ fontSize: '11px', color: subTextColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {item.artist_name || 'Instagram Audio'} • <span style={{ opacity: 0.7 }}>{item.date ? new Date(item.date).toLocaleDateString() : 'Archive'}</span>
+                              {item.artist_name || 'Instagram Audio'} • <span style={{ color: ((item.stories?.length || 0) + (item.posts?.length || 0)) > 0 ? accent : subTextColor, fontWeight: ((item.stories?.length || 0) + (item.posts?.length || 0)) > 0 ? 600 : 400 }}>{((item.stories?.length || 0) + (item.posts?.length || 0))} {((item.stories?.length || 0) + (item.posts?.length || 0)) === 1 ? 'memory' : 'memories'}</span>
                             </div>
                           </div>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          {item.storyId && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                triggerSound();
-                                const targetStory = stories.find(s => s.id === item.storyId);
-                                if (targetStory) {
-                                  setSelectedStory(targetStory);
-                                  setStoryDetailTab('preview');
-                                }
-                              }}
-                              style={{
-                                backgroundColor: 'transparent',
-                                border: `1px solid ${borderColor}`,
-                                color: subTextColor,
-                                padding: '4px 8px',
-                                fontSize: '10px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                WebkitTapHighlightColor: 'transparent',
-                                outline: 'none'
-                              }}
-                              title="Jump to Memory"
-                            >
-                              <span>Story</span>
-                              <ExternalLink size={10} />
-                            </button>
-                          )}
+                          {(() => {
+                            const storyCount = item.stories?.length || 0;
+                            const postCount = item.posts?.length || 0;
+                            const totalCount = storyCount + postCount;
+                            if (totalCount === 0) return null;
+
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  triggerSound();
+                                  if (totalCount === 1) {
+                                    if (storyCount === 1) {
+                                      jumpToMemoryStory(item.stories[0]);
+                                    } else if (postCount === 1) {
+                                      jumpToFeedPost(item.posts[0]);
+                                    }
+                                  } else {
+                                    setSoundtrackPickerModal(item);
+                                  }
+                                }}
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  border: `1px solid ${borderColor}`,
+                                  color: accent,
+                                  padding: '4px 8px',
+                                  fontSize: '10px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontWeight: 600,
+                                  WebkitTapHighlightColor: 'transparent',
+                                  outline: 'none'
+                                }}
+                                title={totalCount > 1 ? `View all ${totalCount} memories using this soundtrack` : "Jump to Memory"}
+                              >
+                                <Film size={11} color={accent} />
+                                <span>{totalCount > 1 ? `${totalCount} Memories` : (storyCount === 1 ? 'Story' : 'Post')}</span>
+                                <ExternalLink size={10} />
+                              </button>
+                            );
+                          })()}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

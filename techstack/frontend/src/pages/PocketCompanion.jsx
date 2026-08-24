@@ -4667,9 +4667,9 @@ export default function PocketCompanion() {
                 onTouchEnd={handleMemoryTouchEnd}
                 style={{
                   width: '100%',
-                  maxWidth: isInspectorExpanded ? '180px' : '360px',
+                  maxWidth: isInspectorExpanded ? '180px' : '420px',
                   aspectRatio: '9/16',
-                  maxHeight: isInspectorExpanded ? '24vh' : '62vh',
+                  maxHeight: isInspectorExpanded ? '24vh' : '76vh',
                   margin: '0 auto',
                   backgroundColor: '#000000',
                   position: 'relative',
@@ -4747,82 +4747,61 @@ export default function PocketCompanion() {
                 )}
               </motion.div>
 
-              {/* ── Contextual Bottom Bar & Tabs Strip ── */}
+              {/* ── Contextual Bottom Bar & Tabs Strip (Direct Tap to Open Inspector) ── */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 borderBottom: `2px solid ${borderColor}`,
-                gap: '6px',
+                gap: '4px',
                 overflowX: 'auto',
                 scrollbarWidth: 'none',
-                padding: '4px 0',
-                marginTop: '2px',
+                padding: '6px 2px',
+                marginTop: '4px',
+                width: '100%',
               }}>
-                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
-                  {[
-                    { id: 'info', label: 'INFO' },
-                    { id: 'journal', label: 'JOURNAL' },
-                    { id: 'music', label: 'MUSIC' },
-                    { id: 'viewers', label: `VIEWERS (${storyViewersList.length || selectedStory.viewers_count || 0})` },
-                    { id: 'data', label: 'DATA' },
-                  ].map(tab => {
-                    const isActive = isInspectorExpanded && storyDetailTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          triggerSound();
-                          if (isInspectorExpanded && storyDetailTab === tab.id) {
-                            setIsInspectorExpanded(false);
-                          } else {
-                            setStoryDetailTab(tab.id);
-                            setIsInspectorExpanded(true);
-                          }
-                        }}
-                        style={{
-                          background: isActive ? accent : 'none',
-                          border: 'none',
-                          borderBottom: !isActive && storyDetailTab === tab.id ? `2px solid ${accent}` : 'none',
-                          color: isActive ? '#FFFFFF' : (isDark ? '#FFFFFF' : '#000000'),
-                          padding: '6px 10px',
-                          fontSize: '11px',
-                          fontWeight: isActive ? '700' : (storyDetailTab === tab.id ? '700' : '400'),
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          letterSpacing: '0.5px',
-                          borderRadius: '4px',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => {
-                    triggerSound();
-                    setIsInspectorExpanded(prev => !prev);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: `1px solid ${borderColor}`,
-                    color: subTextColor,
-                    padding: '4px 8px',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    borderRadius: '4px',
-                  }}
-                >
-                  <span>{isInspectorExpanded ? 'CLOSE ▼' : 'DETAILS ▲'}</span>
-                </button>
+                {[
+                  { id: 'info', label: 'INFO' },
+                  { id: 'journal', label: 'JOURNAL' },
+                  { id: 'music', label: 'MUSIC' },
+                  { id: 'viewers', label: `VIEWERS (${storyViewersList.length || selectedStory.viewers_count || 0})` },
+                  { id: 'data', label: 'DATA' },
+                ].map(tab => {
+                  const isActive = isInspectorExpanded && storyDetailTab === tab.id;
+                  const isSelected = storyDetailTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        triggerSound();
+                        if (isInspectorExpanded && storyDetailTab === tab.id) {
+                          setIsInspectorExpanded(false);
+                        } else {
+                          setStoryDetailTab(tab.id);
+                          setIsInspectorExpanded(true);
+                        }
+                      }}
+                      style={{
+                        flex: '1 0 auto',
+                        textAlign: 'center',
+                        background: isActive ? accent : 'transparent',
+                        border: 'none',
+                        borderBottom: !isInspectorExpanded && isSelected ? `3px solid ${accent}` : '3px solid transparent',
+                        color: isActive ? '#FFFFFF' : (isSelected ? (isDark ? '#FFFFFF' : '#000000') : subTextColor),
+                        padding: '8px 10px',
+                        fontSize: '11px',
+                        fontWeight: isActive || isSelected ? '700' : '500',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '0.5px',
+                        borderRadius: isActive ? '4px' : '0px',
+                        transition: 'all 0.15s ease',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* ── Animated Bottom Sheet Inspector Drawer ── */}

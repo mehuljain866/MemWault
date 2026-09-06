@@ -377,6 +377,10 @@ export async function getScrapeLogs(limit = 10) {
   return apiFetch(`/scrape/logs?limit=${limit}`);
 }
 
+export async function getScrapeStatus() {
+  return apiFetch('/scrape/status');
+}
+
 
 // ═══════════════════════════════════════════════════════════
 // Dashboard API

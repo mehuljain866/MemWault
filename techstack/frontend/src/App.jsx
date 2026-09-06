@@ -23,6 +23,7 @@ import PocketCompanion from './pages/PocketCompanion'
 import ThemeShellWrapper from './components/shells/ThemeShellWrapper'
 import ClippyAssistant from './components/win98/ClippyAssistant'
 import { applyThemeSettings, getSettings } from './services/settings'
+import { SyncProvider } from './context/SyncContext'
 
 /**
  * Protected route wrapper — redirects to /login if not authenticated.
@@ -74,32 +75,34 @@ function AppShell() {
   }, [location.pathname])
 
   return (
-    <div className={`app-container ${isWin98 ? 'win98-root-container' : ''}`}>
-      {!isWin98 && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
-      <div className={`ios-main-content ${isWin98 ? 'win98-main-content' : ''}`}>
-        <ThemeShellWrapper onMenuClick={() => setSidebarOpen(true)}>
-          <div style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: isWin98 ? 0 : 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: isWin98 ? 0 : -10 }}
-                transition={{ duration: isWin98 ? 0.05 : 0.18, ease: "easeOut" }}
-                style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
-                onAnimationComplete={() => {
-                  document.body.style.transform = '';
-                }}
-              >
-                {currentOutlet}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </ThemeShellWrapper>
+    <SyncProvider>
+      <div className={`app-container ${isWin98 ? 'win98-root-container' : ''}`}>
+        {!isWin98 && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+        <div className={`ios-main-content ${isWin98 ? 'win98-main-content' : ''}`}>
+          <ThemeShellWrapper onMenuClick={() => setSidebarOpen(true)}>
+            <div style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={location.pathname}
+                  initial={{ opacity: 0, y: isWin98 ? 0 : 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: isWin98 ? 0 : -10 }}
+                  transition={{ duration: isWin98 ? 0.05 : 0.18, ease: "easeOut" }}
+                  style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
+                  onAnimationComplete={() => {
+                    document.body.style.transform = '';
+                  }}
+                >
+                  {currentOutlet}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </ThemeShellWrapper>
+        </div>
+        {!isWin98 && <ClippyAssistant />}
+        <ScrollRestoration />
       </div>
-      {!isWin98 && <ClippyAssistant />}
-      <ScrollRestoration />
-    </div>
+    </SyncProvider>
   )
 }
 

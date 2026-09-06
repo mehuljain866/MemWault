@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { getStories, bulkUpdateStories, triggerScrape } from '../services/api'
+import { getStories, bulkUpdateStories } from '../services/api'
+import { useSync } from '../context/SyncContext'
 import { getSettings, saveSettings } from '../services/settings'
 import StoryCard from '../components/StoryCard'
 import BulkActionBar from '../components/BulkActionBar'
@@ -122,7 +123,7 @@ export default function Timeline({ isReelView = false }) {
   const [showAddToHighlightModal, setShowAddToHighlightModal] = useState(false)
   const [showHighlightCreatorModal, setShowHighlightCreatorModal] = useState(false)
 
-  const [syncing, setSyncing] = useState(false)
+  const { isSyncing, triggerSync } = useSync()
   const [toast, setToast] = useState(null)
 
   const PAGE_SIZE = zoomLevel === 'year' ? 120 : zoomLevel === 'month' ? 60 : 30
@@ -161,25 +162,43 @@ export default function Timeline({ isReelView = false }) {
   }, [filters, isReelView, PAGE_SIZE, searchQuery])
 
   const handleSync = async () => {
-    if (syncing) return
-    setSyncing(true)
+    if (isSyncing) return
     try {
-      await triggerScrape(true)
-      await loadStories(1)
-      setToast('Archive synced successfully!')
-      setTimeout(() => setToast(null), 3000)
+      await triggerSync(true)
+      setToast('Syncing stories from Instagram in the background...')
+      setTimeout(() => setToast(null), 4000)
     } catch (err) {
       const msg = err.message || 'Sync failed'
-      if (msg.includes('expired') || msg.includes('Renew') || msg.includes('session')) {
+      if (msg.includes('429') || msg.includes('Rate limit') || msg.includes('wait') || msg.includes('already')) {
+        setToast(`⏳ ${msg}`)
+      } else if (msg.includes('expired') || msg.includes('Renew') || msg.includes('session')) {
         setToast('⚠️ Instagram session expired. Please click "Renew Session" in Settings.')
       } else {
         setToast(`Sync error: ${msg}`)
       }
       setTimeout(() => setToast(null), 6000)
-    } finally {
-      setSyncing(false)
     }
   }
+
+  // Listen for background sync completion to update stories and show final toast
+  useEffect(() => {
+    const onSyncFinished = (e) => {
+      const last = e.detail
+      if (last?.status === 'success') {
+        const newCount = last.stories_new || 0
+        setToast(newCount > 0 ? `Archive synced: ${newCount} new ${newCount === 1 ? 'story' : 'stories'} archived!` : 'Archive sync complete! No new stories.')
+      } else if (last?.status === 'error') {
+        setToast(`Sync notice: ${last.error_message || 'Task ended with an error'}`)
+      } else {
+        setToast('Archive sync complete!')
+      }
+      setTimeout(() => setToast(null), 4000)
+      loadStories(1)
+    }
+
+    window.addEventListener('memwault-sync-finished', onSyncFinished)
+    return () => window.removeEventListener('memwault-sync-finished', onSyncFinished)
+  }, [loadStories])
 
   // Debounce search input
   useEffect(() => {
@@ -433,7 +452,7 @@ export default function Timeline({ isReelView = false }) {
           {!isSelectMode && (
             <button
               onClick={handleSync}
-              disabled={syncing}
+              disabled={isSyncing}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -445,13 +464,13 @@ export default function Timeline({ isReelView = false }) {
                 borderRadius: '12px',
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: syncing ? 'default' : 'pointer',
-                opacity: syncing ? 0.7 : 1,
+                cursor: isSyncing ? 'not-allowed' : 'pointer',
+                opacity: isSyncing ? 0.6 : 1,
                 transition: 'opacity 0.2s',
               }}
             >
-              <RefreshCw size={15} className={syncing ? 'spin-anim' : ''} />
-              <span>{syncing ? 'Syncing...' : (isReelView ? 'Sync Reels' : 'Sync Memories')}</span>
+              <RefreshCw size={15} className={isSyncing ? 'spin-anim' : ''} />
+              <span>{isSyncing ? 'Syncing...' : (isReelView ? 'Sync Reels' : 'Sync Memories')}</span>
             </button>
           )}
 

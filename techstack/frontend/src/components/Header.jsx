@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Menu, RefreshCcw } from 'lucide-react'
+import { useSync } from '../context/SyncContext'
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -12,6 +13,7 @@ const pageTitles = {
 
 export default function Header({ onMenuClick }) {
   const location = useLocation()
+  const { isSyncing, triggerSync } = useSync()
 
   const title = pageTitles[location.pathname] ||
     (location.pathname.startsWith('/story/') ? 'Story Detail' : 'MemWault')
@@ -101,17 +103,26 @@ export default function Header({ onMenuClick }) {
       <div>
         <button
           className="ios-btn"
-          style={{ padding: '10px 16px', fontSize: '14px', borderRadius: 'var(--ios-radius-sm)' }}
+          style={{
+            padding: '10px 16px',
+            fontSize: '14px',
+            borderRadius: 'var(--ios-radius-sm)',
+            cursor: isSyncing ? 'not-allowed' : 'pointer',
+            opacity: isSyncing ? 0.6 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+          disabled={isSyncing}
           onClick={() => {
-            import('../services/api').then(api => {
-              api.triggerScrape(true)
-                .then(() => showToast('Syncing your archive...'))
-                .catch(err => showToast(`Error: ${err.message}`))
-            })
+            if (isSyncing) return
+            triggerSync(true)
+              .then(() => showToast('Syncing your archive in background...'))
+              .catch(err => showToast(`Error: ${err.message}`))
           }}
         >
-          <RefreshCcw size={16} />
-          Sync Now
+          <RefreshCcw size={16} className={isSyncing ? 'spin-anim' : ''} />
+          {isSyncing ? 'Syncing...' : 'Sync Now'}
         </button>
       </div>
 

@@ -1091,34 +1091,10 @@ async def get_highlight_stories(
     return story_reads
 
 
-@router.post("/scrape/now", response_model=ScrapeLogRead)
-async def trigger_scrape(
-    background_tasks: BackgroundTasks,
-    body: ScrapeRequest = ScrapeRequest(),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Manually trigger an incremental story scrape (active + archive from latest story to present)."""
-    from app.scraper.tasks import sync_stories_incremental
-
-    # Check if user has a valid connected Instagram session
-    session_res = await db.execute(
-        select(InstagramSession).where(
-            InstagramSession.user_id == user.id,
-            InstagramSession.is_valid == True,
-        )
-    )
-    ig_session = session_res.scalar_one_or_none()
-    if not ig_session:
-        raise HTTPException(
-            status_code=400,
-            detail="Instagram session is expired or not connected. Please click 'Renew Session' in Settings.",
-        )
-
-    # 1. In-flight check: prevent concurrent background scrapes from hammering Instagram
+async def _assert_no_active_scrape(user_id: uuid.UUID, db: AsyncSession):
     active_res = await db.execute(
         select(ScrapeLog).where(
-            ScrapeLog.user_id == user.id,
+            ScrapeLog.user_id == user_id,
             ScrapeLog.status == "running",
         ).order_by(ScrapeLog.started_at.desc()).limit(1)
     )
@@ -1133,6 +1109,37 @@ async def trigger_scrape(
                 status_code=429,
                 detail="A sync job is already actively running. Please wait for it to finish.",
             )
+
+
+@router.post("/scrape/now", response_model=ScrapeLogRead)
+async def trigger_manual_scrape(
+    background_tasks: BackgroundTasks,
+    body: ScrapeRequest = ScrapeRequest(),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger an immediate incremental scrape for stories and feed posts.
+    Enforces in-flight mutex and a minimum cooldown between manual syncs to protect the account.
+    """
+    from app.scraper.tasks import sync_stories_incremental
+
+    # 1. In-flight check: prevent concurrent background scrapes from hammering Instagram
+    await _assert_no_active_scrape(user.id, db)
+
+    # Ensure Instagram credentials exist and are marked valid
+    session_res = await db.execute(
+        select(InstagramSession).where(
+            InstagramSession.user_id == user.id,
+            InstagramSession.is_valid == True,
+        ).order_by(InstagramSession.last_login.desc()).limit(1)
+    )
+    ig_session = session_res.scalar_one_or_none()
+    if not ig_session:
+        raise HTTPException(
+            status_code=400,
+            detail="Instagram session is expired or not connected. Please click 'Renew Session' in Settings.",
+        )
 
     # 2. Cooldown check: enforce minimum 60s cooldown between manual syncs to protect account
     recent_res = await db.execute(
@@ -1170,6 +1177,7 @@ async def trigger_archive_import(
     background_tasks: BackgroundTasks,
     body: ArchiveImportRequest = ArchiveImportRequest(),
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger a full historical archive import.
@@ -1177,8 +1185,15 @@ async def trigger_archive_import(
     """
     from app.scraper.tasks import import_archive
 
+    await _assert_no_active_scrape(user.id, db)
+
+    log = ScrapeLog(user_id=user.id, status="running", job_type="archive_import")
+    db.add(log)
+    await db.flush()
+
     background_tasks.add_task(import_archive.delay, str(user.id), body.max_stories)
-    return {"status": "started", "max_stories": body.max_stories}
+    await db.refresh(log)
+    return {"status": "started", "log_id": str(log.id), "max_stories": body.max_stories}
 
 
 @router.post("/scrape/full")
@@ -1195,6 +1210,8 @@ async def trigger_full_scan(
     """
     from app.scraper.tasks import full_vault_scan
 
+    await _assert_no_active_scrape(user.id, db)
+
     log = ScrapeLog(user_id=user.id, status="running", job_type="full_scan")
     db.add(log)
     await db.flush()
@@ -1207,14 +1224,82 @@ async def trigger_full_scan(
 @router.post("/scrape/highlights")
 async def trigger_highlights_sync(
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Trigger a sync of user's highlights."""
     from app.scraper.tasks import sync_highlights
+
+    await _assert_no_active_scrape(user.id, db)
+
     background_tasks.add_task(sync_highlights.delay, str(user.id))
     return {"status": "started"}
 
 
+
+
+@router.get("/scrape/status")
+async def get_scrape_status(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if a background scrape job is currently active for this user."""
+    result = await db.execute(
+        select(ScrapeLog)
+        .where(
+            ScrapeLog.user_id == user.id,
+            ScrapeLog.status == "running",
+        )
+        .order_by(ScrapeLog.started_at.desc())
+        .limit(1)
+    )
+    active = result.scalar_one_or_none()
+    if active:
+        # Auto-expire orphaned jobs older than 10 minutes
+        now_dt = datetime.now(timezone.utc)
+        start_dt = active.started_at
+        if start_dt and start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+
+        if start_dt and (now_dt - start_dt).total_seconds() > 600:
+            active.status = "error"
+            active.error_message = "Task timed out"
+            await db.commit()
+            active = None
+
+    if active:
+        return {
+            "is_syncing": True,
+            "log": {
+                "id": str(active.id),
+                "job_type": active.job_type,
+                "started_at": active.started_at.isoformat() if active.started_at else None,
+            }
+        }
+
+    # Fetch last completed log if not actively syncing
+    last_res = await db.execute(
+        select(ScrapeLog)
+        .where(ScrapeLog.user_id == user.id)
+        .order_by(ScrapeLog.started_at.desc())
+        .limit(1)
+    )
+    last_log = last_res.scalar_one_or_none()
+    return {
+        "is_syncing": False,
+        "log": None,
+        "last_log": {
+            "id": str(last_log.id),
+            "status": last_log.status,
+            "job_type": last_log.job_type,
+            "stories_found": last_log.stories_found,
+            "stories_new": last_log.stories_new,
+            "posts_found": last_log.posts_found,
+            "posts_new": last_log.posts_new,
+            "error_message": last_log.error_message,
+            "finished_at": last_log.finished_at.isoformat() if last_log.finished_at else None,
+        } if last_log else None
+    }
 
 
 @router.get("/scrape/logs", response_model=list[ScrapeLogRead])

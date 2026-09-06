@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { triggerScrape } from '../../services/api';
-import { RefreshCw, Smartphone } from 'lucide-react';
+import { useSync } from '../../context/SyncContext';
+import { 
+  RefreshCw, Layers, LayoutGrid, Clock, MapPin, 
+  SlidersHorizontal, Smartphone, FolderArchive 
+} from 'lucide-react';
 import ConnectPhoneModal from '../ConnectPhoneModal';
 
 const PAGE_NAMES = {
-  '/': 'Dashboard',
-  '/posts': 'Feed Archive',
-  '/timeline': 'Memories Timeline',
-  '/reels': 'Reels & Stories',
-  '/highlights': 'Collections',
-  '/map': 'Locations',
+  '/': 'Archive Overview',
+  '/posts': 'Instagram Posts & Reels',
+  '/timeline': 'Chronological Archive',
+  '/map': 'Geo Intelligence',
   '/settings': 'System Preferences',
   '/archives': 'Storage Vault'
 };
@@ -18,17 +19,15 @@ const PAGE_NAMES = {
 export default function AquaShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [syncing, setSyncing] = useState(false);
+  const { isSyncing, triggerSync } = useSync();
   const [trafficHover, setTrafficHover] = useState(false);
   const [connectPhoneOpen, setConnectPhoneOpen] = useState(false);
 
   const title = PAGE_NAMES[location.pathname] || 'MemWault';
 
   const handleSync = () => {
-    setSyncing(true);
-    triggerScrape(true)
-      .then(() => setTimeout(() => setSyncing(false), 2000))
-      .catch(() => setSyncing(false));
+    if (isSyncing) return;
+    triggerSync(true).catch(() => {});
   };
 
   return (
@@ -71,10 +70,11 @@ export default function AquaShell({ children }) {
           <button 
             className="aqua-gel-btn primary is-breathing"
             onClick={handleSync}
-            disabled={syncing}
+            disabled={isSyncing}
+            style={{ cursor: isSyncing ? 'not-allowed' : 'pointer', opacity: isSyncing ? 0.6 : 1 }}
           >
-            <RefreshCw size={12} className={syncing ? "spin-anim" : ""} />
-            <span>{syncing ? "Updating..." : "Sync Archive"}</span>
+            <RefreshCw size={12} className={isSyncing ? "spin-anim" : ""} />
+            <span>{isSyncing ? "Updating..." : "Sync Archive"}</span>
           </button>
         </div>
       </header>

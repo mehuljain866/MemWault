@@ -40,6 +40,7 @@
   - [Frontend Setup](#4-frontend-setup)
   - [Docker Setup](#docker-setup)
 - [Configuration](#configuration)
+- [Account Safety, Rate Limiting & Anti-Ban Architecture](#account-safety-rate-limiting--anti-ban-architecture)
 - [Currently Known Limitations & Development Oddities](#currently-known-limitations--development-oddities)
 - [Design Decisions](#design-decisions)
 - [License](#license)
@@ -350,6 +351,42 @@ MemWault is configured using environment variables with the `MEMWAULT_` prefix.
 
 📖 **Detailed Configuration Guide:** [`docs/configuration.md`](docs/configuration.md)  
 📖 **REST API Reference:** [`docs/api.md`](docs/api.md)
+
+---
+
+## Account Safety, Rate Limiting & Anti-Ban Architecture
+
+> [!WARNING]
+> **Account Safety Notice:** MemWault interacts with Instagram using private web endpoints for personal archival purposes. Rapid burst requests, concurrent scraping tasks, or conflicting client signatures can trip Meta's automated account integrity detectors ("Suspicious activity detected / Account compromised"). MemWault is engineered with strict rate limits and defensive safeguards to protect your personal account.
+
+### How Meta Integrity Detection Works
+Meta's automated fraud and integrity systems continuously monitor account traffic for anomalies:
+1. **Burst Frequency**: Dispatched requests occurring within milliseconds of one another indicate automated scripting rather than human browsing.
+2. **Session / Header Discrepancies**: If an account logs in via a modern desktop Chromium browser on Windows, but API calls simulate an Android mobile app with different User-Agents or device identifiers using the same session cookies, the discrepancy is flagged as session hijacking.
+3. **Concurrent Parallel Ingestion**: Triggering multiple scraping or metadata re-indexing processes simultaneously multiplies request frequency and triggers IP/account blocks.
+
+### Built-in Safeguards in MemWault
+To mitigate risk and ensure long-term account health, MemWault implements a multi-layer defense:
+
+- **Desktop Web Client Parity (`X-IG-App-ID: 936619743392459`)**:
+  All private endpoints (viewer lists, close friends lists, feed posts, story media) route through an authenticated desktop browser session header pipeline. MemWault decouples from mobile Android app emulation to match the exact browser fingerprint of your login session.
+- **In-Flight Job Mutex (Server-Side)**:
+  The backend strictly blocks duplicate or concurrent scrape jobs (`HTTP 429 Too Many Requests`). If an active scraping job is running for your account, all additional sync or scan triggers are denied until the active task finishes or times out.
+- **Enforced Manual Sync Cooldown (60 Seconds)**:
+  A strict 60-second cooldown is enforced between manual sync requests on `/scrape/now` to prevent rapid burst calls.
+- **Client-Side Debounce & Continuous Polling**:
+  All frontend sync buttons (`Timeline`, `Dashboard`, `Settings`, and Shells) disable immediately upon being clicked, show persistent continuous spinning feedback (`spin-anim`), and poll `GET /api/v1/scrape/status` every 1.5s until the background Celery task completes. Double-clicking or spam-clicking is prevented at both UI and API layers.
+- **Passive Local Archival**:
+  Once your stories and posts are ingested into the local SQLite database and media folders, browsing, filtering, playback, music playback, map exploration, and journal authoring occur **100% offline** without generating any traffic to Meta servers.
+
+### Recommended Best Practices for Users & Forks
+1. **Never Rapidly Trigger Syncs**: Allow each background sync job to conclude before triggering another. MemWault's scheduler can run periodically (e.g., once or twice daily) rather than constantly polling.
+2. **If You Receive a Warning on Your Phone**:
+   - Immediately change your Instagram password on your mobile device (this invalidates foreign sessions).
+   - Observe a **24–48 hour automation cool-down** before logging MemWault back in.
+   - Do not click "Full Scan" repeatedly; run it once to re-index and allow it to finish.
+3. **Session Renewal**:
+   - Use the built-in Playwright session renewal in **Settings > Account** to obtain a fresh browser session when cookies expire.
 
 ---
 

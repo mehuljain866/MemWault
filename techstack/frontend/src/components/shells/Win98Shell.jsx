@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
-import { triggerScrape, getDashboardStats } from '../../services/api';
+import { getDashboardStats } from '../../services/api';
+import { useSync } from '../../context/SyncContext';
 import { getSettings, saveSettings } from '../../services/settings';
 import { 
   RotateCcw, ChevronRight, RefreshCw, Eye, EyeOff
@@ -111,7 +112,7 @@ export default function Win98Shell({ children }) {
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [isConnectPhoneOpen, setIsConnectPhoneOpen] = useState(false);
   const [showClippy, setShowClippy] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const { isSyncing, triggerSync } = useSync();
   const shouldReduceMotion = useReducedMotion();
 
   // Boot Screen state (run once per session if enabled)
@@ -202,22 +203,37 @@ export default function Win98Shell({ children }) {
     }
   }, [isStartMenuOpen, showResourcePopup, contextMenu]);
 
-  const handleSync = () => {
-    playWin98Click();
-    setSyncing(true);
-    setStatusMsg('CONNECTING TO COM1... SYNCING');
-    triggerScrape(true)
-      .then(() => {
+  useEffect(() => {
+    if (isSyncing) {
+      setStatusMsg('CONNECTING TO COM1... SYNCING');
+    }
+  }, [isSyncing]);
+
+  useEffect(() => {
+    const onSyncFinished = (e) => {
+      const last = e.detail;
+      if (last?.status === 'success') {
         setStatusMsg('SYNC COMPLETE: 0 ERRORS');
-        setSyncing(false);
-        setTimeout(() => setStatusMsg('READY'), 3000);
-        getDashboardStats().then(setStats).catch(() => {});
-      })
-      .catch((err) => {
-        setStatusMsg(`ERROR 0x0042: ${err.message}`);
-        setSyncing(false);
-        setTimeout(() => setStatusMsg('READY'), 4000);
-      });
+      } else if (last?.status === 'error') {
+        setStatusMsg(`SYNC NOTICE: ${last.error_message || 'ERROR 0x0042'}`);
+      } else {
+        setStatusMsg('SYNC FINISHED');
+      }
+      setTimeout(() => setStatusMsg('READY'), 4000);
+      getDashboardStats().then(setStats).catch(() => {});
+    };
+    window.addEventListener('memwault-sync-finished', onSyncFinished);
+    return () => window.removeEventListener('memwault-sync-finished', onSyncFinished);
+  }, []);
+
+  const handleSync = () => {
+    if (isSyncing) return;
+    playWin98Click();
+    setStatusMsg('CONNECTING TO COM1... SYNCING');
+    triggerSync(true).catch((err) => {
+      setStatusMsg(`ERROR 0x0042: ${err.message}`);
+      setTimeout(() => setStatusMsg('READY'), 4000);
+    });
   };
 
   const handleShowAllWidgets = () => {
@@ -420,7 +436,7 @@ export default function Win98Shell({ children }) {
       {(settings.win98DashboardMode === 'widget' || isMinimized) && (
         <Win98WidgetLayer
           stats={stats}
-          syncing={syncing}
+          syncing={isSyncing}
           onSync={handleSync}
           onNavigate={(p) => { navigate(p); setIsMinimized(false); }}
         />
@@ -573,8 +589,15 @@ export default function Win98Shell({ children }) {
                 <Win98SetupIcon size={16} /><span>Setup</span>
               </button>
               <div style={{ width: '1px', height: '18px', background: '#808080', borderRight: '1px solid #ffffff', margin: '0 4px' }} />
-              <button className="win98-toolbar-btn" onClick={handleSync} title="Sync Archive">
-                <RotateCcw size={16} className={syncing && !shouldReduceMotion ? 'spin-anim' : ''} /><span>Sync</span>
+              <button 
+                className="win98-toolbar-btn" 
+                onClick={handleSync} 
+                disabled={isSyncing}
+                style={{ cursor: isSyncing ? 'not-allowed' : 'pointer', opacity: isSyncing ? 0.6 : 1 }}
+                title="Sync Archive"
+              >
+                <RotateCcw size={16} className={isSyncing && !shouldReduceMotion ? 'spin-anim' : ''} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
               </button>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../services/api'
+import { getDashboardStats, triggerArchiveImport } from '../services/api'
+import { useSync } from '../context/SyncContext'
 import { useOutletContext } from 'react-router-dom'
 import { 
   Images, Video, Music, MapPin, Users, Database, Server, HardDrive, 
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const shouldReduceMotion = useReducedMotion()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const { isSyncing, triggerSync } = useSync()
   const [importing, setImporting] = useState(false)
   const [toast, setToast] = useState(null)
 
@@ -41,6 +42,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadStats()
+
+    const onSyncFinished = (e) => {
+      const last = e.detail
+      if (last?.status === 'success') {
+        showToast('Active stories synced successfully!')
+      } else if (last?.status === 'error') {
+        showToast(`Sync finished with notice: ${last.error_message || 'Task error'}`)
+      } else {
+        showToast('Sync finished!')
+      }
+      loadStats()
+    }
+    window.addEventListener('memwault-sync-finished', onSyncFinished)
+    return () => window.removeEventListener('memwault-sync-finished', onSyncFinished)
   }, [])
 
   async function loadStats() {
@@ -55,16 +70,12 @@ export default function Dashboard() {
   }
 
   async function handleSync() {
-    if (syncing) return
-    setSyncing(true)
+    if (isSyncing) return
     try {
-      await triggerScrape(true)
-      await loadStats()
-      showToast('Active stories synced successfully!')
+      await triggerSync(true)
+      showToast('Syncing active stories in background...')
     } catch (err) {
       showToast(`Sync error: ${err.message}`)
-    } finally {
-      setSyncing(false)
     }
   }
 
@@ -306,29 +317,33 @@ export default function Dashboard() {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <motion.button 
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isSyncing ? 1 : 1.01 }}
+                whileTap={{ scale: isSyncing ? 1 : 0.98 }}
                 className="ios-btn" 
                 onClick={handleSync}
-                disabled={syncing}
+                disabled={isSyncing}
                 style={{
                   padding: '12px 18px', fontSize: '13px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  cursor: isSyncing ? 'not-allowed' : 'pointer',
+                  opacity: isSyncing ? 0.6 : 1
                 }}
               >
-                <RefreshCw size={16} className={syncing ? "spin-anim" : "spin-on-hover"} />
-                <span>{syncing ? 'Syncing Active Stories...' : 'Sync Active Stories'}</span>
+                <RefreshCw size={16} className={isSyncing ? "spin-anim" : "spin-on-hover"} />
+                <span>{isSyncing ? 'Syncing Active Stories...' : 'Sync Active Stories'}</span>
               </motion.button>
 
               <motion.button 
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: (importing || isSyncing) ? 1 : 1.01 }}
+                whileTap={{ scale: (importing || isSyncing) ? 1 : 0.98 }}
                 className="ios-btn-secondary ios-btn" 
                 onClick={handleArchiveImport} 
-                disabled={importing}
+                disabled={importing || isSyncing}
                 style={{
                   padding: '12px 18px', fontSize: '13px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  cursor: (importing || isSyncing) ? 'not-allowed' : 'pointer',
+                  opacity: (importing || isSyncing) ? 0.6 : 1
                 }}
               >
                 <AnimatedCloudDownload isImporting={importing} />

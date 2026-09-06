@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { triggerScrape, getDashboardStats } from '../../services/api';
+import { getDashboardStats } from '../../services/api';
+import { useSync } from '../../context/SyncContext';
 import { Radio, Sparkles, RefreshCw, Smartphone } from 'lucide-react';
 import ConnectPhoneModal from '../ConnectPhoneModal';
 
@@ -8,7 +9,7 @@ export default function Y2KShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ total_stories: 0, total_feed_posts: 0 });
-  const [syncing, setSyncing] = useState(false);
+  const { isSyncing, triggerSync } = useSync();
   const [connectPhoneOpen, setConnectPhoneOpen] = useState(false);
 
   useEffect(() => {
@@ -16,10 +17,8 @@ export default function Y2KShell({ children }) {
   }, []);
 
   const handleSync = () => {
-    setSyncing(true);
-    triggerScrape(true)
-      .then(() => setTimeout(() => setSyncing(false), 2000))
-      .catch(() => setSyncing(false));
+    if (isSyncing) return;
+    triggerSync(true).catch(() => {});
   };
 
   const navLinks = [
@@ -73,11 +72,12 @@ export default function Y2KShell({ children }) {
           <button 
             className="y2k-action-btn"
             onClick={handleSync}
-            disabled={syncing}
+            disabled={isSyncing}
+            style={{ cursor: isSyncing ? 'not-allowed' : 'pointer', opacity: isSyncing ? 0.6 : 1 }}
             title="Sync Satellite Uplink"
           >
-            <RefreshCw size={14} className={syncing ? "spin-anim" : ""} />
-            <span>{syncing ? "SYNCING..." : "SYNC_UPLINK"}</span>
+            <RefreshCw size={14} className={isSyncing ? "spin-anim" : ""} />
+            <span>{isSyncing ? "SYNCING..." : "SYNC_UPLINK"}</span>
           </button>
         </div>
 

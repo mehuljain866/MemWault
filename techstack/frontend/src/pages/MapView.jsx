@@ -17,42 +17,45 @@ import { ChevronDown, RotateCw, Map as MapIcon, Maximize2, Minimize2, MapPin, Co
 // Fix default leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
 
-// iOS Style Pin Icon
-const createIosPin = (mediaUrl, mediaType) => {
-  const mediaElement = mediaType === 2 
-    ? `<video src="${mediaUrl}#t=0.1" style="width: 100%; height: 100%; object-fit: cover;" muted playsinline></video>`
-    : `<img src="${mediaUrl}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+// iOS Style Pin Icon Cache to prevent DOM and memory thrashing
+const pinCache = new Map();
 
-  const html = mediaUrl 
-    ? `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden; background: #333; position: relative;">
-         ${mediaElement}
-         <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid white;"></div>
-       </div>`
-    : `<div style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: #333; display: flex; align-items: center; justify-content: center; position: relative;">
-         <span style="font-size: 20px;">📍</span>
-         <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid white;"></div>
-       </div>`
+const getIosPin = (id, mediaUrl, mediaType) => {
+  const cacheKey = `${id}_${mediaUrl || 'default'}_${mediaType}`;
+  if (pinCache.has(cacheKey)) {
+    return pinCache.get(cacheKey);
+  }
 
-  return L.divIcon({
-    html,
+  const isVideo = mediaType === 2;
+  const playBadge = isVideo 
+    ? `<div style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7); border-radius: 4px; padding: 1px 3px; font-size: 8px; color: #fff; font-weight: bold; line-height: 1;">▶</div>`
+    : '';
+
+  const mediaHtml = mediaUrl 
+    ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); overflow: hidden; background: #222; position: relative;">
+         <img src="${mediaUrl}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;\\\'>${isVideo ? '🎬' : '🖼️'}</div>';" />
+         ${playBadge}
+         <div style="position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid white;"></div>
+       </div>`
+    : `<div style="width: 38px; height: 38px; border-radius: 8px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); background: #222; display: flex; align-items: center; justify-content: center; position: relative;">
+         <span style="font-size: 18px;">📍</span>
+         <div style="position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid white;"></div>
+       </div>`;
+
+  const icon = L.divIcon({
+    html: mediaHtml,
     className: 'ios-map-pin',
-    iconSize: [40, 46],
-    iconAnchor: [20, 46],
-    popupAnchor: [0, -46]
-  })
-}
+    iconSize: [38, 44],
+    iconAnchor: [19, 44],
+    popupAnchor: [0, -44],
+  });
+  pinCache.set(cacheKey, icon);
+  return icon;
+};
 
 // iOS Style Cluster Icon
 const createClusterCustomIcon = function (cluster) {
   const count = cluster.getChildCount();
-  // Get a representative thumbnail if possible
-  const markers = cluster.getAllChildMarkers();
-  let bgHtml = '';
-  if (markers.length > 0) {
-    // Try to dig out the image URL from our custom popup or data. 
-    // It's a bit hacky to extract it, but let's just make a clean Apple-style bubble.
-  }
-  
   return L.divIcon({
     html: `<div style="
       background: rgba(255, 255, 255, 0.9);
@@ -72,23 +75,40 @@ const createClusterCustomIcon = function (cluster) {
     className: 'ios-cluster-icon',
     iconSize: L.point(44, 44, true),
   });
-}
+};
 
 function MapEvents({ onBoundsChange }) {
+  const debounceTimer = useRef(null)
   const map = useMapEvents({
-    moveend: () => onBoundsChange(map.getBounds()),
-    zoomend: () => onBoundsChange(map.getBounds())
+    moveend: () => {
+      clearTimeout(debounceTimer.current)
+      debounceTimer.current = setTimeout(() => onBoundsChange(map.getBounds()), 140)
+    },
+    zoomend: () => {
+      clearTimeout(debounceTimer.current)
+      debounceTimer.current = setTimeout(() => onBoundsChange(map.getBounds()), 140)
+    }
   })
-  useEffect(() => { onBoundsChange(map.getBounds()) }, [map, onBoundsChange])
+  useEffect(() => { 
+    onBoundsChange(map.getBounds())
+    return () => clearTimeout(debounceTimer.current)
+  }, [map, onBoundsChange])
   return null
 }
 
 function MapResizer() {
   const map = useMap()
   useEffect(() => {
-    const observer = new ResizeObserver(() => map.invalidateSize())
+    let animId = null
+    const observer = new ResizeObserver(() => {
+      if (animId) cancelAnimationFrame(animId)
+      animId = requestAnimationFrame(() => map.invalidateSize())
+    })
     observer.observe(map.getContainer())
-    return () => observer.disconnect()
+    return () => {
+      if (animId) cancelAnimationFrame(animId)
+      observer.disconnect()
+    }
   }, [map])
   return null
 }
@@ -132,22 +152,32 @@ export default function MapView() {
     setIsDragging(true)
   }
 
+  const dragRaf = useRef(null)
   const handleDrag = useCallback((e) => {
     if (!isDragging || !containerRef.current) return
-    const containerRect = containerRef.current.getBoundingClientRect()
-    let newRatio;
-    if (isVerticalSplit) {
-      const deltaY = e.clientY - containerRect.top
-      newRatio = (deltaY / containerRect.height) * 100
-    } else {
-      const deltaX = e.clientX - containerRect.left
-      newRatio = (deltaX / containerRect.width) * 100
-    }
-    newRatio = Math.max(20, Math.min(80, newRatio))
-    setSplitRatio(newRatio)
+    if (dragRaf.current) return
+    dragRaf.current = requestAnimationFrame(() => {
+      dragRaf.current = null
+      if (!containerRef.current) return
+      const containerRect = containerRef.current.getBoundingClientRect()
+      let newRatio;
+      if (isVerticalSplit) {
+        const deltaY = e.clientY - containerRect.top
+        newRatio = (deltaY / containerRect.height) * 100
+      } else {
+        const deltaX = e.clientX - containerRect.left
+        newRatio = (deltaX / containerRect.width) * 100
+      }
+      newRatio = Math.max(20, Math.min(80, newRatio))
+      setSplitRatio(newRatio)
+    })
   }, [isDragging, isVerticalSplit])
 
   const handleDragEnd = useCallback(() => {
+    if (dragRaf.current) {
+      cancelAnimationFrame(dragRaf.current)
+      dragRaf.current = null
+    }
     setIsDragging(false)
     localStorage.setItem('sv_map_split', splitRatio.toString())
   }, [splitRatio])
@@ -180,6 +210,17 @@ export default function MapView() {
   const [streetViewTarget, setStreetViewTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
 
+  useEffect(() => {
+    if (!mapInstance || !locations || locations.length === 0) return
+    const validCoords = locations
+      .filter(loc => loc.location_lat != null && loc.location_lng != null)
+      .map(loc => [loc.location_lat, loc.location_lng])
+    if (validCoords.length > 0) {
+      const bounds = L.latLngBounds(validCoords)
+      mapInstance.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 })
+    }
+  }, [mapInstance, locations])
+
   // Split Screen Render
   if (!isImmersive) {
     return (
@@ -202,7 +243,7 @@ export default function MapView() {
                 <MapResizer />
                 <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
                   {locations.map(loc => (
-                    <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
+                    <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={getIosPin(loc.id, loc.media_url, loc.media_type)}>
                       <Popup className="ios-map-popup">
                         <div style={{ textAlign: 'center', padding: '4px' }}>
                           <strong>{loc.location_name}</strong><br/>
@@ -347,13 +388,13 @@ export default function MapView() {
   }
 
   const containerStyle = immersiveFullScreen 
-    ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 1000, background: '#000' }
-    : { flex: 1, position: 'relative', height: '100%', overflow: 'hidden', background: '#000', borderRadius: 'var(--ios-radius-lg)' }
+    ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 1000, background: '#000', display: 'flex', flexDirection: 'column' }
+    : { flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: 'calc(100vh - 120px)', minHeight: '550px', overflow: 'hidden', background: '#000', borderRadius: 'var(--ios-radius-lg)' }
 
   return (
     <motion.div 
       layout
-      transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
       style={containerStyle}
     >
       {/* Back Button and Full Screen & Explorer Toggle */}
@@ -405,16 +446,17 @@ export default function MapView() {
       <MapContainer 
         center={[20, 0]} 
         zoom={3} 
-        style={{ height: '100%', width: '100%' }} 
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, height: '100%', width: '100%' }} 
         worldCopyJump={true} 
         zoomControl={false}
         ref={setMapInstance}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles-dark" />
         <MapEvents onBoundsChange={handleBoundsChange} />
+        <MapResizer />
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} iconCreateFunction={createClusterCustomIcon} showCoverageOnHover={false}>
           {locations.map(loc => (
-            <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={createIosPin(loc.media_url, loc.media_type)}>
+            <Marker key={loc.id} position={[loc.location_lat, loc.location_lng]} icon={getIosPin(loc.id, loc.media_url, loc.media_type)}>
               <Popup>
                 <div style={{ textAlign: 'center', padding: '4px' }}>
                   <strong>{loc.location_name}</strong><br/>
@@ -437,16 +479,20 @@ export default function MapView() {
       </MapContainer>
 
       {/* Floating Bottom Sheet */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, width: '100%', height: getSheetHeight(),
-        background: 'var(--ios-glass)', backdropFilter: 'blur(30px) saturate(200%)',
-        borderTopLeftRadius: '24px', borderTopRightRadius: '24px', 
-        borderBottomLeftRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
-        borderBottomRightRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 -10px 40px rgba(0,0,0,0.2)', transition: 'height 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
-        display: 'flex', flexDirection: 'column', zIndex: 1020
-      }}>
+      <motion.div 
+        animate={{ height: getSheetHeight() }}
+        transition={{ type: 'spring', duration: 0.5, bounce: 0.15 }}
+        style={{
+          position: 'absolute', bottom: 0, left: 0, width: '100%',
+          background: 'var(--ios-glass)', backdropFilter: 'blur(30px) saturate(200%)',
+          borderTopLeftRadius: '24px', borderTopRightRadius: '24px', 
+          borderBottomLeftRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
+          borderBottomRightRadius: immersiveFullScreen ? '0' : 'var(--ios-radius-lg)',
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
+          display: 'flex', flexDirection: 'column', zIndex: 1020
+        }}
+      >
         {/* Drag Handle Area */}
         <div 
           onClick={() => {
@@ -530,7 +576,7 @@ export default function MapView() {
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* ── Locations Explorer Modal ── */}
       <LocationExplorerModal

@@ -50,7 +50,7 @@ export default function AboutMemWaultModal({ isOpen, onClose, stats = {} }) {
   if (!isOpen) return null
 
   const rawPic = igSession?.profile_pic_url || localStorage.getItem('memwault_profile_pic')
-  const profilePic = rawPic ? (rawPic.startsWith('http') ? `/api/v1/proxy/image?url=${encodeURIComponent(rawPic)}` : rawPic) : null
+  const profilePic = rawPic ? (rawPic.startsWith('/api/') ? rawPic : rawPic.startsWith('http') ? `/api/v1/proxy/image?url=${encodeURIComponent(rawPic)}` : rawPic) : null
 
   const username = igSession?.full_name || igSession?.ig_username || 'Mehul Jain'
 

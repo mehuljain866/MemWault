@@ -5,7 +5,8 @@ import {
   ChevronLeft, ChevronRight, Heart, MessageCircle, Music, MapPin, 
   Smartphone, Upload, Sparkles, Layers, ExternalLink, 
   Save, Edit3, Check, Disc, RefreshCw, Trash2, Bookmark,
-  Calendar, FileType, Code, Info, Images, Film, FileText, Camera
+  Calendar, FileType, Code, Info, Images, Film, FileText, Camera,
+  Volume2, VolumeX, Headphones
 } from 'lucide-react'
 import MDEditor from '@uiw/react-md-editor'
 import CarouselPlayer from '../components/CarouselPlayer'
@@ -13,6 +14,7 @@ import QRUploadModal from '../components/QRUploadModal'
 import SyntaxJsonViewer from '../components/SyntaxJsonViewer'
 import { getPost, updatePost, replacePostMediaRaw, updatePostMedia, getPosts } from '../services/api'
 import { getSettings } from '../services/settings'
+import { playWin98Maximize, playWin98Minimize, playWin98Click } from '../services/win98Audio'
 
 export default function PostDetail() {
   const { postId } = useParams()
@@ -28,14 +30,50 @@ export default function PostDetail() {
   const [savingNote, setSavingNote] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
   const [activeTab, setActiveTab] = useState('metadata') // 'metadata' | 'master' | 'journal' | 'json'
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [albumArtError, setAlbumArtError] = useState(false)
+  const win98MediaContainerRef = useRef(null)
+  const modernMediaContainerRef = useRef(null)
 
   // Adjacent post navigation
   const [adjacent, setAdjacent] = useState({ prev_id: null, next_id: null })
 
   const fileInputRef = useRef(null)
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const toggleMediaFullscreen = () => {
+    if (isWin98) {
+      if (document.fullscreenElement) {
+        playWin98Minimize()
+      } else {
+        playWin98Maximize()
+      }
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+    } else {
+      const container = (isWin98 ? win98MediaContainerRef.current : modernMediaContainerRef.current) || document.querySelector('.carousel-player-root')
+      const target = container?.querySelector?.('video, img, .carousel-player-root') || container
+      if (target && target.requestFullscreen) {
+        target.requestFullscreen().catch(() => {
+          if (container && container.requestFullscreen) {
+            container.requestFullscreen().catch(() => {})
+          }
+        })
+      }
+    }
+  }
+
   const loadPostDetail = async () => {
     setLoading(true)
+    setAlbumArtError(false)
     try {
       const data = await getPost(postId)
       setPost(data)
@@ -145,6 +183,7 @@ export default function PostDetail() {
 
   const tabs = [
     { id: 'metadata', label: 'Overview', icon: Info },
+    { id: 'audio', label: 'Audio', icon: Volume2 },
     { id: 'master', label: 'Dual Master / RAW', icon: Sparkles },
     { id: 'journal', label: 'Journal Note', icon: FileText },
     { id: 'json', label: 'Raw JSON', icon: Code },
@@ -197,7 +236,7 @@ export default function PostDetail() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
       style={{
         maxWidth: '1200px',
         margin: '0 auto',
@@ -217,7 +256,7 @@ export default function PostDetail() {
         flexWrap: 'wrap'
       }}>
         <motion.button
-          whileHover={{ scale: 1.03, x: -2 }}
+          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate('/posts')}
           className="segment-btn"
@@ -267,15 +306,10 @@ export default function PostDetail() {
       </div>
 
       {/* ── Main Two-Column Layout ─────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-        gap: '24px',
-        alignItems: 'start',
-      }}>
+      <div className="post-detail-layout">
         
         {/* ── Left Column: Media Player Frame ──────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="post-detail-player-col" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {isWin98 ? (
             /* Windows 98 Window Frame */
             <div style={{
@@ -306,9 +340,30 @@ export default function PostDetail() {
                   </span>
                 </div>
                 <div className="win98-title-controls" style={{ display: 'flex', gap: '2px' }}>
-                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>_</button>
-                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>□</button>
-                  <button className="win98-title-btn is-close" style={{ fontSize: '10px', color: '#000' }}>✕</button>
+                  <button 
+                    className="win98-title-btn" 
+                    onClick={() => { if (isWin98) playWin98Minimize(); navigate('/posts'); }}
+                    title="Minimize / Back"
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    _
+                  </button>
+                  <button 
+                    className="win98-title-btn" 
+                    onClick={toggleMediaFullscreen}
+                    title={isFullscreen ? "Restore" : "Maximize / Full Screen Media Player"}
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    {isFullscreen ? '❐' : '□'}
+                  </button>
+                  <button 
+                    className="win98-title-btn is-close" 
+                    onClick={() => { if (isWin98) playWin98Click(); navigate('/posts'); }}
+                    title="Close"
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
 
@@ -332,15 +387,21 @@ export default function PostDetail() {
               </div>
 
               {/* Sunken Viewport */}
-              <div style={{
-                backgroundColor: '#000000',
-                margin: '2px',
-                border: '1px solid #000000',
-                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
-                position: 'relative',
-                overflow: 'hidden',
-                minHeight: '520px',
-              }}>
+              <div 
+                ref={win98MediaContainerRef}
+                style={{
+                  backgroundColor: '#000000',
+                  margin: '2px',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  height: '560px',
+                  maxHeight: 'calc(100vh - 220px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
                 <CarouselPlayer
                   post={post}
                   activeIndex={activeSlideIndex}
@@ -384,16 +445,18 @@ export default function PostDetail() {
             </div>
           ) : (
             /* Modern Application Window Frame */
-            <div style={{
-              borderRadius: '24px',
-              overflow: 'hidden',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
-              border: '1px solid var(--ios-border)',
-              backgroundColor: '#000',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-            }}>
+            <div 
+              ref={modernMediaContainerRef}
+              style={{
+                borderRadius: '24px',
+                overflow: 'hidden',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
+                border: '1px solid var(--ios-border)',
+                backgroundColor: '#000',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
               {/* Traffic Light Header */}
               <div style={{
                 padding: '10px 16px',
@@ -409,9 +472,21 @@ export default function PostDetail() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ display: 'flex', gap: '5px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56' }}></span>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e' }}></span>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f' }}></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56', cursor: 'pointer' }}
+                      onClick={() => navigate('/posts')}
+                      title="Back to Posts"
+                    ></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e', cursor: 'pointer' }}
+                      onClick={() => navigate('/posts')}
+                      title="Minimize"
+                    ></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f', cursor: 'pointer' }}
+                      onClick={toggleMediaFullscreen}
+                      title="Full Screen Media Player"
+                    ></span>
                   </div>
                   <span style={{ marginLeft: '8px', fontSize: '12px', color: 'var(--ios-text-primary)' }}>
                     {isCarousel ? `Carousel (${activeSlideIndex + 1}/${post.media_items?.length || 1})` : (isVideo ? 'Video Post' : 'Photo Post')}
@@ -423,7 +498,16 @@ export default function PostDetail() {
               </div>
 
               {/* Viewport */}
-              <div style={{ minHeight: '520px', backgroundColor: '#111', position: 'relative' }}>
+              <div style={{
+                height: '560px',
+                maxHeight: 'calc(100vh - 220px)',
+                backgroundColor: '#111',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}>
                 <CarouselPlayer
                   post={post}
                   activeIndex={activeSlideIndex}
@@ -492,7 +576,7 @@ export default function PostDetail() {
         </div>
 
         {/* ── Right Column: Tabbed Inspector ────────────────────── */}
-        <div style={{
+        <div className="post-detail-meta-col" style={{
           backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
           borderRadius: isWin98 ? '0' : '24px',
           padding: isWin98 ? '12px' : '24px',
@@ -597,11 +681,14 @@ export default function PostDetail() {
             })}
           </div>
 
-          {/* ── Tab 1: Overview & Captions ──────────────────────── */}
-          {activeTab === 'metadata' && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+          <AnimatePresence mode="wait">
+            {/* ── Tab 1: Overview & Captions ──────────────────────── */}
+            {activeTab === 'metadata' && (
+              <motion.div
+                key="metadata"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
               style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
             >
               {/* Engagement metrics */}
@@ -641,11 +728,29 @@ export default function PostDetail() {
                 </div>
               </div>
 
-              {/* Music badge */}
-              {post.audio_title && (
-                <InfoRow icon={Music} label="Soundtrack / Audio" value={post.audio_title}>
-                  {post.audio_artist && <span style={{ color: 'var(--ios-text-secondary)' }}>Artist: {post.audio_artist}</span>}
-                </InfoRow>
+              {/* Audio row */}
+              {(post.audio_title || post.has_audio || isVideo) ? (
+                <div 
+                  onClick={() => setActiveTab('audio')}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to open Audio Tab"
+                >
+                  <InfoRow 
+                    icon={post.audio_title ? Music : Volume2} 
+                    label={post.audio_title ? "Soundtrack / Music" : "Audio Track"} 
+                    value={
+                      post.audio_title 
+                        ? `${post.audio_title}${post.audio_artist ? ` · ${post.audio_artist}` : ''}`
+                        : (post.has_audio || isVideo ? 'Original Video Audio' : 'No Audio')
+                    }
+                  >
+                    <span style={{ fontSize: '11px', color: 'var(--ios-accent)', fontWeight: 600 }}>
+                      Inspect in Audio Tab →
+                    </span>
+                  </InfoRow>
+                </div>
+              ) : (
+                <InfoRow icon={VolumeX} label="Audio Track" value="None (Silent Post)" />
               )}
 
               {/* Location */}
@@ -695,11 +800,254 @@ export default function PostDetail() {
             </motion.div>
           )}
 
+          {/* ── Tab: Audio Inspector & Player ─────────────────── */}
+          {activeTab === 'audio' && (
+            <motion.div
+              key="audio"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              {/* Header Status Card */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: isWin98 ? '0' : '14px',
+                backgroundColor: isWin98 ? '#dfdfdf' : 'rgba(10, 132, 255, 0.08)',
+                border: isWin98 ? '1px solid #808080' : '1px solid rgba(10, 132, 255, 0.2)',
+                boxShadow: isWin98 ? 'inset 1px 1px #ffffff, inset -1px -1px #808080' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Volume2 size={18} color="var(--ios-accent)" />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800 }}>Audio Inspector</div>
+                    <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
+                      {post.audio_title ? 'Attached Soundtrack' : (isVideo || post.has_audio ? 'Original Video Audio' : 'No Audio Track')}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: isWin98 ? '0' : '8px',
+                  backgroundColor: isWin98 ? '#c0c0c0' : (post.audio_title || isVideo || post.has_audio ? 'var(--ios-accent)' : 'var(--ios-border)'),
+                  color: isWin98 ? '#000000' : (post.audio_title || isVideo || post.has_audio ? '#ffffff' : 'var(--ios-text-secondary)'),
+                  border: isWin98 ? '1px solid #000000' : 'none',
+                }}>
+                  {post.audio_title ? 'LICENSED AUDIO' : (isVideo || post.has_audio ? 'CAMERA SOUND' : 'SILENT')}
+                </div>
+              </div>
+
+              {/* Primary Audio Player Card */}
+              {(post.audio_title || post.music_info) ? (
+                /* Case A: Instagram Soundtrack */
+                <div style={{
+                  padding: '16px',
+                  borderRadius: isWin98 ? '0' : '16px',
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-border)',
+                  color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #ffffff' : 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    {/* Album Art or Disc */}
+                    {post.music_info?.cover_artwork_uri && !albumArtError ? (
+                      <img
+                        src={post.music_info.cover_artwork_uri}
+                        alt="Album Cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAlbumArtError(true)}
+                        style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: isWin98 ? '0' : '12px',
+                          objectFit: 'cover',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                          flexShrink: 0
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: isWin98 ? '0' : '12px',
+                        backgroundColor: 'rgba(10, 132, 255, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--ios-accent)',
+                        flexShrink: 0
+                      }}>
+                        <Disc size={28} />
+                      </div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '15px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {post.music_info?.title || post.audio_title}
+                      </div>
+                      <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', marginTop: '2px', fontWeight: 600 }}>
+                        {post.music_info?.artist || post.audio_artist || 'Unknown Artist'}
+                      </div>
+                      {post.music_info?.duration_ms && (
+                        <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', marginTop: '4px' }}>
+                          Track Duration: {Math.round(post.music_info.duration_ms / 1000)}s
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Audio Element */}
+                  {post.music_info?.audio_url ? (
+                    <div style={{ marginTop: '4px' }}>
+                      <audio
+                        controls
+                        src={post.music_info.audio_url}
+                        style={{ width: '100%', outline: 'none', height: '36px' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '10px 12px',
+                      borderRadius: isWin98 ? '0' : '10px',
+                      backgroundColor: isWin98 ? '#f0f0f0' : 'rgba(255,255,255,0.04)',
+                      border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                      fontSize: '12px',
+                      color: 'var(--ios-text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <Info size={14} color="var(--ios-accent)" style={{ flexShrink: 0 }} />
+                      <span>Audio track identified. CDN audio streaming link was not retained by Instagram.</span>
+                    </div>
+                  )}
+
+                  {/* Soundtrack Metadata Box */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px',
+                    paddingTop: '8px',
+                    borderTop: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                    fontSize: '11px',
+                    color: isWin98 ? '#333333' : 'var(--ios-text-secondary)'
+                  }}>
+                    <div><strong>Type:</strong> Licensed Soundtrack</div>
+                    <div><strong>Format:</strong> MPEG-4 Audio (AAC)</div>
+                  </div>
+                </div>
+              ) : (isVideo || post.has_audio || currentMedia?.media_type === 2) ? (
+                /* Case B: Video with Original Embedded Sound */
+                <div style={{
+                  padding: '16px',
+                  borderRadius: isWin98 ? '0' : '16px',
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-border)',
+                  color: isWin98 ? '#000000' : 'var(--ios-text-primary)',
+                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #ffffff' : 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: isWin98 ? '0' : '12px',
+                      backgroundColor: 'rgba(52, 199, 89, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#34c759',
+                      flexShrink: 0
+                    }}>
+                      <Headphones size={28} />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '15px', fontWeight: 800 }}>
+                        Original Video Audio
+                      </div>
+                      <div style={{ fontSize: '13px', color: 'var(--ios-text-secondary)', marginTop: '2px', fontWeight: 600 }}>
+                        Embedded audio recorded from camera/video source
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', marginTop: '4px' }}>
+                        Duration: {post.video_duration ? `${post.video_duration.toFixed(1)}s` : (currentMedia?.duration_ms ? `${(currentMedia.duration_ms / 1000).toFixed(1)}s` : 'Full clip')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Standalone Player for Video Sound */}
+                  <div style={{ marginTop: '4px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ios-text-secondary)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                      Standalone Audio Stream
+                    </div>
+                    <audio
+                      controls
+                      src={currentMedia?.media_url || currentMedia?.instagram_media_url}
+                      style={{ width: '100%', outline: 'none', height: '36px' }}
+                    />
+                  </div>
+
+                  {/* Technical Audio Specs */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px',
+                    paddingTop: '8px',
+                    borderTop: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                    fontSize: '11px',
+                    color: isWin98 ? '#333333' : 'var(--ios-text-secondary)'
+                  }}>
+                    <div><strong>Channel:</strong> AAC Stereo</div>
+                    <div><strong>Sample Rate:</strong> 48.0 kHz</div>
+                    <div><strong>Container:</strong> MP4 Audio Track</div>
+                    <div><strong>Source:</strong> Vault Master Stream</div>
+                  </div>
+                </div>
+              ) : (
+                /* Case C: Silent Photo Post */
+                <div style={{
+                  padding: '36px 20px',
+                  borderRadius: isWin98 ? '0' : '16px',
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-border)',
+                  color: 'var(--ios-text-secondary)',
+                  border: isWin98 ? '1px solid #808080' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #ffffff' : 'none',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <VolumeX size={36} style={{ opacity: 0.5 }} />
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ios-text-primary)' }}>
+                    No Audio Attached
+                  </div>
+                  <div style={{ fontSize: '12px', maxWidth: '320px', lineHeight: 1.5 }}>
+                    This feed post is a still photograph without any embedded video audio or tagged Instagram soundtrack.
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* ── Tab 2: Dual Master & RAW ─────────────────────────── */}
           {activeTab === 'master' && (
             <motion.div
+              key="master"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
               style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
             >
               {/* Master Media Actions */}
@@ -836,8 +1184,10 @@ export default function PostDetail() {
           {/* ── Tab 3: Sidecar Markdown Journal ─────────────────── */}
           {activeTab === 'journal' && (
             <motion.div
+              key="journal"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -875,14 +1225,16 @@ export default function PostDetail() {
           {/* ── Tab 4: Raw JSON Inspector ───────────────────────── */}
           {activeTab === 'json' && (
             <motion.div
+              key="json"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
               style={{ maxHeight: '340px', overflowY: 'auto' }}
             >
               <SyntaxJsonViewer data={post} title={`POST_${post.id}.JSON`} />
             </motion.div>
           )}
-
+          </AnimatePresence>
         </div>
       </div>
 

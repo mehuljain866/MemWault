@@ -8,7 +8,9 @@ import {
   getScrapeLogs,
   clearToken,
   rescanMetadata,
+  triggerFullScan,
   openStorageFolder,
+  uploadProfilePic,
 } from '../services/api'
 import { getSettings, saveSettings, applyThemeSettings, THEME_CATALOG } from '../services/settings'
 import { useNavigate, useOutletContext } from 'react-router-dom'
@@ -17,7 +19,7 @@ import {
   Link2, Map, Moon, Sun, Wifi, WifiOff, Folder, Sparkles, Menu,
   ShieldCheck, CheckCircle2, XCircle, Image as ImageIcon, Users, Hash,
   Sliders, Download, Upload as UploadIcon, Monitor, Tv, Palette, Check, Power,
-  Layers, Clock, Database, Music as MusicIcon, Smartphone
+  Layers, Clock, Database, Music as MusicIcon, Smartphone, AlertTriangle
 } from 'lucide-react'
 import ShutdownModal from '../components/ShutdownModal'
 import ConnectPhoneModal from '../components/ConnectPhoneModal'
@@ -36,6 +38,25 @@ export default function Settings() {
   const [playbackSettings, setPlaybackSettings] = useState(getSettings())
   const [shutdownModalOpen, setShutdownModalOpen] = useState(false)
   const [connectPhoneModalOpen, setConnectPhoneModalOpen] = useState(false)
+  const [uploadingPic, setUploadingPic] = useState(false)
+
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPic(true)
+    try {
+      const res = await uploadProfilePic(file)
+      if (res?.profile_pic_url) {
+        setIgSession(prev => prev ? { ...prev, profile_pic_url: res.profile_pic_url } : { profile_pic_url: res.profile_pic_url, is_valid: true })
+        localStorage.setItem('memwault_profile_pic', res.profile_pic_url)
+        window.dispatchEvent(new Event('memwault-settings-changed'))
+      }
+    } catch (err) {
+      setError(`Failed to upload avatar: ${err.message}`)
+    } finally {
+      setUploadingPic(false)
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -117,16 +138,20 @@ export default function Settings() {
     }
   }
 
-  async function handleRescan() {
-    if (!confirm('This will rescan all local story metadata to update tags, locations, and reels logic. Continue?')) {
+  async function handleFullScan() {
+    if (!confirm('This will perform a Full Scan: it checks your Instagram archive for any missed historical stories, downloads them to your vault, and re-indexes all story metadata. Continue?')) {
       return
     }
     setRescanning(true)
     try {
-      const res = await rescanMetadata()
-      alert(`Successfully rescanned! Updated ${res.updated_count} stories.`)
+      const res = await triggerFullScan()
+      alert('Full Vault Scan started! It is scanning your Instagram archive for any missed stories and re-indexing story metadata in the background.')
+      try {
+        const logs = await getScrapeLogs(5)
+        setScrapeLogs(logs)
+      } catch (_) {}
     } catch (err) {
-      alert('Rescan failed: ' + err.message)
+      alert('Full Scan failed: ' + err.message)
     } finally {
       setRescanning(false)
     }
@@ -199,7 +224,7 @@ export default function Settings() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '40px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
@@ -252,7 +277,7 @@ export default function Settings() {
                 }}>
                   {igSession.profile_pic_url ? (
                     <img
-                      src={`/api/v1/proxy/image?url=${encodeURIComponent(igSession.profile_pic_url)}`}
+                      src={igSession.profile_pic_url.startsWith('/api/') ? igSession.profile_pic_url : `/api/v1/proxy/image?url=${encodeURIComponent(igSession.profile_pic_url)}`}
                       alt={igSession.full_name || igSession.ig_username}
                       onError={(e) => {
                         if (e.target.src.includes('/proxy/')) {
@@ -300,14 +325,41 @@ export default function Settings() {
 
                 {/* User Titles & Handle */}
                 <div>
-                  <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--ios-text-primary)', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
-                    {igSession.full_name || igSession.ig_username}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--ios-text-primary)', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+                      {igSession.full_name || igSession.ig_username}
+                    </div>
+                    <label
+                      style={{
+                        cursor: uploadingPic ? 'wait' : 'pointer',
+                        padding: '3px 8px',
+                        borderRadius: '10px',
+                        background: 'var(--ios-border)',
+                        color: 'var(--ios-text-secondary)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title="Upload custom avatar image"
+                    >
+                      <Camera size={12} />
+                      <span>{uploadingPic ? 'Uploading...' : 'Change Photo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleProfilePicUpload}
+                        disabled={uploadingPic}
+                      />
+                    </label>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ios-accent)' }}>
                       @{igSession.ig_username}
                     </span>
-                    {igSession.is_valid && (
+                    {igSession.is_valid ? (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -320,6 +372,20 @@ export default function Settings() {
                         fontWeight: 700
                       }}>
                         <CheckCircle2 size={11} /> Connected
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#ff3b30',
+                        color: '#ffffff',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        <AlertTriangle size={11} /> Session Expired
                       </span>
                     )}
                   </div>
@@ -371,6 +437,28 @@ export default function Settings() {
                 </div>
               )}
             </div>
+
+            {/* Expired Session Alert Banner */}
+            {!igSession.is_valid && (
+              <div style={{
+                margin: '0 20px 16px',
+                padding: '14px 16px',
+                backgroundColor: 'rgba(255, 59, 48, 0.12)',
+                border: '1px solid rgba(255, 59, 48, 0.35)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <AlertTriangle size={20} color="#ff3b30" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '13px', color: 'var(--ios-text-primary)', lineHeight: 1.5 }}>
+                  <strong style={{ color: '#ff3b30', display: 'block', marginBottom: '2px', fontSize: '14px' }}>
+                    Instagram Session Expired
+                  </strong>
+                  Your Instagram browser session token has expired on Instagram's servers. Scraping and stories sync are paused until you click <strong>Renew Session</strong> below to log in and renew your cookies.
+                </div>
+              </div>
+            )}
 
             {/* Metadata Items */}
             <IosListItem 
@@ -952,18 +1040,26 @@ export default function Settings() {
                 </div>
                 <div>
                   <div className="settings-item-title" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ios-text-primary)' }}>
-                    {new Date(log.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {log.job_type === 'posts' ? 'Feed Posts Sync' :
+                     log.job_type === 'full_scan' ? 'Full Vault Scan' :
+                     log.job_type === 'rescan_metadata' ? 'Story Metadata Rescan' :
+                     'Active Stories Sync'}
                   </div>
-                  <div className="settings-item-val" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)' }}>
-                    Status: <strong style={{ color: log.status === 'success' ? '#34c759' : '#ff3b30' }}>{log.status.toUpperCase()}</strong>
+                  <div className="settings-item-val" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', marginTop: '2px' }}>
+                    {new Date(log.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })} • <strong style={{ color: log.status === 'success' ? '#34c759' : '#ff3b30' }}>{log.status.toUpperCase()}</strong>
                   </div>
                 </div>
               </div>
               <span className="dashboard-status-badge badge-sync" style={{
                 padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 700,
-                backgroundColor: 'rgba(232, 158, 56, 0.15)', color: 'var(--ios-accent)'
+                backgroundColor: log.status === 'error' ? 'rgba(255, 59, 48, 0.12)' : (log.job_type === 'posts' ? 'rgba(52, 199, 89, 0.15)' : 'rgba(232, 158, 56, 0.15)'),
+                color: log.status === 'error' ? '#ff3b30' : (log.job_type === 'posts' ? '#34c759' : 'var(--ios-accent)')
               }}>
-                +{log.stories_new} New Stories
+                {log.status === 'error' ? (log.error_message ? 'Failed' : 'Error') :
+                 log.job_type === 'posts' ? (log.posts_new > 0 ? `+${log.posts_new} New Posts` : `${log.posts_found || 0} Posts Synced`) :
+                 log.job_type === 'full_scan' ? (log.stories_new > 0 ? `+${log.stories_new} Stories Imported` : `${log.stories_found || 0} Stories Checked`) :
+                 log.job_type === 'rescan_metadata' ? `${log.stories_found || 0} Stories Re-indexed` :
+                 (log.stories_new > 0 ? `+${log.stories_new} New Stories` : `${log.stories_found || 0} Stories Checked`)}
               </span>
             </div>
           ))
@@ -1007,8 +1103,9 @@ export default function Settings() {
         )}
         <IosListItem
           icon={RefreshCcw} iconBg="#ff9500"
-          title={rescanning ? "Scanning Local Files..." : "Rescan Story Metadata"}
-          onClick={handleRescan}
+          title={rescanning ? "Scanning Archive & Vault..." : "Full Scan (Archive & Metadata)"}
+          value={rescanning ? "In Progress..." : "Import Missed Stories & Re-index"}
+          onClick={handleFullScan}
         />
         <IosListItem
           icon={Power} iconBg="#ff3b30"

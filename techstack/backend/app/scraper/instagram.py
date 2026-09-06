@@ -5,7 +5,7 @@ and extract the full Memory Object Model (MOM) data.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -180,10 +180,17 @@ class InstagramScraper:
         headers = self._build_web_headers()
 
         resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
+        if resp.status_code in (401, 403):
+            from instagrapi.exceptions import LoginRequired
+            raise LoginRequired(f"HTTP {resp.status_code}: {resp.text[:100]}")
+        elif resp.status_code != 200:
             raise Exception(f"Web API returned {resp.status_code}: {resp.text[:100]}")
         
         data = resp.json()
+        if data.get("message") == "login_required" or data.get("require_login"):
+            from instagrapi.exceptions import LoginRequired
+            raise LoginRequired(data.get("message") or "login_required")
+
         reels = data.get("reels", {})
         reel_data = reels.get(str(user_id), {})
         items = reel_data.get("items", [])
@@ -366,7 +373,8 @@ class InstagramScraper:
             
             # Music / Audio
             music_meta = item.get("music_metadata", {}) or {}
-            music_asset = music_meta.get("music_asset_info", {}) if isinstance(music_meta, dict) else {}
+            music_info = music_meta.get("music_info", {}) or {} if isinstance(music_meta, dict) else {}
+            music_asset = music_info.get("music_asset_info", {}) or music_meta.get("music_asset_info", {}) if isinstance(music_info, dict) else {}
             audio_title = music_asset.get("title") if isinstance(music_asset, dict) else None
             audio_artist = music_asset.get("display_artist") if isinstance(music_asset, dict) else None
             
@@ -389,7 +397,8 @@ class InstagramScraper:
                     c_height = c_item.get("original_height") or 1080
                     
                     candidates = c_item.get("image_versions2", {}).get("candidates", [])
-                    cdn_url = candidates[0].get("url") if candidates else None
+                    thumb_cdn = candidates[0].get("url") if candidates else None
+                    cdn_url = thumb_cdn
                     if c_type == 2 and c_item.get("video_versions"):
                         cdn_url = c_item["video_versions"][0].get("url")
                     
@@ -397,13 +406,15 @@ class InstagramScraper:
                         "slide_index": idx,
                         "media_type": c_type,
                         "instagram_cdn_url": cdn_url,
+                        "thumbnail_cdn_url": thumb_cdn,
                         "instagram_width": c_width,
                         "instagram_height": c_height,
                         "duration_ms": int(c_item.get("video_duration", 0) * 1000) if c_type == 2 else None,
                     })
             else:
                 candidates = item.get("image_versions2", {}).get("candidates", [])
-                cdn_url = candidates[0].get("url") if candidates else None
+                thumb_cdn = candidates[0].get("url") if candidates else None
+                cdn_url = thumb_cdn
                 if media_type == 2 and item.get("video_versions"):
                     cdn_url = item["video_versions"][0].get("url")
                     
@@ -411,6 +422,7 @@ class InstagramScraper:
                     "slide_index": 0,
                     "media_type": media_type,
                     "instagram_cdn_url": cdn_url,
+                    "thumbnail_cdn_url": thumb_cdn,
                     "instagram_width": width,
                     "instagram_height": height,
                     "duration_ms": int(item.get("video_duration", 0) * 1000) if media_type == 2 else None,
@@ -440,10 +452,40 @@ class InstagramScraper:
             logger.error("Error parsing feed post item: %s", e)
             return None
 
-    def fetch_archive_stories(self, max_stories: Optional[int] = None) -> list[dict]:
+    def _request_private_api(self, endpoint: str, params: Optional[dict] = None) -> dict:
+        """
+        Request Instagram private/internal API endpoint.
+        If web_cookies is present, uses direct requests with web headers (preventing mobile redirect loops).
+        Otherwise delegates to instagrapi client.private_request.
+        """
+        import requests
+        from instagrapi.exceptions import LoginRequired
+
+        if self.web_cookies or self.sessionid:
+            url = f"https://i.instagram.com/api/v1/{endpoint.lstrip('/')}"
+            headers = self._build_web_headers()
+            resp = requests.get(url, headers=headers, params=params or {})
+            if resp.status_code in (401, 403):
+                raise LoginRequired(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            try:
+                data = resp.json()
+            except Exception:
+                raise Exception(f"Failed to parse API response from {url}: {resp.text[:200]}")
+            if data.get("message") == "login_required" or data.get("logout_reason") or data.get("require_login"):
+                raise LoginRequired(data.get("message") or "login_required")
+            return data
+        else:
+            return self.client.private_request(endpoint, params=params or {})
+
+    def fetch_archive_stories(
+        self,
+        max_stories: Optional[int] = None,
+        since_date: Optional[datetime] = None,
+    ) -> list[dict]:
         """
         Fetch historical stories from the authenticated user's story archive.
-        This retrieves ALL past stories from Instagram's Story Archive.
+        If since_date is provided, only retrieves stories taken at or after since_date,
+        stopping pagination once stories older than since_date are encountered.
         """
         self._ensure_logged_in()
 
@@ -451,6 +493,7 @@ class InstagramScraper:
             stories = []
             day_ids = []
             max_id = None
+            hit_cutoff = False
 
             # Fetch day shells from archive (paginated)
             while True:
@@ -458,7 +501,7 @@ class InstagramScraper:
                 if max_id:
                     params["max_id"] = max_id
 
-                result = self.client.private_request(
+                result = self._request_private_api(
                     "archive/reel/day_shells/",
                     params=params,
                 )
@@ -466,8 +509,21 @@ class InstagramScraper:
                 items = result.get("items", [])
                 for day_shell in items:
                     did = day_shell.get("id")
+                    # Check if day_shell timestamp is older than since_date
+                    ts = day_shell.get("timestamp") or day_shell.get("created_at")
+                    if ts and since_date:
+                        shell_date = datetime.fromtimestamp(ts, tz=timezone.utc)
+                        # If day shell is clearly before since_date (with 1 day buffer for timezone discrepancies)
+                        if shell_date < (since_date - timedelta(days=1)):
+                            hit_cutoff = True
+                            break
+
                     if did and did not in day_ids:
                         day_ids.append(did)
+
+                if hit_cutoff:
+                    logger.info("Reached since_date cutoff in archive day shells (%d day shells queued)", len(day_ids))
+                    break
 
                 if not result.get("more_available") or not result.get("max_id") or (max_stories and len(day_ids) >= max_stories):
                     break
@@ -477,10 +533,13 @@ class InstagramScraper:
 
             # Query feed/reels_media in batches of 10 day IDs
             batch_size = 10
+            stop_all = False
             for i in range(0, len(day_ids), batch_size):
+                if stop_all:
+                    break
                 batch = day_ids[i:i + batch_size]
                 try:
-                    feed_res = self.client.private_request(
+                    feed_res = self._request_private_api(
                         "feed/reels_media/",
                         params={"reel_ids": batch},
                     )
@@ -490,12 +549,24 @@ class InstagramScraper:
                         for item_data in reel.get("items", []):
                             try:
                                 parsed = self._parse_raw_story_dict(item_data)
+                                if since_date:
+                                    story_taken = parsed.get("taken_at")
+                                    if story_taken:
+                                        if story_taken.tzinfo is None and since_date.tzinfo is not None:
+                                            story_taken = story_taken.replace(tzinfo=timezone.utc)
+                                        elif story_taken.tzinfo is not None and since_date.tzinfo is None:
+                                            story_taken = story_taken.replace(tzinfo=None)
+                                        if story_taken < since_date:
+                                            stop_all = True
+                                            break
                                 stories.append(parsed)
                                 if max_stories and len(stories) >= max_stories:
                                     logger.info("Fetched %d stories from archive (hit max_stories)", len(stories))
                                     return stories
                             except Exception as parse_err:
                                 logger.warning("Failed to parse archive story: %s", parse_err)
+                        if stop_all:
+                            break
                 except Exception as batch_err:
                     logger.warning("Failed to fetch reel batch %s: %s", batch, batch_err)
 

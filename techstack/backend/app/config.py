@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         if self.database_type == "sqlite":
-            return "sqlite+aiosqlite:///memwault.db"
+            from pathlib import Path
+            db_file = (Path(__file__).resolve().parent.parent / "memwault.db").as_posix()
+            return f"sqlite+aiosqlite:///{db_file}"
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -37,7 +39,9 @@ class Settings(BaseSettings):
     @property
     def database_url_sync(self) -> str:
         if self.database_type == "sqlite":
-            return "sqlite:///memwault.db"
+            from pathlib import Path
+            db_file = (Path(__file__).resolve().parent.parent / "memwault.db").as_posix()
+            return f"sqlite:///{db_file}"
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

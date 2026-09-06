@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   FolderHeart,
   MoreHorizontal,
@@ -26,11 +26,15 @@ function MediaPreview({ url, style }) {
     url.includes('.mov') || 
     url.includes('video')
   )
+
+  const finalUrl = (typeof url === 'string' && url.startsWith('http') && !url.includes('/api/v1/proxy/'))
+    ? `/api/v1/proxy/image?url=${encodeURIComponent(url)}`
+    : url
   
   if (isVideo) {
     return (
       <video
-        src={url}
+        src={finalUrl}
         style={{ ...style, display: 'block' }}
         autoPlay
         muted
@@ -42,7 +46,7 @@ function MediaPreview({ url, style }) {
   }
   return (
     <img
-      src={url}
+      src={finalUrl}
       style={{ ...style, display: 'block' }}
       onError={e => { e.target.style.display = 'none' }}
     />
@@ -131,11 +135,26 @@ export default function Highlights() {
     setLoading(true)
     try {
       const data = await getHighlights()
-      setHighlights(data)
+      setHighlights(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
+      setHighlights([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      await triggerHighlightsSync()
+      setTimeout(async () => {
+        await loadHighlights()
+        setSyncing(false)
+      }, 2500)
+    } catch (err) {
+      console.error('Failed to sync highlights:', err)
+      setSyncing(false)
     }
   }
 
@@ -248,6 +267,34 @@ export default function Highlights() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Sync Highlights button */}
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="segment-btn"
+            title="Sync Highlights from Instagram"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '16px',
+              border: 'none',
+              cursor: syncing ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--ios-bg-card)',
+              color: 'var(--ios-text-primary)',
+              opacity: syncing ? 0.6 : 1,
+              fontWeight: 600,
+              fontSize: '13px',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <RefreshCcw size={16} className={syncing ? 'spin-anim' : ''} />
+            <span style={{ display: window.innerWidth <= 768 ? 'none' : 'inline' }}>
+              {syncing ? 'Syncing...' : 'Sync Highlights'}
+            </span>
+          </button>
+
           {/* Select Mode toggle */}
           <button
             onClick={() => {
@@ -331,17 +378,35 @@ export default function Highlights() {
           <div style={{ fontSize: '15px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.6 }}>
             Sync your Instagram highlights or create a custom album from your saved stories.
           </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              className="ios-btn-secondary"
+              disabled={syncing}
+              style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', cursor: syncing ? 'default' : 'pointer' }}
+              onClick={handleSync}
+            >
+              <RefreshCcw size={16} className={syncing ? 'spin-anim' : ''} />
+              {syncing ? 'Syncing...' : 'Sync from Instagram'}
+            </button>
             <button
               className="ios-btn"
-              style={{ padding: '10px 22px', fontSize: '14px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}
+              style={{ padding: '10px 22px', fontSize: '14px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
               onClick={() => setShowCreateModal(true)}
             >
-              <Plus size={16} /> Create your first highlight
+              <Plus size={16} /> Create custom album
             </button>
+          </div>
         </div>
       ) : (
         /* Album grid */
-        <div style={{
+        <motion.div
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { transition: { staggerChildren: 0.04 } }
+          }}
+          initial="hidden"
+          animate="visible"
+          style={{
           display: 'grid',
           gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))`,
           gap: '16px',
@@ -408,10 +473,14 @@ export default function Highlights() {
 
             return (
               <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] } }
+                }}
                 layout
                 whileHover={{ scale: isSelectMode ? 0.98 : 1.03, y: -3 }}
                 whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 key={hl.id}
                 onClick={() => {
                   if (isSelectMode) {
@@ -561,7 +630,7 @@ export default function Highlights() {
               </motion.div>
             )
           })}
-        </div>
+        </motion.div>
       )}
 
       {/* ── Highlight Creator Modal ─────────────────────────── */}
@@ -572,48 +641,50 @@ export default function Highlights() {
       />
 
       {/* ── Custom Bulk Delete Bar ─────────────────────────── */}
-      {isSelectMode && (
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          style={{
-            position: 'fixed',
-            bottom: '30px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(30,30,30,0.85)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '24px',
-            padding: '8px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            zIndex: 100,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-          }}
-        >
-          <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', marginRight: '8px' }}>
-            {selectedIds.length} selected
-          </div>
-          <button
-            onClick={handleBulkDelete}
-            disabled={bulkLoading || selectedIds.length === 0}
+      <AnimatePresence>
+        {isSelectMode && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
             style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '8px 16px', borderRadius: '16px',
-              background: 'rgba(255,59,48,0.2)',
-              color: '#ff3b30', border: 'none', cursor: 'pointer',
-              fontWeight: 600, fontSize: '13px',
-              opacity: (bulkLoading || selectedIds.length === 0) ? 0.5 : 1
+              position: 'fixed',
+              bottom: '30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(30,30,30,0.85)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '24px',
+              padding: '8px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              zIndex: 100,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
           >
-            <Trash2 size={16} />
-            {bulkLoading ? 'Deleting...' : 'Delete'}
-          </button>
-        </motion.div>
-      )}
+            <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', marginRight: '8px' }}>
+              {selectedIds.length} selected
+            </div>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkLoading || selectedIds.length === 0}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '8px 16px', borderRadius: '16px',
+                background: 'rgba(255,59,48,0.2)',
+                color: '#ff3b30', border: 'none', cursor: 'pointer',
+                fontWeight: 600, fontSize: '13px',
+                opacity: (bulkLoading || selectedIds.length === 0) ? 0.5 : 1
+              }}
+            >
+              <Trash2 size={16} />
+              {bulkLoading ? 'Deleting...' : 'Delete'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

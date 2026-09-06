@@ -177,6 +177,7 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
         position: 'relative',
         width: '100%',
         height: '100%',
+        maxHeight: '100%',
         backgroundColor: 'var(--ios-bg-card, #1c1c1e)',
         borderRadius: '20px',
         overflow: 'hidden',
@@ -259,7 +260,7 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
             muted={isMuted}
             playsInline
             autoPlay
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           />
         ) : (
           <>
@@ -271,7 +272,7 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
                 playsInline
                 muted={false}
                 style={{
-                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%',
                   objectFit: 'contain', display: isPlayingLive ? 'block' : 'none',
                   zIndex: 2,
                 }}
@@ -284,6 +285,7 @@ export default function CarouselPlayer({ post, activeIndex = 0, onIndexChange, o
               referrerPolicy="no-referrer"
               style={{
                 width: '100%', height: '100%',
+                maxWidth: '100%', maxHeight: '100%',
                 objectFit: 'contain',
                 display: isPlayingLive ? 'none' : 'block',
               }}

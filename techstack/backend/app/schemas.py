@@ -5,7 +5,7 @@ Request/response models for the REST API.
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -295,8 +295,11 @@ class ScrapeLogRead(BaseModel):
     started_at: datetime
     finished_at: Optional[datetime] = None
     status: str
+    job_type: Optional[str] = "stories"
     stories_found: int
     stories_new: int
+    posts_found: Optional[int] = 0
+    posts_new: Optional[int] = 0
     error_message: Optional[str] = None
 
     model_config = {"from_attributes": True}
@@ -386,6 +389,7 @@ class PostMediaRead(BaseModel):
     display_url: Optional[str] = None
     media_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    thumbnail_cdn_url: Optional[str] = None
 
     # Instagram Version
     s3_key_instagram: Optional[str] = None
@@ -442,6 +446,10 @@ class PostRead(BaseModel):
 
     audio_title: Optional[str] = None
     audio_artist: Optional[str] = None
+    has_audio: Optional[bool] = None
+    video_duration: Optional[float] = None
+    music_info: Optional[dict] = None
+    raw_api_response: Optional[Any] = None
 
     like_count: int = 0
     comment_count: int = 0

@@ -49,8 +49,23 @@ class TunnelManager:
             
         return None
 
-    def start_tunnel(self, target_port: int = 8000, timeout: float = 20.0, force_restart: bool = False) -> Dict[str, Any]:
+    def _verify_tunnel_online(self, url: str) -> bool:
+        if not url:
+            return False
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                f"{url.rstrip('/')}/pocket",
+                headers={"User-Agent": "MemWault-HealthCheck"}
+            )
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
+                return resp.status in (200, 301, 302, 307, 308, 401, 403, 404)
+        except Exception:
+            return False
+
+    def start_tunnel(self, target_port: int = 8000, timeout: float = 25.0, force_restart: bool = False) -> Dict[str, Any]:
         with self.lock:
+            # If already running with an active process, return current tunnel immediately
             if not force_restart and self.is_running and self.tunnel_url and self.process and self.process.poll() is None:
                 return {
                     "status": "active",
@@ -59,7 +74,7 @@ class TunnelManager:
                     "started_at": self.started_at
                 }
 
-            # Stop and terminate any lingering previous process
+            # Stop and terminate previous process if any
             if self.process:
                 try:
                     self.process.terminate()
@@ -71,6 +86,13 @@ class TunnelManager:
                         pass
                 self.process = None
 
+            # On Windows, clean up any stray cloudflared instances
+            if sys.platform == "win32":
+                try:
+                    subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except Exception:
+                    pass
+
             self.is_running = False
             self.tunnel_url = None
 
@@ -80,7 +102,14 @@ class TunnelManager:
 
             logger.info("Starting Cloudflare quick tunnel targeting port %d with %s", target_port, binary_path)
             
-            cmd = [binary_path, "tunnel", "--url", f"http://127.0.0.1:{target_port}", "--http-host-header", f"localhost:{target_port}"]
+            # Use HTTP2 and IPv4 for rock-solid stability on Windows network adapters
+            cmd = [
+                binary_path, "tunnel", 
+                "--url", f"http://127.0.0.1:{target_port}", 
+                "--http-host-header", f"localhost:{target_port}",
+                "--protocol", "http2",
+                "--edge-ip-version", "4"
+            ]
             
             try:
                 self.process = subprocess.Popen(
@@ -133,6 +162,9 @@ class TunnelManager:
                     raise RuntimeError(f"Cloudflare tunnel failed to start: {error_msg}")
                 raise TimeoutError("Timed out waiting for Cloudflare quick tunnel URL.")
 
+            # Give Cloudflare edge DNS 2.5 seconds to propagate before returning URL to frontend
+            time.sleep(2.5)
+
             state_file = Path(__file__).resolve().parent.parent / "data" / "tunnel_state.json"
             try:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -160,6 +192,12 @@ class TunnelManager:
                     except Exception:
                         pass
                 self.process = None
+
+            if sys.platform == "win32":
+                try:
+                    subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except Exception:
+                    pass
                 
             self.is_running = False
             self.tunnel_url = None
@@ -191,35 +229,38 @@ class TunnelManager:
                 self.is_running = False
                 self.tunnel_url = None
                 
-            if not self.tunnel_url:
-                state_file = Path(__file__).resolve().parent.parent / "data" / "tunnel_state.json"
-                if state_file.exists():
-                    try:
-                        with open(state_file, "r") as f:
-                            data = json.load(f)
-                            pid = data.get("pid")
-                            if pid and self._is_pid_alive(pid) and data.get("url"):
-                                return {
-                                    "status": "active",
-                                    "url": data["url"],
-                                    "started_at": data.get("started_at"),
-                                    "available": True
-                                }
-                            else:
-                                # Stale state file from dead process - remove it
-                                try:
-                                    state_file.unlink()
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
+            if self.is_running and self.tunnel_url and self.process and self.process.poll() is None:
+                return {
+                    "status": "active",
+                    "url": self.tunnel_url,
+                    "started_at": self.started_at,
+                    "available": True
+                }
+
+            # Check if an external/daemon tunnel is running via state file
+            state_file = Path(__file__).resolve().parent.parent / "data" / "tunnel_state.json"
+            if state_file.exists():
+                try:
+                    with open(state_file, "r") as f:
+                        data = json.load(f)
+                        url = data.get("url")
+                        if url:
+                            return {
+                                "status": "active",
+                                "url": url,
+                                "started_at": data.get("started_at"),
+                                "available": True
+                            }
+                except Exception:
+                    pass
 
             return {
-                "status": "active" if (self.is_running and self.tunnel_url) else "inactive",
-                "url": self.tunnel_url if self.is_running else None,
-                "started_at": self.started_at if self.is_running else None,
+                "status": "inactive",
+                "url": None,
+                "started_at": None,
                 "available": self._find_cloudflared() is not None
             }
 
 
 tunnel_manager = TunnelManager.get_instance()
+

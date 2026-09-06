@@ -3,7 +3,79 @@
  * Centralized fetch wrapper for all backend API calls.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+/**
+ * Get the active Vault Server URL (e.g. 'http://192.168.29.51:8000' or 'https://tunnel.trycloudflare.com')
+ */
+export function getVaultUrl() {
+  const custom = localStorage.getItem('sv_vault_url') || localStorage.getItem('metro_server_host');
+  if (custom && custom.trim()) {
+    let clean = custom.trim();
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = `http://${clean}`;
+    }
+    return clean.replace(/\/$/, '');
+  }
+  return '';
+}
+
+/**
+ * Store the active Vault Server URL
+ */
+export function setVaultUrl(url) {
+  if (!url || !url.trim()) {
+    localStorage.removeItem('sv_vault_url');
+    localStorage.removeItem('metro_server_host');
+  } else {
+    let clean = url.trim();
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = `http://${clean}`;
+    }
+    const finalUrl = clean.replace(/\/$/, '');
+    localStorage.setItem('sv_vault_url', finalUrl);
+    localStorage.setItem('metro_server_host', finalUrl);
+  }
+}
+
+/**
+ * Clear the custom Vault Server URL
+ */
+export function clearVaultUrl() {
+  localStorage.removeItem('sv_vault_url');
+  localStorage.removeItem('metro_server_host');
+}
+
+/**
+ * Get dynamic API Base URL
+ */
+export function getApiBase() {
+  const vault = getVaultUrl();
+  if (vault) {
+    return `${vault}/api/v1`;
+  }
+  return import.meta.env.VITE_API_URL || '/api/v1';
+}
+
+/**
+ * Test connectivity with a target Vault URL
+ */
+export async function testVaultConnection(targetUrl = '') {
+  const base = targetUrl ? `${targetUrl.replace(/\/$/, '')}/api/v1` : getApiBase();
+  const start = performance.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`${base}/auth/me`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const latency = Math.round(performance.now() - start);
+    return { ok: res.ok || res.status === 401, latency, status: res.status };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    return { ok: false, error: err.message || 'Unreachable' };
+  }
+}
 
 /**
  * Get the stored JWT token from localStorage or sessionStorage.
@@ -38,7 +110,7 @@ export function isAuthenticated() {
  */
 export async function apiFetch(endpoint, options = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 14000); // 14s timeout
 
   if (options.signal) {
     if (options.signal.aborted) {
@@ -62,7 +134,11 @@ export async function apiFetch(endpoint, options = {}) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const apiBase = getApiBase();
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = endpoint.startsWith('http://') || endpoint.startsWith('https://') ? endpoint : `${apiBase}${cleanEndpoint}`;
+
+    const response = await fetch(url, {
       ...options,
       headers,
       signal: controller.signal,
@@ -165,6 +241,16 @@ export async function getInstagramSession() {
 
 export async function disconnectInstagram() {
   return apiFetch('/instagram/session', { method: 'DELETE' });
+}
+
+export async function uploadProfilePic(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch('/user/profile-pic', {
+    method: 'POST',
+    headers: { 'Content-Type': null },
+    body: formData,
+  });
 }
 
 export async function renewInstagramSession() {
@@ -275,6 +361,13 @@ export async function triggerScrape(force = false) {
 
 export async function triggerArchiveImport(maxStories = null) {
   return apiFetch('/scrape/archive', {
+    method: 'POST',
+    body: JSON.stringify({ max_stories: maxStories }),
+  });
+}
+
+export async function triggerFullScan(maxStories = null) {
+  return apiFetch('/scrape/full', {
     method: 'POST',
     body: JSON.stringify({ max_stories: maxStories }),
   });
@@ -479,7 +572,8 @@ export async function getPairingTicketStatus(ticket) {
 }
 
 export async function redeemPairingTicket(ticket, deviceName = 'Mobile Companion') {
-  const res = await fetch(`${API_BASE}/pair/redeem-ticket?ticket=${encodeURIComponent(ticket)}&device_name=${encodeURIComponent(deviceName)}`, {
+  const apiBase = getApiBase()
+  const res = await fetch(`${apiBase}/pair/redeem-ticket?ticket=${encodeURIComponent(ticket)}&device_name=${encodeURIComponent(deviceName)}`, {
     method: 'POST',
   })
   if (!res.ok) {
@@ -498,6 +592,7 @@ export async function deleteConnectedDevice(deviceId) {
     method: 'DELETE',
   })
 }
+
 
 
 

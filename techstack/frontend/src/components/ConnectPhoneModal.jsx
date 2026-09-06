@@ -16,6 +16,8 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
   const [secondsRemaining, setSecondsRemaining] = useState(300)
   const [loadingTicket, setLoadingTicket] = useState(false)
   const timerRef = useRef(null)
+  const connectModeRef = useRef(connectMode)
+  connectModeRef.current = connectMode
 
   // Real-Time Handshake States
   const [isPairedSuccess, setIsPairedSuccess] = useState(false)
@@ -28,21 +30,23 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
   const [tunnelError, setTunnelError] = useState('')
 
   // Generate fresh single-use pairing ticket
-  const fetchFreshTicket = async (mode = connectMode, forceRestart = false) => {
+  const fetchFreshTicket = async (mode = connectModeRef.current, forceRestart = false) => {
     try {
       setLoadingTicket(true)
       setIsPairedSuccess(false)
       if (mode === 'remote') {
-        try {
-          setIsStartingTunnel(true)
-          const res = await startRemoteTunnel(8000, forceRestart)
-          if (res && res.url) {
-            setTunnelStatus('active')
+        if (forceRestart || tunnelStatus !== 'active') {
+          try {
+            setIsStartingTunnel(true)
+            const res = await startRemoteTunnel(8000, forceRestart)
+            if (res && res.url) {
+              setTunnelStatus('active')
+            }
+          } catch (e) {
+            console.warn('Tunnel start notice:', e)
+          } finally {
+            setIsStartingTunnel(false)
           }
-        } catch (e) {
-          console.warn('Tunnel start notice:', e)
-        } finally {
-          setIsStartingTunnel(false)
         }
       }
       const data = await generatePairingTicket(mode)
@@ -78,32 +82,14 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
     }
 
     loadConnectedDevices()
+    fetchFreshTicket(connectModeRef.current)
 
-    const initModal = async () => {
-      if (connectMode === 'remote') {
-        try {
-          setIsStartingTunnel(true)
-          const res = await startRemoteTunnel(8000)
-          if (res && res.url) {
-            setTunnelStatus('active')
-          }
-        } catch (e) {
-          console.warn('Tunnel init notice:', e)
-        } finally {
-          setIsStartingTunnel(false)
-        }
-      }
-      await fetchFreshTicket(connectMode)
-    }
-
-    initModal()
-
-    // 1-second countdown ticker
+    // 1-second countdown ticker with dynamic ref to prevent stale closure
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev <= 1) {
-          fetchFreshTicket(connectMode)
+          fetchFreshTicket(connectModeRef.current)
           return 300
         }
         return prev - 1
@@ -140,21 +126,9 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
   const handleModeChange = async (mode) => {
     playWin98Click()
     setConnectMode(mode)
-    if (mode === 'remote' && tunnelStatus !== 'active') {
-      try {
-        setIsStartingTunnel(true)
-        setTunnelError('')
-        const res = await startRemoteTunnel(8000)
-        if (res && res.url) {
-          setTunnelStatus('active')
-        }
-      } catch (e) {
-        console.warn('Tunnel start notice:', e)
-      } finally {
-        setIsStartingTunnel(false)
-      }
-    }
-    await fetchFreshTicket(mode)
+    connectModeRef.current = mode
+    setSecondsRemaining(300)
+    await fetchFreshTicket(mode, false)
   }
 
   const handleStopTunnel = async () => {
@@ -426,21 +400,32 @@ export default function ConnectPhoneModal({ isOpen, onClose }) {
                     minHeight: '136px',
                     position: 'relative',
                   }}>
-                    {isStartingTunnel ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#000080' }}>
-                        <RefreshCw size={22} className="spin-anim" />
-                        <span>Starting Tunnel...</span>
-                      </div>
-                    ) : loadingTicket ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#000080' }}>
-                        <RefreshCw size={22} className="spin-anim" />
-                        <span>Generating QR...</span>
-                      </div>
-                    ) : pairingUrl ? (
-                      <QRCodeSVG value={pairingUrl} size={130} level="M" />
+                    {pairingUrl ? (
+                      <>
+                        <QRCodeSVG value={pairingUrl} size={130} level="M" />
+                        {(isStartingTunnel || loadingTicket) && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: 'rgba(255,255,255,0.85)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            fontSize: '10px',
+                            color: '#000080',
+                            fontWeight: 'bold',
+                          }}>
+                            <RefreshCw size={22} className="spin-anim" />
+                            <span>{isStartingTunnel ? 'Starting Tunnel...' : 'Refreshing...'}</span>
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div style={{ width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '130px', height: '130px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', color: '#000080' }}>
                         <RefreshCw size={24} className="spin-anim" />
+                        <span>{isStartingTunnel ? 'Starting Tunnel...' : 'Generating QR...'}</span>
                       </div>
                     )}
                   </div>

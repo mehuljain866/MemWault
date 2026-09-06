@@ -217,6 +217,15 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
   }
 
   const [showAudienceModal, setShowAudienceModal] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const handleFS = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', handleFS)
+    return () => document.removeEventListener('fullscreenchange', handleFS)
+  }, [])
 
   if (!story) return null
 
@@ -242,14 +251,17 @@ export default function StoryPlayer({ story, isMusicPlaying }) {
   return (
     <div
       ref={containerRef}
+      className="story-player-root"
       style={{
         position: 'relative',
-        width: '100%',
-        maxWidth: '450px',
+        width: isFullscreen ? '100vw' : '100%',
+        height: isFullscreen ? '100vh' : 'auto',
+        maxWidth: isFullscreen ? 'none' : '450px',
+        maxHeight: isFullscreen ? '100vh' : 'none',
         margin: '0 auto',
-        aspectRatio: '9 / 16',
+        aspectRatio: isFullscreen ? undefined : '9 / 16',
         backgroundColor: '#000',
-        borderRadius: isWin98 ? '0' : '16px',
+        borderRadius: isFullscreen || isWin98 ? '0' : '16px',
         overflow: 'hidden',
         boxShadow: story.is_close_friends ? (isWin98 ? 'none' : '0 8px 32px rgba(0,210,106,0.25)') : (isWin98 ? 'none' : '0 8px 32px rgba(0,0,0,0.3)'),
         border: story.is_close_friends ? (isWin98 ? '2px solid #5cb85c' : '2px solid rgba(0,210,106,0.5)') : 'none',

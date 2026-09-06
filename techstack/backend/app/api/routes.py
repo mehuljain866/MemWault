@@ -292,7 +292,6 @@ async def get_instagram_session(
         select(InstagramSession)
         .where(
             InstagramSession.user_id == user.id,
-            InstagramSession.is_valid == True,
         )
         .order_by(InstagramSession.last_login.desc())
         .limit(1)
@@ -301,9 +300,9 @@ async def get_instagram_session(
     if not sess:
         return None
 
-    # Check if profile data is cached in session_data or fetch it
+    # Check if profile data is cached in session_data or fetch it if valid
     profile_data = (sess.session_data or {}).get("profile", {})
-    if not profile_data or (sess.ig_username and sess.ig_username.isdigit()):
+    if sess.is_valid and (not profile_data or (sess.ig_username and sess.ig_username.isdigit())):
         try:
             from app.scraper.instagram import InstagramScraper
             scraper = InstagramScraper(
@@ -321,12 +320,28 @@ async def get_instagram_session(
         except Exception as e:
             logger.warning("Could not refresh profile data: %s", e)
 
+    from app.config import get_settings
+    settings = get_settings()
+    media_dir = Path(settings.storage_local_dir)
+    local_pic_name_hex = f"profile_pic_{user.id.hex}.jpg"
+    local_pic_name_dash = f"profile_pic_{user.id}.jpg"
+
+    pic_url = None
+    if (media_dir / local_pic_name_hex).exists():
+        pic_url = f"/api/v1/media/{local_pic_name_hex}"
+    elif (media_dir / local_pic_name_dash).exists():
+        pic_url = f"/api/v1/media/{local_pic_name_dash}"
+    elif sess.ig_profile_pic_url:
+        pic_url = sess.ig_profile_pic_url
+    else:
+        pic_url = profile_data.get("profile_pic_url")
+
     return InstagramSessionRead(
         id=sess.id,
         ig_username=sess.ig_username,
         ig_user_id=sess.ig_user_id,
         full_name=profile_data.get("full_name"),
-        profile_pic_url=profile_data.get("profile_pic_url"),
+        profile_pic_url=pic_url,
         biography=profile_data.get("biography"),
         follower_count=profile_data.get("follower_count"),
         following_count=profile_data.get("following_count"),
@@ -334,6 +349,59 @@ async def get_instagram_session(
         is_valid=sess.is_valid,
         last_login=sess.last_login,
     )
+
+
+@router.post("/user/profile-pic")
+async def upload_profile_pic(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a custom profile picture."""
+    from app.config import get_settings
+    settings = get_settings()
+    media_dir = Path(settings.storage_local_dir)
+    media_dir.mkdir(parents=True, exist_ok=True)
+
+    file_ext = Path(file.filename or "pic.jpg").suffix.lower()
+    if file_ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+        file_ext = ".jpg"
+
+    pic_filename_hex = f"profile_pic_{user.id.hex}.jpg"
+    pic_filename_dash = f"profile_pic_{user.id}.jpg"
+    target_path = media_dir / pic_filename_hex
+
+    content = await file.read()
+    with open(target_path, "wb") as f:
+        f.write(content)
+
+    # Save dashed copy as well for compatibility
+    with open(media_dir / pic_filename_dash, "wb") as f:
+        f.write(content)
+
+    pic_url = f"/api/v1/media/{pic_filename_hex}"
+
+    # Update active session
+    result = await db.execute(
+        select(InstagramSession)
+        .where(
+            InstagramSession.user_id == user.id,
+            InstagramSession.is_valid == True,
+        )
+        .order_by(InstagramSession.last_login.desc())
+        .limit(1)
+    )
+    sess = result.scalars().first()
+    if sess:
+        sess_data = dict(sess.session_data or {})
+        prof = dict(sess_data.get("profile", {}))
+        prof["profile_pic_url"] = pic_url
+        sess_data["profile"] = prof
+        sess.session_data = sess_data
+        sess.ig_profile_pic_url = pic_url
+        await db.flush()
+
+    return {"status": "success", "profile_pic_url": pic_url}
 
 
 @router.delete("/instagram/session", status_code=204)
@@ -1011,6 +1079,11 @@ async def get_highlight_stories(
         sr = StoryRead.model_validate(story)
         if story.s3_key_compressed:
             sr.media_url = storage.get_presigned_url(story.s3_key_compressed)
+            sr.thumbnail_url = storage.get_presigned_url(story.s3_key_compressed)
+            sr.s3_key_compressed = story.s3_key_compressed
+        elif story.cdn_url:
+            sr.media_url = story.cdn_url
+            sr.thumbnail_url = story.cdn_url
         if story.og_reel_s3_key:
             sr.og_reel_url = storage.get_presigned_url(story.og_reel_s3_key)
         story_reads.append(sr)
@@ -1025,15 +1098,29 @@ async def trigger_scrape(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Manually trigger an immediate story scrape."""
-    from app.scraper.tasks import poll_stories
+    """Manually trigger an incremental story scrape (active + archive from latest story to present)."""
+    from app.scraper.tasks import sync_stories_incremental
+
+    # Check if user has a valid connected Instagram session
+    session_res = await db.execute(
+        select(InstagramSession).where(
+            InstagramSession.user_id == user.id,
+            InstagramSession.is_valid == True,
+        )
+    )
+    ig_session = session_res.scalar_one_or_none()
+    if not ig_session:
+        raise HTTPException(
+            status_code=400,
+            detail="Instagram session is expired or not connected. Please click 'Renew Session' in Settings.",
+        )
 
     log = ScrapeLog(user_id=user.id, status="running")
     db.add(log)
     await db.flush()
 
     # Dispatch Celery task in background to avoid blocking the HTTP response
-    background_tasks.add_task(poll_stories.delay, str(user.id))
+    background_tasks.add_task(sync_stories_incremental.delay, str(user.id))
 
     await db.refresh(log)
     return log
@@ -1053,6 +1140,30 @@ async def trigger_archive_import(
 
     background_tasks.add_task(import_archive.delay, str(user.id), body.max_stories)
     return {"status": "started", "max_stories": body.max_stories}
+
+
+@router.post("/scrape/full")
+async def trigger_full_scan(
+    background_tasks: BackgroundTasks,
+    body: ArchiveImportRequest = ArchiveImportRequest(),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger a Full Vault Scan:
+    Imports any missed stories from the Instagram archive across the entire account
+    and refreshes/re-indexes metadata for all stories in the vault.
+    """
+    from app.scraper.tasks import full_vault_scan
+
+    log = ScrapeLog(user_id=user.id, status="running", job_type="full_scan")
+    db.add(log)
+    await db.flush()
+
+    background_tasks.add_task(full_vault_scan.delay, str(user.id), body.max_stories)
+    await db.refresh(log)
+    return {"status": "started", "log_id": str(log.id), "max_stories": body.max_stories}
+
 
 @router.post("/scrape/highlights")
 async def trigger_highlights_sync(
@@ -1637,7 +1748,7 @@ def get_local_lan_ip() -> str:
     return "127.0.0.1"
 
 
-def _format_post_media(media: PostMedia, s3) -> dict:
+def _format_post_media(media: PostMedia, s3, post_raw: Optional[dict] = None) -> dict:
     """Helper to attach pre-signed / direct URLs to PostMedia."""
     ig_url = None
     if media.s3_key_instagram:
@@ -1655,6 +1766,35 @@ def _format_post_media(media: PostMedia, s3) -> dict:
 
     media_url = raw_url or ig_url
 
+    # Dedicated cover thumbnail URL (especially critical for videos)
+    thumbnail_url = ig_url or raw_url
+    thumbnail_cdn_url = None
+
+    if media.media_type == 2:
+        # Check if a dedicated cover thumbnail exists locally in storage
+        thumb_key = None
+        if media.s3_key_instagram:
+            base_key = media.s3_key_instagram.rsplit(".", 1)[0]
+            candidate_key = f"{base_key}_thumb.jpg"
+            if s3.file_exists(candidate_key):
+                thumb_key = candidate_key
+
+        if thumb_key:
+            thumbnail_url = s3.get_presigned_url(thumb_key, expires_in=86400)
+        elif post_raw and isinstance(post_raw, dict):
+            # Extract cover thumbnail candidate from raw_api_response
+            candidates = []
+            carousel = post_raw.get("carousel_media")
+            if carousel and isinstance(carousel, list) and media.slide_index < len(carousel):
+                candidates = carousel[media.slide_index].get("image_versions2", {}).get("candidates", [])
+            if not candidates:
+                candidates = post_raw.get("image_versions2", {}).get("candidates", [])
+
+            if candidates and candidates[0].get("url"):
+                thumbnail_cdn_url = candidates[0]["url"]
+                from urllib.parse import quote
+                thumbnail_url = f"/api/v1/proxy/image?url={quote(thumbnail_cdn_url, safe='')}"
+
     return {
         "id": media.id,
         "post_id": media.post_id,
@@ -1662,7 +1802,8 @@ def _format_post_media(media: PostMedia, s3) -> dict:
         "media_type": media.media_type,
         "media_url": media_url,
         "display_url": media_url,
-        "thumbnail_url": ig_url or raw_url,
+        "thumbnail_url": thumbnail_url,
+        "thumbnail_cdn_url": thumbnail_cdn_url,
         "s3_key_instagram": media.s3_key_instagram,
         "instagram_media_url": ig_url,
         "instagram_width": media.instagram_width,
@@ -1688,7 +1829,33 @@ def _format_post_media(media: PostMedia, s3) -> dict:
 
 def _format_post(post: Post, s3) -> dict:
     """Format Post object with media items."""
-    media_list = [_format_post_media(m, s3) for m in sorted(post.media_items, key=lambda x: x.slide_index)]
+    raw_dict = post.raw_api_response if isinstance(post.raw_api_response, dict) else (
+        json.loads(post.raw_api_response) if isinstance(post.raw_api_response, str) else None
+    )
+    media_list = [_format_post_media(m, s3, post_raw=raw_dict) for m in sorted(post.media_items, key=lambda x: x.slide_index)]
+    
+    # Extract music info if available
+    music_info = None
+    if raw_dict:
+        m_meta = raw_dict.get("music_metadata") or {}
+        m_info = m_meta.get("music_info") or {} if isinstance(m_meta, dict) else {}
+        m_asset = m_info.get("music_asset_info") or m_meta.get("music_asset_info") or {} if isinstance(m_info, dict) else {}
+        if m_asset and (m_asset.get("title") or m_asset.get("display_artist")):
+            music_info = {
+                "title": m_asset.get("title") or post.audio_title,
+                "artist": m_asset.get("display_artist") or post.audio_artist,
+                "cover_artwork_uri": m_asset.get("cover_artwork_thumbnail_uri") or m_asset.get("cover_artwork_uri"),
+                "audio_url": m_asset.get("fast_start_progressive_download_url") or m_asset.get("progressive_download_url"),
+                "duration_ms": m_asset.get("duration_in_ms"),
+            }
+
+    has_audio = (
+        bool(raw_dict.get("has_audio"))
+        if raw_dict and "has_audio" in raw_dict
+        else any(m.media_type == 2 for m in post.media_items)
+    )
+    video_dur = raw_dict.get("video_duration") if raw_dict else None
+
     return {
         "id": post.id,
         "user_id": post.user_id,
@@ -1707,12 +1874,16 @@ def _format_post(post: Post, s3) -> dict:
         "location_lat": post.location_lat,
         "location_lng": post.location_lng,
         "location_id": post.location_id,
-        "audio_title": post.audio_title,
-        "audio_artist": post.audio_artist,
+        "audio_title": post.audio_title or (music_info.get("title") if music_info else None),
+        "audio_artist": post.audio_artist or (music_info.get("artist") if music_info else None),
+        "has_audio": has_audio,
+        "video_duration": video_dur,
+        "music_info": music_info,
         "like_count": post.like_count or 0,
         "comment_count": post.comment_count or 0,
         "has_liked": post.has_liked,
         "journal_note": post.journal_note,
+        "raw_api_response": raw_dict,
         "media_items": media_list,
     }
 
@@ -2350,8 +2521,10 @@ async def generate_pairing_ticket(
 ):
     """
     Generate a 5-minute single-use ephemeral QR ticket for linking a mobile device.
-    Zero-Trust: Burns immediately upon first scan.
+    Embeds scoped companion token for instant 1-scan pairing.
     """
+    companion_token = create_companion_token(user_id=user.id, username=user.username, device_name="Mobile Companion")
+    
     with _tickets_lock:
         _cleanup_expired_tickets()
         ticket = f"pair_{secrets.token_urlsafe(24)}"
@@ -2365,6 +2538,7 @@ async def generate_pairing_ticket(
             "device_name": None,
             "redeemed_at": None,
             "redeemed_until": None,
+            "token": companion_token,
         }
 
     lan_ip = get_local_lan_ip()
@@ -2372,11 +2546,16 @@ async def generate_pairing_ticket(
     
     if mode == "remote":
         status_info = tunnel_manager.get_status()
+        if status_info.get("status") != "active" or not status_info.get("url"):
+            try:
+                status_info = tunnel_manager.start_tunnel(target_port=port, timeout=12.0)
+            except Exception:
+                pass
         base_url = status_info.get("url") if (status_info.get("status") == "active" and status_info.get("url")) else f"http://{lan_ip}:{port}"
     else:
         base_url = f"http://{lan_ip}:{port}"
         
-    qr_url = f"{base_url}/pocket?pair_ticket={ticket}"
+    qr_url = f"{base_url}/pocket?pair={companion_token}&pair_ticket={ticket}"
     
     return {
         "ticket": ticket,
@@ -2418,7 +2597,7 @@ async def redeem_pairing_ticket(
 ):
     """
     Redeem an ephemeral QR pairing ticket for a scoped mobile companion JWT.
-    BURNS the ticket immediately — single-use only!
+    Idempotent and resilient to page refreshes or double network requests.
     """
     with _tickets_lock:
         _cleanup_expired_tickets()
@@ -2427,14 +2606,17 @@ async def redeem_pairing_ticket(
         if not ticket_data:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid, expired, or already redeemed pairing ticket."
+                detail="Invalid or expired pairing ticket."
             )
             
-        if ticket_data.get("redeemed"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This pairing ticket has already been used."
-            )
+        if ticket_data.get("redeemed") and ticket_data.get("token"):
+            return {
+                "status": "paired_successfully",
+                "token": ticket_data["token"],
+                "username": ticket_data.get("username", "user"),
+                "device_name": ticket_data.get("device_name", device_name),
+                "message": "Device linked securely with MemWault Vault."
+            }
             
         if ticket_data["expires_at"] < datetime.now(timezone.utc):
             _pairing_tickets.pop(ticket, None)
@@ -2444,21 +2626,19 @@ async def redeem_pairing_ticket(
             )
             
         now = datetime.now(timezone.utc)
-        # Mark as redeemed and retain for 90 seconds so desktop polling detects it
-        ticket_data["redeemed"] = True
-        ticket_data["redeemed_at"] = now.isoformat()
-        ticket_data["redeemed_until"] = now + timedelta(seconds=90)
-        ticket_data["device_name"] = device_name or "Mobile Companion"
-        
         user_id = ticket_data["user_id"]
         username = ticket_data["username"]
+        companion_token = ticket_data.get("token") or create_companion_token(user_id=user_id, username=username, device_name=device_name)
+
+        ticket_data["redeemed"] = True
+        ticket_data["redeemed_at"] = now.isoformat()
+        ticket_data["redeemed_until"] = now + timedelta(minutes=5)
+        ticket_data["device_name"] = device_name or "Mobile Companion"
+        ticket_data["token"] = companion_token
 
     # Persist device to paired registry
     _save_paired_device(user_id=user_id, username=username, device_name=device_name or "Mobile Companion")
 
-    # Issue long-lived companion device token
-    companion_token = create_companion_token(user_id=user_id, username=username, device_name=device_name)
-    
     return {
         "status": "paired_successfully",
         "token": companion_token,

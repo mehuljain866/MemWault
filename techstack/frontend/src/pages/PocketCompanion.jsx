@@ -28,10 +28,12 @@ import {
   updateStory, updatePost, setToken, isAuthenticated, 
   getHighlights, getHighlightStories, createHighlight, getInstagramSession,
   disconnectInstagram, renewInstagramSession, rescanMetadata,
-  getStoryViewers, updatePostMedia, redeemPairingTicket
+  getStoryViewers, updatePostMedia, redeemPairingTicket,
+  getVaultUrl, setVaultUrl, testVaultConnection
 } from '../services/api';
 import MusicPlayer from '../components/MusicPlayer';
 import HighlightPlayerModal from '../components/HighlightPlayerModal';
+import PocketQRScannerModal from '../components/PocketQRScannerModal';
 
 /**
  * Pure Web Audio API synthesized Metro Tap / Touch Feedback
@@ -485,7 +487,11 @@ export default function PocketCompanion() {
   const [enableLiveFlip, setEnableLiveFlip] = useState(() => localStorage.getItem('metro_live_flip') !== 'false');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('metro_sound') !== 'false');
   const [autoSyncOnOpen, setAutoSyncOnOpen] = useState(() => localStorage.getItem('metro_auto_sync') !== 'false');
-  const [serverHost, setServerHost] = useState(() => localStorage.getItem('metro_server_host') || window.location.hostname || '192.168.29.50');
+  const [serverHost, setServerHost] = useState(() => getVaultUrl() || localStorage.getItem('metro_server_host') || (typeof window !== 'undefined' ? window.location.origin : ''));
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [vaultUrlInput, setVaultUrlInput] = useState(() => getVaultUrl() || (typeof window !== 'undefined' ? window.location.origin : ''));
+  const [connectionTestResult, setConnectionTestResult] = useState(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   // ── Navigation & Content States ───────────────────────────────────────────
   const PIVOT_TABS = ['start', 'memories', 'highlights', 'feed', 'journal', 'music', 'settings'];
@@ -1099,43 +1105,54 @@ export default function PocketCompanion() {
     const ticketParam = searchParams.get('pair_ticket') || searchParams.get('ticket');
     const tokenParam = searchParams.get('token') || searchParams.get('pair') || searchParams.get('auth');
 
-    if (ticketParam) {
-      const getDeviceName = () => {
-        const ua = navigator.userAgent || '';
-        let dev = 'Smartphone';
-        if (/iPhone/i.test(ua)) dev = 'iPhone';
-        else if (/iPad/i.test(ua)) dev = 'iPad';
-        else if (/Android/i.test(ua)) {
-          const match = ua.match(/;\s*([^;)]+)\s+Build/i);
-          dev = match ? match[1].trim() : 'Android Smartphone';
-        }
-        let browser = 'Mobile';
-        if (/CriOS|Chrome/i.test(ua)) browser = 'Chrome';
-        else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
-        else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
-        return `${dev} (${browser})`;
-      };
+    const getDeviceName = () => {
+      const ua = navigator.userAgent || '';
+      let dev = 'Smartphone';
+      if (/iPhone/i.test(ua)) dev = 'iPhone';
+      else if (/iPad/i.test(ua)) dev = 'iPad';
+      else if (/Android/i.test(ua)) {
+        const match = ua.match(/;\s*([^;)]+)\s+Build/i);
+        dev = match ? match[1].trim() : 'Android Smartphone';
+      }
+      let browser = 'Mobile';
+      if (/CriOS|Chrome/i.test(ua)) browser = 'Chrome';
+      else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+      else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
+      return `${dev} (${browser})`;
+    };
 
+    if (tokenParam) {
+      setToken(tokenParam);
+      localStorage.setItem('sv_token', tokenParam);
+      setVaultUrl(window.location.origin);
+      if (ticketParam) {
+        redeemPairingTicket(ticketParam, getDeviceName()).catch(() => {});
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+      showToast('✓ Pocket Companion Paired & Vault Synced!');
+      handleRunSync();
+    } else if (ticketParam) {
       redeemPairingTicket(ticketParam, getDeviceName())
         .then(data => {
           if (data && data.token) {
             setToken(data.token);
             localStorage.setItem('sv_token', data.token);
+            setVaultUrl(window.location.origin);
             window.history.replaceState({}, document.title, window.location.pathname);
-            showToast('✓ Pocket Companion Paired Securely!');
+            showToast('✓ Pocket Companion Paired & Vault Synced!');
             handleRunSync();
           }
         })
         .catch(err => {
           console.error('Pairing ticket error:', err);
-          showToast('⚠️ Pairing Failed: ' + (err.message || 'Ticket expired'));
+          if (getToken()) {
+            showToast('✓ Vault Session Active');
+            handleRunSync();
+          } else {
+            showToast('⚠️ Pairing Failed: ' + (err.message || 'Ticket expired'));
+          }
           window.history.replaceState({}, document.title, window.location.pathname);
         });
-    } else if (tokenParam) {
-      setToken(tokenParam);
-      localStorage.setItem('sv_token', tokenParam);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      showToast('✓ Pocket Companion Paired with Vault!');
     }
 
     const handleBeforeInstall = (e) => {
@@ -6747,29 +6764,150 @@ export default function PocketCompanion() {
                 <div style={{ fontSize: '16px', fontWeight: 300, marginBottom: '10px', color: accent }}>
                   activesync & vault
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ backgroundColor: surfaceColor, padding: '12px' }}>
-                    <div style={{ fontSize: '11px', color: subTextColor }}>LAPTOP VAULT HOST IP</div>
-                    <input
-                      type="text"
-                      value={serverHost}
-                      onChange={(e) => {
-                        setServerHost(e.target.value);
-                        localStorage.setItem('metro_server_host', e.target.value);
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  
+                  {/* Session Status & Quick Re-Pair Banner */}
+                  <div style={{
+                    backgroundColor: surfaceColor,
+                    borderLeft: `4px solid ${isAuthenticated() ? '#008A00' : '#A20025'}`,
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isAuthenticated() ? '#008A00' : '#A20025' }} />
+                          <span>{isAuthenticated() ? 'Vault Session: Paired & Active' : 'Vault Session: Expired / Not Paired'}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: subTextColor, marginTop: '2px' }}>
+                          {isAuthenticated()
+                            ? 'Your mobile device is authenticated to sync memories with your laptop.'
+                            : 'Session expired or not yet linked. Scan the QR code on your laptop screen to reconnect.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Big Re-Pair / Scan QR Button */}
+                    <button
+                      onClick={() => {
+                        triggerSound();
+                        setShowQRScanner(true);
                       }}
                       style={{
-                        width: '100%',
-                        backgroundColor: cardColor,
-                        color: textColor,
-                        border: `1px solid ${borderColor}`,
-                        padding: '8px',
+                        backgroundColor: accent,
+                        color: '#FFFFFF',
+                        border: 'none',
+                        padding: '12px 14px',
                         fontSize: '13px',
-                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
                         marginTop: '4px',
-                        outline: 'none',
-                        boxSizing: 'border-box',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                       }}
-                    />
+                    >
+                      <Camera size={18} />
+                      <span>Scan Laptop Screen QR Code to Re-Pair</span>
+                    </button>
+                  </div>
+
+                  {/* Laptop Vault Server Endpoint Configuration */}
+                  <div style={{ backgroundColor: surfaceColor, padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '11px', color: subTextColor, fontWeight: 600 }}>LAPTOP VAULT SERVER URL</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        value={vaultUrlInput}
+                        onChange={(e) => setVaultUrlInput(e.target.value)}
+                        placeholder="http://192.168.29.51:8000 or https://xxx.trycloudflare.com"
+                        style={{
+                          flex: 1,
+                          backgroundColor: cardColor,
+                          color: textColor,
+                          border: `1px solid ${borderColor}`,
+                          padding: '8px 10px',
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          triggerSound();
+                          setVaultUrl(vaultUrlInput);
+                          showToast('✓ Vault URL Saved');
+                        }}
+                        style={{
+                          backgroundColor: cardColor,
+                          color: textColor,
+                          border: `1px solid ${borderColor}`,
+                          padding: '0 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Save
+                      </button>
+                    </div>
+
+                    {/* Test Connection Button with Live Ping/Latency */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+                      <button
+                        onClick={async () => {
+                          triggerSound();
+                          setIsTestingConnection(true);
+                          try {
+                            const res = await testVaultConnection(vaultUrlInput);
+                            setConnectionTestResult(res);
+                            if (res.ok) {
+                              showToast(`✓ Laptop Vault Reachable (${res.latency}ms)`);
+                            } else {
+                              showToast(`⚠️ Laptop Vault Unreachable`);
+                            }
+                          } catch (e) {
+                            setConnectionTestResult({ ok: false, error: e.message });
+                          } finally {
+                            setIsTestingConnection(false);
+                          }
+                        }}
+                        disabled={isTestingConnection}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: accent,
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <RefreshCw size={12} className={isTestingConnection ? 'spin-anim' : ''} />
+                        <span>{isTestingConnection ? 'Pinging Vault...' : 'Test Connection / Ping'}</span>
+                      </button>
+
+                      {connectionTestResult && (
+                        <div style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: connectionTestResult.ok ? '#008A00' : '#A20025',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}>
+                          <span>{connectionTestResult.ok ? `✓ Connected (${connectionTestResult.latency}ms)` : `⚠️ ${connectionTestResult.error || 'Unreachable'}`}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <MetroToggle
@@ -6920,6 +7058,18 @@ export default function PocketCompanion() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* ── IN-APP QR CODE SCANNER MODAL (RENEW SESSION / RE-PAIR) ── */}
+      <PocketQRScannerModal
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScanSuccess={async (res) => {
+          showToast('✓ Pocket Companion Paired Securely!');
+          setVaultUrlInput(getVaultUrl() || window.location.origin);
+          await handleRunSync();
+        }}
+        accent={accent}
+      />
     </div>
   );
 }

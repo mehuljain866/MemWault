@@ -230,6 +230,18 @@ class StorageClient:
         self.client.delete_object(Bucket=self.bucket_name, Key=s3_key)
         logger.info("Deleted s3://%s/%s", self.bucket_name, s3_key)
 
+    def file_exists(self, s3_key: str) -> bool:
+        """Check if an object exists in storage."""
+        if not s3_key:
+            return False
+        if self.storage_type == "local":
+            return (self.local_dir / s3_key).is_file()
+        try:
+            self.client.head_object(Bucket=self.bucket_name, Key=s3_key)
+            return True
+        except ClientError:
+            return False
+
     def get_total_size_mb(self, prefix: str = "") -> float:
         """Calculate total storage used in megabytes."""
         objects = self.list_objects(prefix)

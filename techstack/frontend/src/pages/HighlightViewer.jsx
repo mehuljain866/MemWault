@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Image as ImageIcon, Play, RefreshCcw, Layers, Edit2, Plus, X as XIcon, Check } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { getHighlightStories, getHighlights, updateHighlight, removeStoriesFromHighlight } from '../services/api'
 import HighlightCreatorModal from '../components/HighlightCreatorModal'
 import HighlightPlayerModal from '../components/HighlightPlayerModal'
@@ -53,7 +54,8 @@ export default function HighlightViewer() {
         fetchedStories = storiesData.stories
       }
 
-      const hl = highlightsData.find(h => h.id === id)
+      const hlList = Array.isArray(highlightsData) ? highlightsData : []
+      const hl = hlList.find(h => h.id === id)
       setHighlightTitle(hl?.title || '')
       
       // Sort chronologically (newest first)
@@ -309,7 +311,7 @@ export default function HighlightViewer() {
                 const thumbSrc = story.media_url
 
                 return (
-                  <div
+                  <motion.div
                     key={story.id}
                     className="ios-story-card"
                     onClick={() => {
@@ -329,18 +331,9 @@ export default function HighlightViewer() {
                       boxShadow: 'var(--ios-shadow-sm, 0 2px 8px rgba(0,0,0,0.1))',
                       opacity: isEditing ? 0.9 : 1,
                     }}
-                    onMouseEnter={e => {
-                      if (!isEditing) {
-                        e.currentTarget.style.transform = 'scale(1.03)'
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)'
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isEditing) {
-                        e.currentTarget.style.transform = 'scale(1)'
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'
-                      }
-                    }}
+                    whileHover={!isEditing ? { scale: 1.03, boxShadow: '0 6px 20px rgba(0,0,0,0.2)' } : undefined}
+                    whileTap={!isEditing ? { scale: 0.97 } : undefined}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   >
                     {/* Thumbnail */}
                     {thumbSrc ? (
@@ -417,7 +410,7 @@ export default function HighlightViewer() {
                         </button>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>

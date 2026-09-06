@@ -7,7 +7,7 @@ import HighlightCreatorModal from '../components/HighlightCreatorModal'
 import AddToHighlightModal from '../components/AddToHighlightModal'
 import FastScrollbar from '../components/FastScrollbar'
 import { useOutletContext } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { 
   Filter, Image as ImageIcon, Video, VideoOff, BoxSelect, RefreshCcw, RefreshCw,
   ZoomIn, ZoomOut, Menu, CheckSquare, X as XIcon, Calendar, Layers,
@@ -77,6 +77,7 @@ function ClusterPreview({ stories, size, autoplay = true }) {
 }
 
 export default function Timeline({ isReelView = false }) {
+  const shouldReduceMotion = useReducedMotion()
   const [stories, setStories] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -168,8 +169,13 @@ export default function Timeline({ isReelView = false }) {
       setToast('Archive synced successfully!')
       setTimeout(() => setToast(null), 3000)
     } catch (err) {
-      setToast(`Sync error: ${err.message}`)
-      setTimeout(() => setToast(null), 4000)
+      const msg = err.message || 'Sync failed'
+      if (msg.includes('expired') || msg.includes('Renew') || msg.includes('session')) {
+        setToast('⚠️ Instagram session expired. Please click "Renew Session" in Settings.')
+      } else {
+        setToast(`Sync error: ${msg}`)
+      }
+      setTimeout(() => setToast(null), 6000)
     } finally {
       setSyncing(false)
     }
@@ -300,10 +306,10 @@ export default function Timeline({ isReelView = false }) {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25 }}
+      exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -10 }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       style={{
         position: 'relative',
         minHeight: '100%',
@@ -388,7 +394,7 @@ export default function Timeline({ isReelView = false }) {
                     fontWeight: zoomLevel === val ? 700 : 500,
                     fontSize: '12px',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease'
                   }}
                 >
                   {label}
@@ -414,7 +420,7 @@ export default function Timeline({ isReelView = false }) {
                 background: autoplayVideo ? 'var(--ios-accent)' : 'var(--ios-bg-card)',
                 color: autoplayVideo ? '#ffffff' : 'var(--ios-text-secondary)',
                 border: autoplayVideo ? 'none' : '1px solid var(--ios-border)',
-                transition: 'all 0.15s ease'
+                transition: 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease'
               }}
               title={autoplayVideo ? "Click to stop playing video thumbnails (speeds up page & saves GPU)" : "Click to auto-play video thumbnails in feed"}
             >
@@ -567,7 +573,7 @@ export default function Timeline({ isReelView = false }) {
                 color: 'var(--ios-text-primary)',
                 fontSize: '13px',
                 outline: 'none',
-                transition: 'all 0.2s ease',
+                transition: 'border-color 0.2s ease, background-color 0.2s ease',
               }}
               onFocus={e => {
                 e.target.style.borderColor = 'var(--ios-accent)'
@@ -669,6 +675,7 @@ export default function Timeline({ isReelView = false }) {
               {/* Dynamic Grid with Framer Motion spatial layout transition */}
               <motion.div 
                 layout
+                transition={{ type: 'spring', duration: 0.5, bounce: 0.2 }}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: getGridColumns(),

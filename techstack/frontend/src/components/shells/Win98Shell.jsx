@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 import { triggerScrape, getDashboardStats } from '../../services/api';
 import { getSettings, saveSettings } from '../../services/settings';
 import { 
@@ -111,6 +112,7 @@ export default function Win98Shell({ children }) {
   const [isConnectPhoneOpen, setIsConnectPhoneOpen] = useState(false);
   const [showClippy, setShowClippy] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   // Boot Screen state (run once per session if enabled)
   const [showBootScreen, setShowBootScreen] = useState(() => {
@@ -572,7 +574,7 @@ export default function Win98Shell({ children }) {
               </button>
               <div style={{ width: '1px', height: '18px', background: '#808080', borderRight: '1px solid #ffffff', margin: '0 4px' }} />
               <button className="win98-toolbar-btn" onClick={handleSync} title="Sync Archive">
-                <RotateCcw size={16} className={syncing ? 'spin-anim' : ''} /><span>Sync</span>
+                <RotateCcw size={16} className={syncing && !shouldReduceMotion ? 'spin-anim' : ''} /><span>Sync</span>
               </button>
             </div>
           )}

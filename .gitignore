@@ -41,6 +41,8 @@ techstack/backend/exiftool_bin/
 scratch_ios/
 old_ui/
 AGENTS.md
+gemini-3.7-flash-high-rigorous-agent.md
+.agents/
 handoff.md
 memwault.config
 techstack/backend/dummy.jpg

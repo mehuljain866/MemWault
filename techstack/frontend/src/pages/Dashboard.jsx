@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { getDashboardStats, triggerScrape, triggerArchiveImport } from '../services/api'
 import { useOutletContext } from 'react-router-dom'
 import { 
@@ -27,6 +27,7 @@ function AnimatedCloudDownload({ isImporting }) {
 
 export default function Dashboard() {
   const { onMenuClick } = useOutletContext() || {}
+  const shouldReduceMotion = useReducedMotion()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -105,17 +106,17 @@ export default function Dashboard() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.05,
-        delayChildren: 0.04,
+        staggerChildren: shouldReduceMotion ? 0 : 0.05,
+        delayChildren: shouldReduceMotion ? 0 : 0.04,
       }
     }
   }
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 14, scale: 0.98 },
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 14, scale: 0.98 },
     visible: { 
       opacity: 1, y: 0, scale: 1,
-      transition: { type: 'spring', stiffness: 380, damping: 26 }
+      transition: { type: 'spring', stiffness: 380, damping: 30 }
     }
   }
 

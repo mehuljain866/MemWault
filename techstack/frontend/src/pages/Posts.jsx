@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { 
   Grid, LayoutGrid, Layers, Film, Image as ImageIcon, 
   Sparkles, RefreshCw, Heart, MessageCircle, Disc, Filter, Check,
@@ -16,6 +16,7 @@ export default function Posts() {
   const [filterType, setFilterType] = useState('all') // 'all', 'carousel', 'photo', 'video', 'raw'
   const [gridAspect, setGridAspect] = useState('square') // 'square' (1:1), 'portrait' (4:5), 'original'
   const [zoom, setZoom] = useState(260) // column min-width in px
+  const shouldReduceMotion = useReducedMotion()
 
   const loadPosts = async () => {
     setLoading(true)
@@ -234,6 +235,14 @@ export default function Posts() {
       ) : (
         <motion.div 
           layout
+          variants={{
+            hidden: {},
+            show: {
+              transition: { staggerChildren: 0.04 }
+            }
+          }}
+          initial="hidden"
+          animate="show"
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))`,
@@ -249,15 +258,19 @@ export default function Posts() {
 
             const thumbUrl = firstMedia?.has_raw_master && firstMedia?.raw_media_url
               ? firstMedia.raw_media_url
-              : (firstMedia?.instagram_media_url || `/api/v1/proxy/image?url=${encodeURIComponent(firstMedia?.instagram_cdn_url || '')}`)
+              : (isVideo
+                  ? (firstMedia?.thumbnail_url || (firstMedia?.thumbnail_cdn_url ? `/api/v1/proxy/image?url=${encodeURIComponent(firstMedia.thumbnail_cdn_url)}` : null))
+                  : (firstMedia?.instagram_media_url || `/api/v1/proxy/image?url=${encodeURIComponent(firstMedia?.instagram_cdn_url || '')}`))
 
             return (
               <motion.div
                 key={post.id}
                 layout
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.025, y: -4 }}
+                variants={{
+                  hidden: { opacity: 0, y: 14 },
+                  show: { opacity: 1, y: 0 }
+                }}
+                whileHover={shouldReduceMotion ? {} : { scale: 1.025, y: -4 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: 'spring', stiffness: 360, damping: 24 }}
                 onClick={() => navigate(`/posts/${post.id}`)}
@@ -273,16 +286,42 @@ export default function Posts() {
                 }}
               >
                 {/* Media Image Thumbnail */}
-                <img
-                  src={thumbUrl}
-                  alt={post.caption_text || 'Post thumbnail'}
-                  referrerPolicy="no-referrer"
-                  style={{
-                    width: '100%', height: '100%',
-                    objectFit: 'cover', display: 'block',
-                  }}
-                  loading="lazy"
-                />
+                {thumbUrl ? (
+                  <img
+                    src={thumbUrl}
+                    alt={post.caption_text || 'Post thumbnail'}
+                    referrerPolicy="no-referrer"
+                    style={{
+                      width: '100%', height: '100%',
+                      objectFit: 'cover', display: 'block',
+                    }}
+                    loading="lazy"
+                    onError={(e) => {
+                      if (isVideo) {
+                        e.target.style.display = 'none'
+                        const fallbackVid = e.target.parentElement?.querySelector('video.video-thumb-fallback')
+                        if (fallbackVid) fallbackVid.style.display = 'block'
+                      }
+                    }}
+                  />
+                ) : null}
+
+                {/* Video playback fallback if thumbnail image is missing or failed */}
+                {isVideo && (
+                  <video
+                    className="video-thumb-fallback"
+                    src={firstMedia?.media_url || firstMedia?.instagram_media_url}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    style={{
+                      width: '100%', height: '100%',
+                      objectFit: 'cover',
+                      display: thumbUrl ? 'none' : 'block',
+                    }}
+                  />
+                )}
 
                 {/* -- Badges Overlay ---------------------------------- */}
                 <div style={{

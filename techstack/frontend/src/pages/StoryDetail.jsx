@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getStory, getStoryViewers, refreshStoryViewers, locateStoryMedia, updateStoryLocation, updateStory, getAdjacentStories } from '../services/api'
@@ -10,6 +10,7 @@ import StreetViewModal from '../components/StreetViewModal'
 import MDEditor, { commands } from '@uiw/react-md-editor'
 import { ChevronLeft, ChevronRight, MapPin, MessageCircle, Eye, Music, Users, Link2, BarChart2, Calendar, FileType, Check, Clock, X, Video, Save, Sparkles, Star, Heart, RefreshCw, ExternalLink, Compass, Edit3, Images, FileText, Wand2 } from 'lucide-react'
 import { getSettings } from '../services/settings'
+import { playWin98Maximize, playWin98Minimize, playWin98Click } from '../services/win98Audio'
 
 export default function StoryDetail() {
   const { id } = useParams()
@@ -30,6 +31,40 @@ export default function StoryDetail() {
   
   const [journalNote, setJournalNote] = useState('')
   const [savingJournal, setSavingJournal] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const win98MediaContainerRef = useRef(null)
+  const modernMediaContainerRef = useRef(null)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const toggleMediaFullscreen = () => {
+    if (isWin98) {
+      if (document.fullscreenElement) {
+        playWin98Minimize()
+      } else {
+        playWin98Maximize()
+      }
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+    } else {
+      const container = (isWin98 ? win98MediaContainerRef.current : modernMediaContainerRef.current) || document.querySelector('.story-player-root')
+      const target = container?.querySelector?.('.story-player-root') || container
+      if (target && target.requestFullscreen) {
+        target.requestFullscreen().catch(() => {
+          if (container && container.requestFullscreen) {
+            container.requestFullscreen().catch(() => {})
+          }
+        })
+      }
+    }
+  }
 
   useEffect(() => {
     loadStory()
@@ -146,6 +181,9 @@ export default function StoryDetail() {
       marginBottom: '20px',
       position: 'relative',
       gap: '2px',
+      overflowX: 'auto',
+      scrollbarWidth: 'none',
+      maxWidth: '100%',
     }}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id
@@ -257,13 +295,13 @@ export default function StoryDetail() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25 }}
-      style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '12px 12px 40px 12px' }}
+      transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+      style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '16px 24px 40px 24px' }}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
         <motion.button
-          whileHover={{ scale: 1.03, x: -2 }}
+          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate(-1)}
           className="segment-btn"
@@ -278,9 +316,9 @@ export default function StoryDetail() {
         </motion.button>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', alignItems: 'flex-start' }}>
+      <div className="story-detail-layout">
         {/* ── Media Player (Windowed Application Frame) ──────────────────── */}
-        <div style={{ flex: '1 1 350px', maxWidth: '400px', margin: '0 auto', position: 'relative' }}>
+        <div className="story-detail-player-col">
           {isWin98 ? (
             /* Windows 98 MediaPlayer.exe / ImageViewer.exe Window */
             <div style={{
@@ -311,9 +349,30 @@ export default function StoryDetail() {
                   </span>
                 </div>
                 <div className="win98-title-controls" style={{ display: 'flex', gap: '2px' }}>
-                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>_</button>
-                  <button className="win98-title-btn" style={{ fontSize: '10px', color: '#000' }}>□</button>
-                  <button className="win98-title-btn is-close" style={{ fontSize: '10px', color: '#000' }}>✕</button>
+                  <button 
+                    className="win98-title-btn" 
+                    onClick={() => { if (isWin98) playWin98Minimize(); navigate('/memories'); }}
+                    title="Minimize / Back"
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    _
+                  </button>
+                  <button 
+                    className="win98-title-btn" 
+                    onClick={toggleMediaFullscreen}
+                    title={isFullscreen ? "Restore" : "Maximize / Full Screen Video Player"}
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    {isFullscreen ? '❐' : '□'}
+                  </button>
+                  <button 
+                    className="win98-title-btn is-close" 
+                    onClick={() => { if (isWin98) playWin98Click(); navigate('/memories'); }}
+                    title="Close"
+                    style={{ fontSize: '10px', color: '#000' }}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
 
@@ -337,14 +396,16 @@ export default function StoryDetail() {
               </div>
 
               {/* 3D Sunken Black Canvas Viewport */}
-              <div style={{
-                backgroundColor: '#000000',
-                margin: '2px',
-                border: '1px solid #000000',
-                boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
-                position: 'relative',
-                overflow: 'hidden',
-              }}>
+              <div 
+                ref={win98MediaContainerRef}
+                style={{
+                  backgroundColor: '#000000',
+                  margin: '2px',
+                  border: '1px solid #000000',
+                  boxShadow: 'inset 1px 1px #808080, inset -1px -1px #dfdfdf, inset 2px 2px #000, inset -2px -2px #ffffff',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
                 {story.is_ai_generated && settings.showAITags && (
                   <div style={{
                     position: 'absolute', top: '8px', right: '8px', zIndex: 50,
@@ -397,16 +458,18 @@ export default function StoryDetail() {
             </div>
           ) : (
             /* Modern Theme Application Window Frame */
-            <div style={{
-              borderRadius: '20px',
-              overflow: 'hidden',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
-              border: '1px solid var(--ios-border)',
-              backgroundColor: '#000',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-            }}>
+            <div 
+              ref={modernMediaContainerRef}
+              style={{
+                borderRadius: '20px',
+                overflow: 'hidden',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--ios-border)',
+                border: '1px solid var(--ios-border)',
+                backgroundColor: '#000',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
               {/* Sleek App Window Header */}
               <div style={{
                 padding: '8px 14px',
@@ -422,9 +485,21 @@ export default function StoryDetail() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ display: 'flex', gap: '5px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56' }}></span>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e' }}></span>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f' }}></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff5f56', cursor: 'pointer' }}
+                      onClick={() => navigate('/memories')}
+                      title="Back to Memories"
+                    ></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffbd2e', cursor: 'pointer' }}
+                      onClick={() => navigate('/memories')}
+                      title="Minimize"
+                    ></span>
+                    <span 
+                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#27c93f', cursor: 'pointer' }}
+                      onClick={toggleMediaFullscreen}
+                      title="Full Screen Video Player"
+                    ></span>
                   </div>
                   <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--ios-text-primary)' }}>
                     {isVideo ? 'Video Player' : 'Photo Viewer'}
@@ -497,7 +572,7 @@ export default function StoryDetail() {
           {adjacent.prev_id && (
             <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
               <motion.button
-                whileHover={{ scale: 1.15, x: -2 }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(`/story/${adjacent.prev_id}`, { replace: true })}
                 style={{ background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
@@ -510,7 +585,7 @@ export default function StoryDetail() {
           {adjacent.next_id && (
             <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
               <motion.button
-                whileHover={{ scale: 1.15, x: 2 }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(`/story/${adjacent.next_id}`, { replace: true })}
                 style={{ background: 'rgba(30, 30, 32, 0.75)', backdropFilter: 'blur(20px) saturate(180%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ios-text-primary)', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
@@ -522,9 +597,7 @@ export default function StoryDetail() {
         </div>
 
         {/* ── Metadata Panel (Slide up feel) ────────────────── */}
-        <div style={{
-          flex: '1 1 400px',
-          minWidth: 0,
+        <div className="story-detail-meta-col" style={{
           backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
           borderRadius: isWin98 ? '0' : '24px',
           padding: isWin98 ? '14px 16px' : '24px',
@@ -545,7 +618,7 @@ export default function StoryDetail() {
           />
 
           <div style={{ position: 'relative' }}>
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 6 }}

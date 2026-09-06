@@ -86,7 +86,7 @@ function AppShell() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: isWin98 ? 0 : -10 }}
                 transition={{ duration: isWin98 ? 0.05 : 0.18, ease: "easeOut" }}
-                style={{ width: '100%', flex: 1 }}
+                style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
                 onAnimationComplete={() => {
                   document.body.style.transform = '';
                 }}

@@ -25,9 +25,9 @@ function getMediaUrl(item) {
   if (!item) return ''
   if (item.media_items && item.media_items.length > 0) {
     const first = item.media_items[0]
-    return first.display_url || first.media_url || first.instagram_media_url || first.raw_media_url || ''
+    return first.thumbnail_url || first.display_url || first.media_url || (first.s3_key_compressed ? `/api/v1/media/${first.s3_key_compressed}` : '') || first.instagram_media_url || first.raw_media_url || ''
   }
-  return item.display_url || item.media_url || item.instagram_media_url || item.raw_media_url || ''
+  return item.thumbnail_url || item.display_url || item.media_url || (item.s3_key_compressed ? `/api/v1/media/${item.s3_key_compressed}` : '') || item.instagram_media_url || item.raw_media_url || ''
 }
 
 export default function JournalApp() {
@@ -254,15 +254,23 @@ export default function JournalApp() {
       </div>
 
       {/* ── Tab 1: Memory Journals Split View ──────────────── */}
-      {activeTab === 'memories' && (
-        <div style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden',
-          backgroundColor: isWin98 ? '#808080' : 'var(--ios-bg-app)',
-          padding: isWin98 ? '4px' : '12px',
-          gap: '8px',
-        }}>
+      <AnimatePresence mode="wait">
+        {activeTab === 'memories' && (
+          <motion.div
+            key="memories"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+            style={{
+              display: 'flex',
+              flex: 1,
+              overflow: 'hidden',
+              backgroundColor: isWin98 ? '#808080' : 'var(--ios-bg-app)',
+              padding: isWin98 ? '4px' : '12px',
+              gap: '8px',
+            }}
+          >
           {/* Left Feed / Story List */}
           <div style={{
             width: '320px',
@@ -374,7 +382,31 @@ export default function JournalApp() {
                       }}
                     >
                       <div style={{ width: '38px', height: '50px', borderRadius: isWin98 ? '0' : '6px', overflow: 'hidden', backgroundColor: '#333', flexShrink: 0 }}>
-                        <img src={getMediaUrl(story)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {(() => {
+                          const url = getMediaUrl(story)
+                          const isVideo = story.media_type === 2 || Boolean(story.music) || story.is_reel || (typeof url === 'string' && (url.includes('.mp4') || url.includes('.mov') || url.includes('video')))
+                          if (isVideo && url) {
+                            return (
+                              <video
+                                src={url}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                muted
+                                loop
+                                autoPlay
+                                playsInline
+                                preload="metadata"
+                              />
+                            )
+                          }
+                          return (
+                            <img
+                              src={url}
+                              alt=""
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={e => { e.target.style.display = 'none' }}
+                            />
+                          )
+                        })()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: isWin98 ? '11px' : '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -542,7 +574,7 @@ export default function JournalApp() {
                       key={idx}
                       drag
                       dragConstraints={scrapbookRef}
-                      whileDrag={{ scale: 1.18, zIndex: 100 }}
+                      whileDrag={{ scale: 1.05, zIndex: 100 }}
                       style={{
                         position: 'absolute',
                         backgroundColor: stk.bg,
@@ -675,8 +707,164 @@ export default function JournalApp() {
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
+
+      {/* ── Tab 2: Places to Visit & Bucket List ───────────── */}
+      {activeTab === 'places' && (
+        <motion.div
+          key="places"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-app)',
+            padding: isWin98 ? '8px' : '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          {/* Add New Place Form Card */}
+          <form
+            onSubmit={handleAddPlace}
+            style={{
+              backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
+              border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
+              boxShadow: isWin98 ? 'inset 1px 1px #fff, inset -1px -1px #808080' : 'none',
+              borderRadius: isWin98 ? '0' : '14px',
+              padding: isWin98 ? '8px 12px' : '16px',
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ fontWeight: 'bold', color: '#000080', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Compass size={16} />
+              <span>Add Destination:</span>
+            </div>
+
+            <input
+              type="text"
+              value={newPlaceTitle}
+              onChange={(e) => setNewPlaceTitle(e.target.value)}
+              placeholder="e.g. Hike Mount Fuji or Visit Kyoto..."
+              style={{
+                flex: 2,
+                minWidth: '200px',
+                padding: '6px 8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #000',
+                boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
+                fontFamily: 'inherit',
+                fontSize: '12px',
+              }}
+            />
+
+            <input
+              type="text"
+              value={newPlaceLocation}
+              onChange={(e) => setNewPlaceLocation(e.target.value)}
+              placeholder="City, Country"
+              style={{
+                flex: 1,
+                minWidth: '130px',
+                padding: '6px 8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #000',
+                boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
+                fontFamily: 'inherit',
+                fontSize: '12px',
+              }}
+            />
+
+            <button
+              type="submit"
+              className="segment-btn"
+              style={{
+                padding: '6px 14px',
+                backgroundColor: '#000080',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Plus size={14} />
+              <span>Add to Wishlist</span>
+            </button>
+          </form>
+
+          {/* Places List */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '12px',
+          }}>
+            {places.map(place => (
+              <div
+                key={place.id}
+                style={{
+                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-bg-card)',
+                  border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
+                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
+                  borderRadius: isWin98 ? '0' : '12px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                  <div
+                    onClick={() => togglePlaceCompleted(place.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                  >
+                    {place.completed ? (
+                      <CheckSquare size={16} color="#008000" />
+                    ) : (
+                      <Square size={16} color="#888" />
+                    )}
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: isWin98 ? '12px' : '14px',
+                      textDecoration: place.completed ? 'line-through' : 'none',
+                      color: place.completed ? '#888' : 'inherit',
+                    }}>
+                      {place.title}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => deletePlace(place.id)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ff3b30', padding: '2px' }}
+                    title="Delete item"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#666' }}>
+                  <MapPin size={12} color="var(--ios-accent)" />
+                  <span>{place.location}</span>
+                </div>
+
+                {place.notes && (
+                  <div style={{ fontSize: '11px', color: '#444', fontStyle: 'italic' }}>
+                    "{place.notes}"
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
 
       {/* ── Story / Memory Picker Modal Grid ─────────────────── */}
       <AnimatePresence>
@@ -696,9 +884,9 @@ export default function JournalApp() {
             onClick={() => setIsPickerOpen(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.94 }}
+              initial={{ opacity: 0, scale: isWin98 ? 1 : 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.94 }}
+              exit={{ opacity: 0, scale: isWin98 ? 1 : 0.94 }}
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '740px',
@@ -887,154 +1075,6 @@ export default function JournalApp() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* ── Tab 2: Places to Visit & Bucket List ───────────── */}
-      {activeTab === 'places' && (
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-app)',
-          padding: isWin98 ? '8px' : '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}>
-          {/* Add New Place Form Card */}
-          <form
-            onSubmit={handleAddPlace}
-            style={{
-              backgroundColor: isWin98 ? '#c0c0c0' : 'var(--ios-bg-card)',
-              border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
-              boxShadow: isWin98 ? 'inset 1px 1px #fff, inset -1px -1px #808080' : 'none',
-              borderRadius: isWin98 ? '0' : '14px',
-              padding: isWin98 ? '8px 12px' : '16px',
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ fontWeight: 'bold', color: '#000080', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Compass size={16} />
-              <span>Add Destination:</span>
-            </div>
-
-            <input
-              type="text"
-              value={newPlaceTitle}
-              onChange={(e) => setNewPlaceTitle(e.target.value)}
-              placeholder="e.g. Hike Mount Fuji or Visit Kyoto..."
-              style={{
-                flex: 2,
-                minWidth: '200px',
-                padding: '6px 8px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #000',
-                boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
-                fontFamily: 'inherit',
-                fontSize: '12px',
-              }}
-            />
-
-            <input
-              type="text"
-              value={newPlaceLocation}
-              onChange={(e) => setNewPlaceLocation(e.target.value)}
-              placeholder="City, Country"
-              style={{
-                flex: 1,
-                minWidth: '130px',
-                padding: '6px 8px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #000',
-                boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
-                fontFamily: 'inherit',
-                fontSize: '12px',
-              }}
-            />
-
-            <button
-              type="submit"
-              className="segment-btn"
-              style={{
-                padding: '6px 14px',
-                backgroundColor: '#000080',
-                color: '#ffffff',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Plus size={14} />
-              <span>Add to Wishlist</span>
-            </button>
-          </form>
-
-          {/* Places List */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '12px',
-          }}>
-            {places.map(place => (
-              <div
-                key={place.id}
-                style={{
-                  backgroundColor: isWin98 ? '#ffffff' : 'var(--ios-bg-card)',
-                  border: isWin98 ? '1px solid #000' : '1px solid var(--ios-border)',
-                  boxShadow: isWin98 ? 'inset 1px 1px #808080, inset -1px -1px #fff' : 'none',
-                  borderRadius: isWin98 ? '0' : '12px',
-                  padding: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                  <div
-                    onClick={() => togglePlaceCompleted(place.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                  >
-                    {place.completed ? (
-                      <CheckSquare size={16} color="#008000" />
-                    ) : (
-                      <Square size={16} color="#888" />
-                    )}
-                    <span style={{
-                      fontWeight: 700,
-                      fontSize: isWin98 ? '12px' : '14px',
-                      textDecoration: place.completed ? 'line-through' : 'none',
-                      color: place.completed ? '#888' : 'inherit',
-                    }}>
-                      {place.title}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => deletePlace(place.id)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ff3b30', padding: '2px' }}
-                    title="Delete item"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#666' }}>
-                  <MapPin size={12} color="var(--ios-accent)" />
-                  <span>{place.location}</span>
-                </div>
-
-                {place.notes && (
-                  <div style={{ fontSize: '11px', color: '#444', fontStyle: 'italic' }}>
-                    "{place.notes}"
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── MS Paint Modal ───────────────────────────────── */}
       <MSPaintModal

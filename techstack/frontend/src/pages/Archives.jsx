@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { Archive, RefreshCcw, RotateCcw, Image as ImageIcon, Video, Menu } from 'lucide-react'
 import { getStories, updateStory } from '../services/api'
+import { motion } from 'framer-motion'
 
 /**
  * Archives page — shows stories where is_trashed = true.
@@ -197,25 +198,19 @@ function ArchiveCard({ story, isRestoring, onRestore, onNavigate }) {
   })
 
   return (
-    <div
+    <motion.div
       className="ios-card"
       role="button"
       tabIndex={0}
       onClick={onNavigate}
       onKeyDown={(e) => e.key === 'Enter' && onNavigate()}
+      whileHover={{ y: -4, scale: 1.01, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', duration: 0.5, bounce: 0.2 }}
       style={{
         position: 'relative', overflow: 'hidden',
         cursor: 'pointer', borderRadius: 'var(--ios-radius-lg)',
-        transition: 'transform var(--ios-spring-fast), box-shadow var(--ios-spring-fast)',
         padding: 0,
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)'
-        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.25)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = ''
-        e.currentTarget.style.boxShadow = ''
       }}
     >
       {/* Thumbnail */}
@@ -287,6 +282,6 @@ function ArchiveCard({ story, isRestoring, onRestore, onNavigate }) {
           }
         </button>
       </div>
-    </div>
+    </motion.div>
   )
 }

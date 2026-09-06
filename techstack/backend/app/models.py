@@ -72,6 +72,7 @@ class InstagramSession(Base):
     )
     ig_username: Mapped[str] = mapped_column(String(64), index=True)
     ig_user_id: Mapped[str] = mapped_column(String(32), nullable=True)
+    ig_profile_pic_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     session_data: Mapped[dict] = mapped_column(JSON, default=dict)
     device_settings: Mapped[dict] = mapped_column(JSON, default=dict)
     is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -411,8 +412,11 @@ class ScrapeLog(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="running")  # running, success, error
+    job_type: Mapped[str] = mapped_column(String(32), default="stories")  # stories, posts, full_scan, rescan_metadata
     stories_found: Mapped[int] = mapped_column(Integer, default=0)
     stories_new: Mapped[int] = mapped_column(Integer, default=0)
+    posts_found: Mapped[int] = mapped_column(Integer, default=0)
+    posts_new: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

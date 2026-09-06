@@ -1115,6 +1115,45 @@ async def trigger_scrape(
             detail="Instagram session is expired or not connected. Please click 'Renew Session' in Settings.",
         )
 
+    # 1. In-flight check: prevent concurrent background scrapes from hammering Instagram
+    active_res = await db.execute(
+        select(ScrapeLog).where(
+            ScrapeLog.user_id == user.id,
+            ScrapeLog.status == "running",
+        ).order_by(ScrapeLog.started_at.desc()).limit(1)
+    )
+    running_job = active_res.scalar_one_or_none()
+    if running_job and running_job.started_at:
+        now_dt = datetime.now(timezone.utc)
+        start_dt = running_job.started_at
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        if (now_dt - start_dt).total_seconds() < 600:
+            raise HTTPException(
+                status_code=429,
+                detail="A sync job is already actively running. Please wait for it to finish.",
+            )
+
+    # 2. Cooldown check: enforce minimum 60s cooldown between manual syncs to protect account
+    recent_res = await db.execute(
+        select(ScrapeLog).where(
+            ScrapeLog.user_id == user.id,
+        ).order_by(ScrapeLog.started_at.desc()).limit(1)
+    )
+    last_job = recent_res.scalar_one_or_none()
+    if last_job and last_job.started_at:
+        now_dt = datetime.now(timezone.utc)
+        start_dt = last_job.started_at
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        elapsed = (now_dt - start_dt).total_seconds()
+        if elapsed < 60:
+            wait_sec = int(60 - elapsed)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit: please wait {wait_sec}s before syncing again to protect your Instagram account.",
+            )
+
     log = ScrapeLog(user_id=user.id, status="running")
     db.add(log)
     await db.flush()

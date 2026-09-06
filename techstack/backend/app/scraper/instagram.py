@@ -67,17 +67,19 @@ class InstagramScraper:
                     self._is_logged_in = False
 
     def _init_client(self):
-        """Lazily create the instagrapi Client (only for password-based login)."""
+        """Lazily create the instagrapi Client (only for mobile password-based login)."""
         if self._client is None:
             self._client = InstaClient()
             if self._device_settings:
                 self._client.set_device(self._device_settings)
             
-            # If we have a web sessionid, try injecting it so private API calls might work
-            if self.sessionid:
+            # NOTE: Never inject web browser sessionid into simulated Android client.
+            # Mixing Windows/Mac desktop browser cookies with Android APK device signatures
+            # is the primary trigger for Instagram's 'Suspicious activity / Account compromised' flag.
+            if not self.web_cookies and self.sessionid and self.password:
                 try:
                     self._client.login_by_sessionid(self.sessionid)
-                    logger.info("Injected web sessionid into mobile client")
+                    logger.info("Injected mobile sessionid into mobile client")
                 except Exception as e:
                     logger.warning("Could not inject sessionid into mobile client: %s", e)
 
@@ -239,7 +241,7 @@ class InstagramScraper:
         pk = str(media_id).split("_")[0]
         
         try:
-            res = self.client.private_request(f"media/{pk}/list_reel_media_viewer/")
+            res = self._request_private_api(f"media/{pk}/list_reel_media_viewer/")
             updated = res.get("updated_media", {}) or {}
             raw_viewers = res.get("viewers") or updated.get("viewers", []) or res.get("users", [])
             reactions = res.get("reactions") or updated.get("reactions", []) or []
@@ -305,10 +307,10 @@ class InstagramScraper:
         """Fetch the logged-in user's profile info (username, full_name, profile_pic_url, etc.)."""
         self._ensure_logged_in()
         try:
-            uid = getattr(self.client, "user_id", None) or getattr(self, "user_id", None)
+            uid = self.user_id
             if not uid:
                 return None
-            res = self.client.private_request(f"users/{uid}/info/")
+            res = self._request_private_api(f"users/{uid}/info/")
             user = res.get("user", {})
             return {
                 "username": user.get("username"),
@@ -328,16 +330,14 @@ class InstagramScraper:
         Fetch user's feed posts (single photos, videos/reels, multi-slide carousels).
         """
         self._ensure_logged_in()
-        user_id = getattr(self.client, "user_id", None) or getattr(self, "user_id", None)
+        user_id = self.user_id
         if not user_id:
-            try:
-                user_id = self.client.user_id_from_username(self.username)
-            except Exception:
-                pass
+            logger.error("No user_id found for feed post fetch")
+            return []
         
         posts = []
         try:
-            res = self.client.private_request(f"feed/user/{user_id}/", params={"count": min(amount, 50)})
+            res = self._request_private_api(f"feed/user/{user_id}/", params={"count": min(amount, 50)})
             items = res.get("items", [])
             for item in items:
                 parsed = self._parse_raw_post_dict(item)
@@ -664,7 +664,7 @@ class InstagramScraper:
         """
         self._ensure_logged_in()
         try:
-            res = self.client.private_request("friendships/besties/")
+            res = self._request_private_api("friendships/besties/")
             users = res.get("users", [])
             usernames = [u.get("username") for u in users if u.get("username")]
             logger.info("Fetched %d real Close Friends from Instagram", len(usernames))

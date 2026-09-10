@@ -4,6 +4,7 @@ Loads environment variables and provides typed settings objects.
 """
 
 import os
+from pathlib import Path
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
@@ -54,6 +55,18 @@ class Settings(BaseSettings):
     # ── S3 / MinIO / Local Storage ───────────────────────
     storage_type: str = "local"  # "local" or "s3"
     storage_local_dir: str = "data/media"
+
+    @property
+    def storage_local_dir_resolved(self) -> Path:
+        """Resolve storage_local_dir to an absolute Path, checking backend/data/media first."""
+        p = Path(self.storage_local_dir)
+        if not p.is_absolute():
+            backend_media = Path(__file__).resolve().parent.parent / "data" / "media"
+            if backend_media.exists():
+                return backend_media
+            return p.resolve()
+        return p
+
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"

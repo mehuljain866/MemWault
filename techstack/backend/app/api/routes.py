@@ -245,40 +245,58 @@ async def instagram_browser_login(
         web_user_agent=user_agent,
     )
     session_data = scraper.login()
+    profile = login_result.get("profile", {})
+    if profile:
+        session_data["profile"] = profile
 
     # Upsert the session
     result = await db.execute(
-        select(InstagramSession).where(
-            InstagramSession.user_id == user.id,
-            InstagramSession.ig_username == ig_username,
-        )
+        select(InstagramSession)
+        .where(InstagramSession.user_id == user.id)
+        .order_by(InstagramSession.last_login.desc())
+        .limit(1)
     )
-    ig_session = result.scalar_one_or_none()
+    ig_session = result.scalars().first()
+
+    # Determine resolved username (preserve existing human handle if returned username is numeric or unknown)
+    if ig_username and not ig_username.isdigit() and ig_username != "unknown":
+        resolved_username = ig_username
+    elif ig_session and ig_session.ig_username and not ig_session.ig_username.isdigit():
+        resolved_username = ig_session.ig_username
+    else:
+        resolved_username = ig_username
+
+    pic_url = profile.get("profile_pic_url") if profile else None
 
     if ig_session:
         ig_session.session_data = session_data
+        ig_session.ig_username = resolved_username
         ig_session.ig_user_id = scraper.user_id
         ig_session.device_settings = scraper.get_device_settings()
         ig_session.is_valid = True
         ig_session.last_login = datetime.now(timezone.utc)
+        if pic_url:
+            ig_session.ig_profile_pic_url = pic_url
     else:
         ig_session = InstagramSession(
             user_id=user.id,
-            ig_username=ig_username,
+            ig_username=resolved_username,
             ig_user_id=scraper.user_id,
             session_data=session_data,
             device_settings=scraper.get_device_settings(),
             is_valid=True,
+            ig_profile_pic_url=pic_url,
         )
         db.add(ig_session)
 
     await db.flush()
+    await db.commit()
     await db.refresh(ig_session)
 
     return BrowserLoginResponse(
         status="login_success",
-        ig_username=ig_username,
-        message=f"Successfully connected @{ig_username} with full browser cookies",
+        ig_username=resolved_username,
+        message=f"Successfully connected @{resolved_username} with full browser cookies",
     )
 
 
@@ -301,8 +319,9 @@ async def get_instagram_session(
         return None
 
     # Check if profile data is cached in session_data or fetch it if valid
-    profile_data = (sess.session_data or {}).get("profile", {})
-    if sess.is_valid and (not profile_data or (sess.ig_username and sess.ig_username.isdigit())):
+    profile_data = dict((sess.session_data or {}).get("profile", {}) or {})
+    has_valid_metrics = (profile_data.get("follower_count") is not None or profile_data.get("media_count") is not None)
+    if sess.is_valid and (not has_valid_metrics or (sess.ig_username and sess.ig_username.isdigit())):
         try:
             from app.scraper.instagram import InstagramScraper
             scraper = InstagramScraper(
@@ -311,10 +330,10 @@ async def get_instagram_session(
                 device_settings=sess.device_settings,
             )
             prof = scraper.fetch_user_profile()
-            if prof:
+            if prof and (prof.get("follower_count") is not None or prof.get("profile_pic_url")):
                 if prof.get("username") and sess.ig_username.isdigit():
                     sess.ig_username = prof["username"]
-                profile_data = prof
+                profile_data.update({k: v for k, v in prof.items() if v is not None})
                 sess.session_data = {**(sess.session_data or {}), "profile": profile_data}
                 await db.flush()
         except Exception as e:
@@ -322,19 +341,30 @@ async def get_instagram_session(
 
     from app.config import get_settings
     settings = get_settings()
-    media_dir = Path(settings.storage_local_dir)
+    media_dir = settings.storage_local_dir_resolved
     local_pic_name_hex = f"profile_pic_{user.id.hex}.jpg"
     local_pic_name_dash = f"profile_pic_{user.id}.jpg"
+    ig_user_pic = f"profile_pic_{sess.ig_user_id}.jpg" if sess.ig_user_id else None
 
     pic_url = None
     if (media_dir / local_pic_name_hex).exists():
         pic_url = f"/api/v1/media/{local_pic_name_hex}"
     elif (media_dir / local_pic_name_dash).exists():
         pic_url = f"/api/v1/media/{local_pic_name_dash}"
+    elif ig_user_pic and (media_dir / ig_user_pic).exists():
+        pic_url = f"/api/v1/media/{ig_user_pic}"
     elif sess.ig_profile_pic_url:
         pic_url = sess.ig_profile_pic_url
     else:
         pic_url = profile_data.get("profile_pic_url")
+
+    # Vault posts fallback for media count if profile has none
+    media_count = profile_data.get("media_count")
+    if media_count is None:
+        count_res = await db.execute(
+            select(func.count(Post.id)).where(Post.user_id == user.id, Post.is_trashed == False)
+        )
+        media_count = count_res.scalar() or 0
 
     return InstagramSessionRead(
         id=sess.id,
@@ -345,7 +375,7 @@ async def get_instagram_session(
         biography=profile_data.get("biography"),
         follower_count=profile_data.get("follower_count"),
         following_count=profile_data.get("following_count"),
-        media_count=profile_data.get("media_count"),
+        media_count=media_count,
         is_valid=sess.is_valid,
         last_login=sess.last_login,
     )
@@ -360,7 +390,7 @@ async def upload_profile_pic(
     """Upload a custom profile picture."""
     from app.config import get_settings
     settings = get_settings()
-    media_dir = Path(settings.storage_local_dir)
+    media_dir = settings.storage_local_dir_resolved
     media_dir.mkdir(parents=True, exist_ok=True)
 
     file_ext = Path(file.filename or "pic.jpg").suffix.lower()
@@ -466,10 +496,11 @@ async def renew_instagram_session(
         web_user_agent=user_agent,
     )
     session_data = scraper.login()
+    profile = login_result.get("profile", {})
+    if profile:
+        session_data["profile"] = profile
 
-    # Upsert session. This query is unfiltered, so any user who has ever
-    # connected a second account would hit MultipleResultsFound here - take the
-    # most recently used row instead.
+    # Upsert session
     result = await db.execute(
         select(InstagramSession)
         .where(InstagramSession.user_id == user.id)
@@ -478,28 +509,45 @@ async def renew_instagram_session(
     )
     ig_session = result.scalars().first()
 
+    # Determine resolved username (preserve existing human handle if returned username is numeric or unknown)
+    if ig_username and not ig_username.isdigit() and ig_username != "unknown":
+        resolved_username = ig_username
+    elif ig_session and ig_session.ig_username and not ig_session.ig_username.isdigit():
+        resolved_username = ig_session.ig_username
+    else:
+        resolved_username = ig_username
+
+    pic_url = profile.get("profile_pic_url") if profile else None
+
     if ig_session:
         ig_session.session_data = session_data
-        ig_session.ig_username = ig_username
+        ig_session.ig_username = resolved_username
         ig_session.ig_user_id = scraper.user_id
+        ig_session.device_settings = scraper.get_device_settings()
         ig_session.is_valid = True
         ig_session.last_login = datetime.now(timezone.utc)
+        if pic_url:
+            ig_session.ig_profile_pic_url = pic_url
     else:
         ig_session = InstagramSession(
             user_id=user.id,
-            ig_username=ig_username,
+            ig_username=resolved_username,
             ig_user_id=scraper.user_id,
             session_data=session_data,
+            device_settings=scraper.get_device_settings(),
             is_valid=True,
+            ig_profile_pic_url=pic_url,
         )
         db.add(ig_session)
 
     await db.flush()
+    await db.commit()
+    await db.refresh(ig_session)
 
     return BrowserLoginResponse(
         status="login_success",
-        ig_username=ig_username,
-        message=f"Session renewed successfully for @{ig_username}",
+        ig_username=resolved_username,
+        message=f"Session renewed successfully for @{resolved_username}",
     )
 
 
@@ -1546,7 +1594,7 @@ async def serve_local_media(rest_of_path: str):
     # Authorization header for <img src>/<video src>. That makes path containment
     # essential: without it, "../../.." in the URL would read any file on disk,
     # including memwault.db and the .env holding the JWT secret.
-    base = Path(settings.storage_local_dir).resolve()
+    base = settings.storage_local_dir_resolved
     file_path = (base / rest_of_path).resolve()
     if not file_path.is_relative_to(base):
         logger.warning("Blocked path traversal attempt: %r", rest_of_path)

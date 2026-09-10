@@ -544,7 +544,15 @@ def sync_stories_incremental(self, user_id: str):
             if mid:
                 all_stories_map[mid] = (s, True)
 
-        for s in archive_stories:
+        # 3. Fetch highlight stories (non-active, but alive on user profile)
+        hl_stories = []
+        try:
+            hl_stories = scraper.fetch_highlights()
+            logger.info("Found %d highlight stories", len(hl_stories))
+        except Exception as e:
+            logger.warning("Highlights incremental fetch note: %s", e)
+
+        for s in hl_stories:
             mid = str(s.get("ig_media_id") or s.get("id") or "")
             if mid and mid not in all_stories_map:
                 all_stories_map[mid] = (s, False)
@@ -1026,9 +1034,9 @@ def full_vault_scan(self, user_id: str, max_stories: Optional[int] = None):
     try:
         user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
         
-        # Step 1: Archive import for any missed stories
+        # Step 1: Ingest all available stories from Instagram: active stories, highlights, and archive
         imported_count = 0
-        total_archive_found = 0
+        total_found = 0
         ig_session = db.query(InstagramSession).filter(
             InstagramSession.user_id == user_uuid,
             InstagramSession.is_valid == True,
@@ -1044,83 +1052,163 @@ def full_vault_scan(self, user_id: str, max_stories: Optional[int] = None):
                 scraper.login()
                 logger.info("Full scan: Instagram connection authenticated")
 
+                # Collect all stories across active, archive, and highlights
+                all_candidates = {}
+
+                # 1. Active stories (live on profile right now)
                 try:
-                    stories = scraper.fetch_archive_stories(max_stories=max_stories)
-                    total_archive_found = len(stories)
-                    logger.info("Full scan: Found %d stories in Instagram archive", total_archive_found)
+                    active = scraper.fetch_own_stories()
+                    logger.info("Full scan: Found %d active stories", len(active))
+                    for s in active:
+                        mid = str(s.get("ig_media_id") or s.get("id") or "")
+                        if mid:
+                            all_candidates[mid] = s
+                except Exception as active_err:
+                    err_s = str(active_err).lower()
+                    if "login_required" in err_s or "401" in err_s or "403" in err_s or "logged out" in err_s:
+                        ig_session.is_valid = False
+                        db.commit()
+                        raise RuntimeError("Instagram session has expired or been logged out. Please click 'Renew Session' in Settings.")
+                    logger.warning("Active story check failed in full scan: %s", active_err)
 
-                    storage = get_storage()
-                    with tempfile.TemporaryDirectory(prefix="memwault_fullscan_") as tmp_dir:
-                        download_dir = Path(tmp_dir)
-                        for story_data in stories:
-                            media_id = story_data.get("ig_media_id", "unknown")
-                            existing = db.query(Story).filter(Story.ig_media_id == str(media_id)).first()
-                            if existing:
-                                continue
-
-                            try:
-                                file_path = scraper.download_story_media(story_data, download_dir)
-                                if not file_path:
-                                    continue
-
-                                MetadataWriter.write_metadata(file_path, story_data)
-                                taken_at = story_data.get("taken_at", datetime.now(timezone.utc))
-                                if isinstance(taken_at, str):
-                                    taken_at = datetime.fromisoformat(taken_at)
-
-                                date_prefix = taken_at.strftime("%Y/%m")
-                                s3_key = f"stories/{date_prefix}/{file_path.name}"
-                                storage.upload_file(file_path, s3_key)
-
-                                audience_snapshot = story_data.get("audience_snapshot")
-                                new_story = Story(
-                                    user_id=user_uuid,
-                                    ig_media_id=str(media_id),
-                                    ig_media_pk=story_data.get("ig_media_pk", ""),
-                                    ig_user_id=story_data.get("ig_user_id", ""),
-                                    taken_at=taken_at,
-                                    expires_at=story_data.get("expires_at"),
-                                    media_type=story_data.get("media_type", 1),
-                                    cdn_url=story_data.get("cdn_url", ""),
-                                    s3_key_compressed=s3_key,
-                                    file_name=file_path.name,
-                                    width=story_data.get("width", 1080),
-                                    height=story_data.get("height", 1920),
-                                    duration_ms=story_data.get("duration_ms"),
-                                    caption_text=story_data.get("caption_text"),
-                                    location_name=story_data.get("location_name"),
-                                    location_lat=story_data.get("location_lat"),
-                                    location_lng=story_data.get("location_lng"),
-                                    location_id=story_data.get("location_id"),
-                                    is_downloaded=True,
-                                    is_metadata_written=True,
-                                    is_uploaded_to_s3=True,
-                                    is_ai_generated=story_data.get("is_ai_generated", False),
-                                    is_memory=True,
-                                    is_reel=story_data.get("is_reel", False),
-                                    is_close_friends=story_data.get("is_close_friends", False),
-                                    audience_snapshot=audience_snapshot,
-                                    filter_name=story_data.get("filter_name"),
-                                    filter_type=story_data.get("filter_type"),
-                                    filter_creator=story_data.get("filter_creator"),
-                                    filter_icon_url=story_data.get("filter_icon_url"),
-                                    effect_id=story_data.get("effect_id"),
-                                    viewer_count=story_data.get("viewer_count", 0),
-                                    like_count=story_data.get("like_count", 0),
-                                )
-                                db.add(new_story)
-                                db.flush()
-                                db.commit()
-                                imported_count += 1
-                            except Exception as story_err:
-                                logger.warning("Failed to import archive story %s: %s", media_id, story_err)
-                                continue
+                # 2. Archive stories
+                try:
+                    archive = scraper.fetch_archive_stories(max_stories=max_stories)
+                    logger.info("Full scan: Found %d stories in Instagram archive", len(archive))
+                    for s in archive:
+                        mid = str(s.get("ig_media_id") or s.get("id") or "")
+                        if mid and mid not in all_candidates:
+                            all_candidates[mid] = s
                 except Exception as archive_err:
-                    logger.warning("Full scan archive fetch skipped or unavailable (proceeding to metadata refresh): %s", archive_err)
+                    err_s = str(archive_err).lower()
+                    if "login_required" in err_s or "401" in err_s or "403" in err_s or "logged out" in err_s:
+                        ig_session.is_valid = False
+                        db.commit()
+                        raise RuntimeError("Instagram session has expired or been logged out. Please click 'Renew Session' in Settings.")
+                    logger.warning("Archive fetch skipped or unavailable: %s", archive_err)
+
+                # 3. Highlights
+                try:
+                    highlights = scraper.fetch_highlights()
+                    logger.info("Full scan: Found %d highlight stories", len(highlights))
+                    for s in highlights:
+                        mid = str(s.get("ig_media_id") or s.get("id") or "")
+                        if mid and mid not in all_candidates:
+                            all_candidates[mid] = s
+                except Exception as hl_err:
+                    logger.warning("Highlights fetch note: %s", hl_err)
+
+                total_found = len(all_candidates)
+                logger.info("Full scan: Total story candidates to check: %d", total_found)
+
+                storage = get_storage()
+                with tempfile.TemporaryDirectory(prefix="memwault_fullscan_") as tmp_dir:
+                    download_dir = Path(tmp_dir)
+                    for media_id, story_data in all_candidates.items():
+                        existing = db.query(Story).filter(Story.ig_media_id == str(media_id)).first()
+                        if existing:
+                            continue
+
+                        try:
+                            file_path = scraper.download_story_media(story_data, download_dir)
+                            if not file_path:
+                                continue
+
+                            MetadataWriter.write_metadata(file_path, story_data)
+                            taken_at = story_data.get("taken_at", datetime.now(timezone.utc))
+                            if isinstance(taken_at, str):
+                                taken_at = datetime.fromisoformat(taken_at)
+
+                            date_prefix = taken_at.strftime("%Y/%m")
+                            s3_key = f"stories/{date_prefix}/{file_path.name}"
+                            storage.upload_file(file_path, s3_key)
+
+                            audience_snapshot = story_data.get("audience_snapshot")
+                            new_story = Story(
+                                user_id=user_uuid,
+                                ig_media_id=str(media_id),
+                                ig_media_pk=story_data.get("ig_media_pk", ""),
+                                ig_user_id=story_data.get("ig_user_id", ""),
+                                taken_at=taken_at,
+                                expires_at=story_data.get("expires_at"),
+                                media_type=story_data.get("media_type", 1),
+                                cdn_url=story_data.get("cdn_url", ""),
+                                s3_key_compressed=s3_key,
+                                file_name=file_path.name,
+                                width=story_data.get("width", 1080),
+                                height=story_data.get("height", 1920),
+                                duration_ms=story_data.get("duration_ms"),
+                                caption_text=story_data.get("caption_text"),
+                                location_name=story_data.get("location_name"),
+                                location_lat=story_data.get("location_lat"),
+                                location_lng=story_data.get("location_lng"),
+                                location_id=story_data.get("location_id"),
+                                is_downloaded=True,
+                                is_metadata_written=True,
+                                is_uploaded_to_s3=True,
+                                is_ai_generated=story_data.get("is_ai_generated", False),
+                                is_memory=True,
+                                is_reel=story_data.get("is_reel", False),
+                                is_close_friends=story_data.get("is_close_friends", False),
+                                audience_snapshot=audience_snapshot,
+                                filter_name=story_data.get("filter_name"),
+                                filter_type=story_data.get("filter_type"),
+                                filter_creator=story_data.get("filter_creator"),
+                                filter_icon_url=story_data.get("filter_icon_url"),
+                                effect_id=story_data.get("effect_id"),
+                                viewer_count=story_data.get("viewer_count", 0),
+                                like_count=story_data.get("like_count", 0),
+                            )
+                            db.add(new_story)
+                            db.flush()
+
+                            # Save stickers with correct column name
+                            for sticker in story_data.get("stickers", []):
+                                story_sticker = StorySticker(
+                                    story_id=new_story.id,
+                                    sticker_type=sticker.get("sticker_type", "unknown"),
+                                    sticker_data=sticker.get("sticker_data", {}),
+                                    x=sticker.get("x"),
+                                    y=sticker.get("y"),
+                                    width=sticker.get("width"),
+                                    height=sticker.get("height"),
+                                    rotation=sticker.get("rotation"),
+                                    z_index=sticker.get("z_index"),
+                                )
+                                db.add(story_sticker)
+
+                            # Save music if present
+                            if story_data.get("music"):
+                                music = story_data["music"]
+                                db.add(StoryMusic(
+                                    story_id=new_story.id,
+                                    track_title=music.get("track_title", "Unknown"),
+                                    artist_name=music.get("artist_name", "Unknown"),
+                                    ig_audio_id=music.get("ig_audio_id"),
+                                    ig_audio_asset_id=music.get("ig_audio_asset_id"),
+                                    start_time_ms=music.get("start_time_ms"),
+                                    play_duration_ms=music.get("play_duration_ms"),
+                                    cover_art_url=music.get("cover_art_url"),
+                                ))
+
+                            db.commit()
+                            imported_count += 1
+                        except Exception as story_err:
+                            logger.warning("Failed to import story %s: %s", media_id, story_err)
+                            db.rollback()
+                            continue
+
+            except RuntimeError:
+                raise
             except Exception as auth_err:
-                logger.warning("Full scan authentication note (proceeding to metadata refresh): %s", auth_err)
+                err_s = str(auth_err).lower()
+                if "login_required" in err_s or "401" in err_s or "403" in err_s or "logged out" in err_s:
+                    ig_session.is_valid = False
+                    db.commit()
+                    raise RuntimeError("Instagram session has expired or been logged out. Please click 'Renew Session' in Settings.")
+                logger.warning("Full scan Instagram check note: %s", auth_err)
         else:
-            logger.info("No active Instagram session connected; skipping archive scrape and running metadata rescan.")
+            logger.info("No active Instagram session connected; skipping live scrape and running metadata rescan.")
 
         # Step 2: Rescan and refresh metadata across all stories in the vault
         vault_stories = db.query(Story).filter(Story.user_id == user_uuid).all()
@@ -1152,7 +1240,7 @@ def full_vault_scan(self, user_id: str, max_stories: Optional[int] = None):
         if scrape_log:
             scrape_log.status = "success"
             scrape_log.job_type = "full_scan"
-            scrape_log.stories_found = total_archive_found
+            scrape_log.stories_found = total_found
             scrape_log.stories_new = imported_count
             scrape_log.finished_at = datetime.now(timezone.utc)
             db.commit()
@@ -1416,10 +1504,11 @@ def sync_highlights(self, user_id: str):
                     story = Story(
                         user_id=user_uuid,
                         ig_media_id=ig_media_id,
-                        media_url=s.get("media_url"),
-                        media_type=s.get("media_type"),
-                        taken_at=s.get("taken_at"),
+                        cdn_url=s.get("cdn_url") or s.get("media_url"),
+                        media_type=s.get("media_type", 1),
+                        taken_at=s.get("taken_at") or datetime.now(timezone.utc),
                         is_ai_generated=s.get("is_ai_generated", False),
+                        is_memory=True,
                     )
                     db.add(story)
                     db.flush()

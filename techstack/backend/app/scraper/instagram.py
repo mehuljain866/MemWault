@@ -660,14 +660,47 @@ class InstagramScraper:
 
     # ── Highlights ───────────────────────────────────────
 
+    def _web_fetch_highlights(self, user_id: str) -> list[dict]:
+        """Fetch highlight stories for a web browser session."""
+        import requests
+        headers = self._build_web_headers()
+        stories = []
+        try:
+            url = f"https://www.instagram.com/api/v1/highlights/{user_id}/highlights_tray/"
+            resp = requests.get(url, headers=headers)
+            if resp.status_code == 200:
+                try:
+                    data = resp.json()
+                    tray = data.get("tray", [])
+                    for hl in tray:
+                        hl_title = hl.get("title", "")
+                        hl_id = str(hl.get("id", ""))
+                        items = hl.get("items", [])
+                        for item in items:
+                            try:
+                                parsed = self._parse_raw_story_dict(item)
+                                parsed["highlight_title"] = hl_title
+                                parsed["highlight_id"] = hl_id
+                                stories.append(parsed)
+                            except Exception as pe:
+                                logger.warning("Failed to parse highlight story: %s", pe)
+                    logger.info("Fetched %d highlight stories across %d highlights via Web API", len(stories), len(tray))
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning("Web highlights fetch note: %s", e)
+        return stories
+
     def fetch_highlights(self, target_user_id: Optional[str] = None) -> list[dict]:
         """
         Fetch all highlight reels for a user.
         If target_user_id is None, fetches own highlights.
         """
-        if self.web_cookies:
-            logger.warning("fetch_highlights disabled for web sessions to prevent account locks.")
-            return []
+        if self.web_cookies or self.sessionid:
+            uid = str(target_user_id or self.user_id or "")
+            if not uid:
+                return []
+            return self._web_fetch_highlights(uid)
             
         self._ensure_logged_in()
         uid = int(target_user_id) if target_user_id else self.client.user_id

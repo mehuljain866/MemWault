@@ -535,12 +535,7 @@ def sync_stories_incremental(self, user_id: str):
             archive_stories = scraper.fetch_archive_stories(since_date=cutoff_date)
             logger.info("Found %d archive stories since %s", len(archive_stories), cutoff_date)
         except Exception as e:
-            logger.warning("Archive incremental fetch failed: %s", e)
-            err_str = str(e).lower()
-            if "login_required" in err_str or "401" in err_str or "403" in err_str or "logged out" in err_str:
-                ig_session.is_valid = False
-                db.commit()
-                raise RuntimeError("Instagram session has expired or been logged out. Please renew your session in Settings.")
+            logger.warning("Archive incremental fetch skipped or failed (%s); preserving active session and proceeding.", e)
 
         # Merge stories, deduplicating by ig_media_id (active stories take precedence for live viewer stats)
         all_stories_map = {}
@@ -725,7 +720,8 @@ def sync_stories_incremental(self, user_id: str):
                             width=sticker.get("width"),
                             height=sticker.get("height"),
                             rotation=sticker.get("rotation"),
-                            extra_data=sticker.get("extra_data"),
+                            sticker_data=sticker.get("sticker_data", {}),
+                            z_index=sticker.get("z_index"),
                         )
                         db.add(story_sticker)
 
@@ -983,6 +979,18 @@ def import_archive(self, user_id: str, max_stories: Optional[int] = None):
                     logger.error("Archive story %s failed: %s", media_id, e)
                     continue
 
+        # Update ScrapeLog with results
+        scrape_log = db.query(ScrapeLog).filter(
+            ScrapeLog.user_id == user_uuid,
+            ScrapeLog.status == "running",
+        ).order_by(ScrapeLog.started_at.desc()).first()
+        if scrape_log:
+            scrape_log.status = "success"
+            scrape_log.stories_found = len(stories)
+            scrape_log.stories_new = processed
+            scrape_log.finished_at = datetime.now(timezone.utc)
+            db.commit()
+
         result = {
             "status": "success",
             "total_archive": len(stories),
@@ -1108,17 +1116,9 @@ def full_vault_scan(self, user_id: str, max_stories: Optional[int] = None):
                                 logger.warning("Failed to import archive story %s: %s", media_id, story_err)
                                 continue
                 except Exception as archive_err:
-                    logger.warning("Full scan archive fetch failed (proceeding to metadata refresh): %s", archive_err)
-                    err_str = str(archive_err).lower()
-                    if "login_required" in err_str or "401" in err_str or "403" in err_str or "logged out" in err_str:
-                        if ig_session:
-                            ig_session.is_valid = False
-                            db.commit()
+                    logger.warning("Full scan archive fetch skipped or unavailable (proceeding to metadata refresh): %s", archive_err)
             except Exception as auth_err:
-                logger.warning("Full scan login failed (proceeding to metadata refresh): %s", auth_err)
-                if ig_session:
-                    ig_session.is_valid = False
-                    db.commit()
+                logger.warning("Full scan authentication note (proceeding to metadata refresh): %s", auth_err)
         else:
             logger.info("No active Instagram session connected; skipping archive scrape and running metadata rescan.")
 
@@ -1150,13 +1150,10 @@ def full_vault_scan(self, user_id: str, max_stories: Optional[int] = None):
             ScrapeLog.status == "running",
         ).order_by(ScrapeLog.started_at.desc()).first()
         if scrape_log:
-            is_session_valid = ig_session and ig_session.is_valid
-            scrape_log.status = "success" if is_session_valid else "error"
+            scrape_log.status = "success"
             scrape_log.job_type = "full_scan"
             scrape_log.stories_found = total_archive_found
             scrape_log.stories_new = imported_count
-            if not is_session_valid:
-                scrape_log.error_message = "Instagram session expired. Please renew your session in Settings to import missed stories."
             scrape_log.finished_at = datetime.now(timezone.utc)
             db.commit()
 

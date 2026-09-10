@@ -6,6 +6,7 @@ import {
   disconnectInstagram,
   renewInstagramSession,
   getScrapeLogs,
+  getScrapeStatus,
   clearToken,
   rescanMetadata,
   triggerFullScan,
@@ -146,13 +147,30 @@ export default function Settings() {
     try {
       const res = await triggerFullScan()
       alert('Full Vault Scan started! It is scanning your Instagram archive for any missed stories and re-indexing story metadata in the background.')
-      try {
-        const logs = await getScrapeLogs(5)
-        setScrapeLogs(logs)
-      } catch (_) {}
+
+      // Poll scrape status until the background task finishes
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await getScrapeStatus()
+          if (!status?.is_syncing) {
+            clearInterval(pollInterval)
+            try {
+              const logs = await getScrapeLogs(10)
+              setScrapeLogs(logs)
+            } catch (_) {}
+            setRescanning(false)
+          }
+        } catch (_) {
+          clearInterval(pollInterval)
+          try {
+            const logs = await getScrapeLogs(10)
+            setScrapeLogs(logs)
+          } catch (_) {}
+          setRescanning(false)
+        }
+      }, 5000)
     } catch (err) {
       alert('Full Scan failed: ' + err.message)
-    } finally {
       setRescanning(false)
     }
   }
@@ -1043,6 +1061,7 @@ export default function Settings() {
                     {log.job_type === 'posts' ? 'Feed Posts Sync' :
                      log.job_type === 'full_scan' ? 'Full Vault Scan' :
                      log.job_type === 'rescan_metadata' ? 'Story Metadata Rescan' :
+                     log.job_type === 'archive_import' ? 'Archive Import' :
                      'Active Stories Sync'}
                   </div>
                   <div className="settings-item-val" style={{ fontSize: '11px', color: 'var(--ios-text-secondary)', marginTop: '2px' }}>
@@ -1058,6 +1077,7 @@ export default function Settings() {
                 {log.status === 'error' ? (log.error_message ? 'Failed' : 'Error') :
                  log.job_type === 'posts' ? (log.posts_new > 0 ? `+${log.posts_new} New Posts` : `${log.posts_found || 0} Posts Synced`) :
                  log.job_type === 'full_scan' ? (log.stories_new > 0 ? `+${log.stories_new} Stories Imported` : `${log.stories_found || 0} Stories Checked`) :
+                 log.job_type === 'archive_import' ? (log.stories_new > 0 ? `+${log.stories_new} Stories Imported` : `${log.stories_found || 0} Stories Checked`) :
                  log.job_type === 'rescan_metadata' ? `${log.stories_found || 0} Stories Re-indexed` :
                  (log.stories_new > 0 ? `+${log.stories_new} New Stories` : `${log.stories_found || 0} Stories Checked`)}
               </span>

@@ -15,6 +15,11 @@ from instagrapi.types import Story as IGStory
 logger = logging.getLogger("memwault.scraper")
 
 
+class PrivateEndpointUnavailable(Exception):
+    """Raised when an internal mobile-only Instagram API endpoint is rejected on a web session."""
+    pass
+
+
 class InstagramScraper:
     """
     Instagram API client wrapper for MemWault.
@@ -43,6 +48,7 @@ class InstagramScraper:
         )
         self._is_logged_in = False
         self._device_settings = device_settings
+        self.session_data = session_data
 
         # Restore session from saved cookies if available
         if session_data:
@@ -193,9 +199,18 @@ class InstagramScraper:
             from instagrapi.exceptions import LoginRequired
             raise LoginRequired(data.get("message") or "login_required")
 
-        reels = data.get("reels", {})
-        reel_data = reels.get(str(user_id), {})
+        # Instagram Web API may return items under "reels" (dict) or "reels_media" (list)
+        items = []
+        reels = data.get("reels") or {}
+        reel_data = reels.get(str(user_id)) or {}
         items = reel_data.get("items", [])
+
+        # Fallback: check "reels_media" list format if "reels" yielded nothing
+        if not items:
+            for rm in (data.get("reels_media") or []):
+                if str(rm.get("id", "")) == str(user_id):
+                    items = rm.get("items", [])
+                    break
         
         stories = []
         for item in items:
@@ -305,25 +320,32 @@ class InstagramScraper:
 
     def fetch_user_profile(self) -> Optional[dict]:
         """Fetch the logged-in user's profile info (username, full_name, profile_pic_url, etc.)."""
+        # If we already have a cached profile with valid data, prefer it
+        cached_prof = (self.session_data or {}).get("profile") if hasattr(self, "session_data") and self.session_data else None
+        if cached_prof and (cached_prof.get("follower_count") is not None or cached_prof.get("profile_pic_url")):
+            return cached_prof
+
         self._ensure_logged_in()
         try:
             uid = self.user_id
             if not uid:
-                return None
+                return cached_prof
             res = self._request_private_api(f"users/{uid}/info/")
+            if not res or res.get("status") == "fail" or not res.get("user"):
+                return cached_prof
             user = res.get("user", {})
             return {
-                "username": user.get("username"),
-                "full_name": user.get("full_name"),
-                "profile_pic_url": user.get("profile_pic_url"),
-                "biography": user.get("biography"),
-                "follower_count": user.get("follower_count"),
-                "following_count": user.get("following_count"),
-                "media_count": user.get("media_count"),
+                "username": user.get("username") or (cached_prof.get("username") if cached_prof else None),
+                "full_name": user.get("full_name") or (cached_prof.get("full_name") if cached_prof else None),
+                "profile_pic_url": user.get("profile_pic_url") or (cached_prof.get("profile_pic_url") if cached_prof else None),
+                "biography": user.get("biography") or (cached_prof.get("biography") if cached_prof else None),
+                "follower_count": user.get("follower_count") if user.get("follower_count") is not None else (cached_prof.get("follower_count") if cached_prof else None),
+                "following_count": user.get("following_count") if user.get("following_count") is not None else (cached_prof.get("following_count") if cached_prof else None),
+                "media_count": user.get("media_count") if user.get("media_count") is not None else (cached_prof.get("media_count") if cached_prof else None),
             }
         except Exception as e:
             logger.warning("Failed to fetch user profile: %s", e)
-            return None
+            return cached_prof
 
     def fetch_user_feed_posts(self, amount: int = 50) -> list[dict]:
         """
@@ -466,12 +488,16 @@ class InstagramScraper:
             headers = self._build_web_headers()
             resp = requests.get(url, headers=headers, params=params or {})
             if resp.status_code in (401, 403):
+                if "archive" in endpoint or "besties" in endpoint or "users/" in endpoint:
+                    raise PrivateEndpointUnavailable(f"Endpoint '{endpoint}' is not permitted for web browser sessions: HTTP {resp.status_code}")
                 raise LoginRequired(f"HTTP {resp.status_code}: {resp.text[:200]}")
             try:
                 data = resp.json()
             except Exception:
                 raise Exception(f"Failed to parse API response from {url}: {resp.text[:200]}")
             if data.get("message") == "login_required" or data.get("logout_reason") or data.get("require_login"):
+                if "archive" in endpoint or "besties" in endpoint or "users/" in endpoint:
+                    raise PrivateEndpointUnavailable(f"Endpoint '{endpoint}' requires native mobile credentials: {data}")
                 raise LoginRequired(data.get("message") or "login_required")
             return data
         else:
@@ -501,10 +527,14 @@ class InstagramScraper:
                 if max_id:
                     params["max_id"] = max_id
 
-                result = self._request_private_api(
-                    "archive/reel/day_shells/",
-                    params=params,
-                )
+                try:
+                    result = self._request_private_api(
+                        "archive/reel/day_shells/",
+                        params=params,
+                    )
+                except PrivateEndpointUnavailable as e:
+                    logger.info("Story archive is only accessible on mobile sessions (%s); skipping historical archive.", e)
+                    return []
 
                 items = result.get("items", [])
                 for day_shell in items:
@@ -847,7 +877,11 @@ class InstagramScraper:
             "ig_media_pk": str(item.get("pk", "")),
             "ig_user_id": str((item.get("user") or {}).get("pk", "")),
             "taken_at": taken_at,
-            "expires_at": None,
+            "expires_at": (
+                datetime.fromtimestamp(item["expiring_at"], tz=timezone.utc)
+                if item.get("expiring_at")
+                else None
+            ),
             "media_type": media_type,
             "cdn_url": cdn_url,
             "width": item.get("original_width", 1080),

@@ -22,13 +22,13 @@ foreach ($p in $targets) {
 }
 
 # Kill parent windows first
-foreach ($pid in ($parentPids | Select-Object -Unique)) {
-    taskkill /F /T /PID $pid 2>$null
+foreach ($targetPid in ($parentPids | Select-Object -Unique)) {
+    taskkill /F /T /PID $targetPid 2>$null
 }
 
 # Kill remaining target child processes
-foreach ($pid in ($childPids | Select-Object -Unique)) {
-    taskkill /F /T /PID $pid 2>$null
+foreach ($targetPid in ($childPids | Select-Object -Unique)) {
+    taskkill /F /T /PID $targetPid 2>$null
 }
 
 Write-Host "All MemWault services and terminal windows have been stopped."

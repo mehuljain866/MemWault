@@ -1161,16 +1161,16 @@ async def _assert_no_active_scrape(user_id: uuid.UUID, db: AsyncSession):
 
 @router.post("/scrape/now", response_model=ScrapeLogRead)
 async def trigger_manual_scrape(
-    background_tasks: BackgroundTasks,
     body: ScrapeRequest = ScrapeRequest(),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Trigger an immediate incremental scrape for stories and feed posts.
+    Trigger an immediate incremental scrape for stories.
     Enforces in-flight mutex and a minimum cooldown between manual syncs to protect the account.
     """
     from app.scraper.tasks import sync_stories_incremental
+    import threading
 
     # 1. In-flight check: prevent concurrent background scrapes from hammering Instagram
     await _assert_no_active_scrape(user.id, db)
@@ -1213,8 +1213,13 @@ async def trigger_manual_scrape(
     db.add(log)
     await db.flush()
 
-    # Dispatch Celery task in background to avoid blocking the HTTP response
-    background_tasks.add_task(sync_stories_incremental.delay, str(user.id))
+    # Run in a real thread so the HTTP response returns immediately
+    thread = threading.Thread(
+        target=sync_stories_incremental,
+        args=(str(user.id),),
+        daemon=True,
+    )
+    thread.start()
 
     await db.refresh(log)
     return log
@@ -1222,7 +1227,6 @@ async def trigger_manual_scrape(
 
 @router.post("/scrape/archive")
 async def trigger_archive_import(
-    background_tasks: BackgroundTasks,
     body: ArchiveImportRequest = ArchiveImportRequest(),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -1232,6 +1236,7 @@ async def trigger_archive_import(
     This fetches ALL past stories from your Instagram archive.
     """
     from app.scraper.tasks import import_archive
+    import threading
 
     await _assert_no_active_scrape(user.id, db)
 
@@ -1239,14 +1244,19 @@ async def trigger_archive_import(
     db.add(log)
     await db.flush()
 
-    background_tasks.add_task(import_archive.delay, str(user.id), body.max_stories)
+    thread = threading.Thread(
+        target=import_archive,
+        args=(str(user.id), body.max_stories),
+        daemon=True,
+    )
+    thread.start()
+
     await db.refresh(log)
     return {"status": "started", "log_id": str(log.id), "max_stories": body.max_stories}
 
 
 @router.post("/scrape/full")
 async def trigger_full_scan(
-    background_tasks: BackgroundTasks,
     body: ArchiveImportRequest = ArchiveImportRequest(),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -1257,6 +1267,7 @@ async def trigger_full_scan(
     and refreshes/re-indexes metadata for all stories in the vault.
     """
     from app.scraper.tasks import full_vault_scan
+    import threading
 
     await _assert_no_active_scrape(user.id, db)
 
@@ -1264,7 +1275,15 @@ async def trigger_full_scan(
     db.add(log)
     await db.flush()
 
-    background_tasks.add_task(full_vault_scan.delay, str(user.id), body.max_stories)
+    # Run in a real thread so the HTTP response returns immediately
+    # (celery_always_eager=True makes .delay() synchronous otherwise)
+    thread = threading.Thread(
+        target=full_vault_scan,
+        args=(str(user.id), body.max_stories),
+        daemon=True,
+    )
+    thread.start()
+
     await db.refresh(log)
     return {"status": "started", "log_id": str(log.id), "max_stories": body.max_stories}
 
